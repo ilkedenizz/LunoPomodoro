@@ -1,8 +1,11 @@
-import type { TimerSettings, FocusSession } from '../types';
+import type { TimerSettings, FocusSession, Task, DailyGoal } from '../types';
 
 const SETTINGS_KEY = 'pomodoro_settings_v1';
 const SESSIONS_KEY = 'pomodoro_sessions_v1';
 const BACKGROUND_KEY = 'pomodoro_background_v1';
+const TASKS_KEY = 'luno_tasks_v1';
+const DAILY_GOAL_KEY = 'luno_daily_goal_v1';
+const ACTIVE_TASK_KEY = 'luno_active_task_id_v1';
 
 export const DEFAULT_SETTINGS: TimerSettings = {
   pomodoroDuration: 25,
@@ -14,6 +17,11 @@ export const DEFAULT_SETTINGS: TimerSettings = {
   soundVolume: 0.8,
   notificationsEnabled: true,
   tickingEnabled: false,
+};
+
+export const DEFAULT_DAILY_GOAL: DailyGoal = {
+  targetPomodoros: 4,
+  targetMinutes: 100,
 };
 
 export const loadSettings = (): TimerSettings => {
@@ -72,3 +80,63 @@ export const saveBackground = (id: string): void => {
     console.error('Failed to save background choice', err);
   }
 };
+
+// Phase 2 Storage Extensions
+export const loadTasks = (): Task[] => {
+  try {
+    const data = localStorage.getItem(TASKS_KEY);
+    if (!data) return [];
+    return JSON.parse(data);
+  } catch (err) {
+    console.error('Failed to load tasks', err);
+    return [];
+  }
+};
+
+export const saveTasks = (tasks: Task[]): void => {
+  try {
+    localStorage.setItem(TASKS_KEY, JSON.stringify(tasks));
+  } catch (err) {
+    console.error('Failed to save tasks', err);
+  }
+};
+
+export const loadDailyGoal = (): DailyGoal => {
+  try {
+    const data = localStorage.getItem(DAILY_GOAL_KEY);
+    if (!data) return DEFAULT_DAILY_GOAL;
+    return { ...DEFAULT_DAILY_GOAL, ...JSON.parse(data) };
+  } catch (err) {
+    console.error('Failed to load daily goal', err);
+    return DEFAULT_DAILY_GOAL;
+  }
+};
+
+export const saveDailyGoal = (goal: DailyGoal): void => {
+  try {
+    localStorage.setItem(DAILY_GOAL_KEY, JSON.stringify(goal));
+  } catch (err) {
+    console.error('Failed to save daily goal', err);
+  }
+};
+
+export const loadActiveTaskId = (): string | null => {
+  try {
+    return localStorage.getItem(ACTIVE_TASK_KEY);
+  } catch {
+    return null;
+  }
+};
+
+export const saveActiveTaskId = (id: string | null): void => {
+  try {
+    if (id) {
+      localStorage.setItem(ACTIVE_TASK_KEY, id);
+    } else {
+      localStorage.removeItem(ACTIVE_TASK_KEY);
+    }
+  } catch (err) {
+    console.error('Failed to save active task ID', err);
+  }
+};
+

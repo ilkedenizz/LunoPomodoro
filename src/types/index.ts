@@ -36,3 +36,18 @@ export interface AmbientTrack {
   name: string;
   description: string;
 }
+
+export interface Task {
+  id: string;
+  title: string;
+  completed: boolean;
+  createdAt: number;
+  completedAt?: number;
+  pomodoros: number;
+}
+
+export interface DailyGoal {
+  targetPomodoros: number; // default 4
+  targetMinutes: number;   // default 100
+}
+

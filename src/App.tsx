@@ -9,11 +9,36 @@ import { SettingsModal } from './components/SettingsModal';
 import { BackgroundSelectorModal } from './components/BackgroundSelectorModal';
 import { AmbienceAudioPlayer } from './components/AmbienceAudioPlayer';
 import { ShortcutsModal } from './components/ShortcutsModal';
+import { DailyFocus } from './components/DailyFocus';
+import { TaskList } from './components/TaskList';
 
-import type { TimerMode, TimerState, TimerSettings, FocusSession, AtmosphereTheme, AmbientSoundId } from './types';
-import { loadSettings, saveSettings, loadSessions, saveSession, loadSavedBackground, saveBackground } from './utils/storage';
+import type {
+  TimerMode,
+  TimerState,
+  TimerSettings,
+  FocusSession,
+  AtmosphereTheme,
+  AmbientSoundId,
+  Task,
+  DailyGoal,
+} from './types';
+import {
+  loadSettings,
+  saveSettings,
+  loadSessions,
+  saveSession,
+  loadSavedBackground,
+  saveBackground,
+  loadTasks,
+  saveTasks,
+  loadDailyGoal,
+  saveDailyGoal,
+  loadActiveTaskId,
+  saveActiveTaskId,
+} from './utils/storage';
 import { getAtmosphereById } from './utils/backgrounds';
 import { playCompletionChime, ambientEngine } from './utils/sound';
+import { isToday } from './utils/dates';
 
 export function App() {
   // 1. Settings & Persistence
@@ -22,6 +47,11 @@ export function App() {
     getAtmosphereById(loadSavedBackground())
   );
   const [sessions, setSessions] = useState<FocusSession[]>(() => loadSessions());
+
+  // Phase 2 State: Tasks & Daily Goal
+  const [tasks, setTasks] = useState<Task[]>(() => loadTasks());
+  const [dailyGoal, setDailyGoal] = useState<DailyGoal>(() => loadDailyGoal());
+  const [activeTaskId, setActiveTaskId] = useState<string | null>(() => loadActiveTaskId());
 
   // 2. Timer State
   const [mode, setMode] = useState<TimerMode>('pomodoro');
@@ -84,22 +114,88 @@ export function App() {
     ambientEngine.setVolume(ambientVolume);
   }, [ambientVolume]);
 
-  const handleSelectAmbientTrack = useCallback((track: AmbientSoundId) => {
-    setAmbientTrack(track);
-    if (track === 'off') {
-      ambientEngine.stop();
-    } else {
-      ambientEngine.playTrack(track, ambientVolume);
-    }
-  }, [ambientVolume]);
+  const handleSelectAmbientTrack = useCallback(
+    (track: AmbientSoundId) => {
+      setAmbientTrack(track);
+      if (track === 'off') {
+        ambientEngine.stop();
+      } else {
+        ambientEngine.playTrack(track, ambientVolume);
+      }
+    },
+    [ambientVolume]
+  );
 
   // Today Statistics Calculation
-  const todayStr = new Date().toDateString();
-  const todaySessions = sessions.filter(
-    (s) => new Date(s.timestamp).toDateString() === todayStr
-  );
+  const todaySessions = sessions.filter((s) => isToday(s.timestamp));
   const todayPomodorosCount = todaySessions.filter((s) => s.mode === 'pomodoro').length;
   const todayTotalMinutes = todaySessions.reduce((acc, s) => acc + s.durationMinutes, 0);
+
+  // Active Task
+  const activeTask = tasks.find((t) => t.id === activeTaskId && !t.completed);
+  const activeTaskTitle = activeTask ? activeTask.title : null;
+
+  // Task Handlers
+  const handleAddTask = (title: string) => {
+    const newTask: Task = {
+      id: Math.random().toString(36).substring(2, 9),
+      title,
+      completed: false,
+      createdAt: Date.now(),
+      pomodoros: 0,
+    };
+    const updated = [newTask, ...tasks];
+    setTasks(updated);
+    saveTasks(updated);
+
+    if (!activeTaskId) {
+      setActiveTaskId(newTask.id);
+      saveActiveTaskId(newTask.id);
+    }
+  };
+
+  const handleToggleComplete = (id: string) => {
+    const updated = tasks.map((t) => {
+      if (t.id === id) {
+        const nextCompleted = !t.completed;
+        return {
+          ...t,
+          completed: nextCompleted,
+          completedAt: nextCompleted ? Date.now() : undefined,
+        };
+      }
+      return t;
+    });
+    setTasks(updated);
+    saveTasks(updated);
+  };
+
+  const handleSelectActive = (id: string) => {
+    const nextId = activeTaskId === id ? null : id;
+    setActiveTaskId(nextId);
+    saveActiveTaskId(nextId);
+  };
+
+  const handleEditTask = (id: string, newTitle: string) => {
+    const updated = tasks.map((t) => (t.id === id ? { ...t, title: newTitle } : t));
+    setTasks(updated);
+    saveTasks(updated);
+  };
+
+  const handleDeleteTask = (id: string) => {
+    const updated = tasks.filter((t) => t.id !== id);
+    setTasks(updated);
+    saveTasks(updated);
+    if (activeTaskId === id) {
+      setActiveTaskId(null);
+      saveActiveTaskId(null);
+    }
+  };
+
+  const handleUpdateGoal = (newGoal: DailyGoal) => {
+    setDailyGoal(newGoal);
+    saveDailyGoal(newGoal);
+  };
 
   // Handle Session Completion
   const handleSessionComplete = useCallback(() => {
@@ -135,6 +231,20 @@ export function App() {
       const updatedSessions = saveSession(newSession);
       setSessions(updatedSessions);
       nextPomodoroCount += 1;
+
+      // Increment active task pomodoros count if present
+      if (activeTaskId) {
+        setTasks((prevTasks) => {
+          const updated = prevTasks.map((t) => {
+            if (t.id === activeTaskId) {
+              return { ...t, pomodoros: t.pomodoros + 1 };
+            }
+            return t;
+          });
+          saveTasks(updated);
+          return updated;
+        });
+      }
 
       // Confetti celebration
       confetti({
@@ -172,6 +282,7 @@ export function App() {
     settings,
     todayPomodorosCount,
     getModeDurationSeconds,
+    activeTaskId,
   ]);
 
   // Main Timer Countdown Loop
@@ -284,8 +395,8 @@ export function App() {
   ]);
 
   return (
-    <div className="relative min-h-screen w-full flex flex-col justify-between items-center overflow-hidden font-sans text-white">
-      {/* 1. Full-screen Atmospheric Background View with smooth transitions */}
+    <div className="relative min-h-screen w-full flex flex-col justify-between items-center overflow-x-hidden font-sans text-white">
+      {/* 1. Full-screen Atmospheric Background View */}
       <BackgroundView atmosphere={atmosphere} />
 
       {/* 2. Top Header Bar */}
@@ -303,29 +414,55 @@ export function App() {
         timerRunning={timerState === 'running'}
       />
 
-      {/* 3. Main Center Workspace Container */}
-      <main className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 py-8 w-full max-w-4xl mx-auto my-auto">
-        {/* Timer Mode Selector */}
-        <TimerModeSelector currentMode={mode} onSelectMode={handleSelectMode} />
+      {/* 3. Main Center Workspace Grid */}
+      <main className="relative z-10 flex-1 w-full max-w-6xl mx-auto px-4 py-4 sm:py-6 flex flex-col lg:flex-row items-center lg:items-start justify-between gap-6 lg:gap-8 my-auto">
+        {/* Main Central Timer Column */}
+        <div className="flex-1 flex flex-col items-center justify-center w-full max-w-xl mx-auto">
+          {/* Timer Mode Selector */}
+          <TimerModeSelector currentMode={mode} onSelectMode={handleSelectMode} />
 
-        {/* Large Central Timer Display */}
-        <MainTimerDisplay
-          timeLeftSeconds={timeLeft}
-          totalDurationSeconds={getModeDurationSeconds(mode)}
-          mode={mode}
-          state={timerState}
-          completedPomodoros={todayPomodorosCount}
-        />
+          {/* Central Timer Display with Active Task indicator */}
+          <MainTimerDisplay
+            timeLeftSeconds={timeLeft}
+            totalDurationSeconds={getModeDurationSeconds(mode)}
+            mode={mode}
+            state={timerState}
+            completedPomodoros={todayPomodorosCount}
+            activeTaskTitle={activeTaskTitle}
+          />
 
-        {/* Controls Bar */}
-        <TimerControls
-          timerState={timerState}
-          onStart={handleStart}
-          onPause={handlePause}
-          onResume={handleResume}
-          onReset={handleReset}
-          onSkip={handleSkip}
-        />
+          {/* Controls Bar */}
+          <TimerControls
+            timerState={timerState}
+            onStart={handleStart}
+            onPause={handlePause}
+            onResume={handleResume}
+            onReset={handleReset}
+            onSkip={handleSkip}
+          />
+        </div>
+
+        {/* Side / Bottom Focus Workspace Panel (Daily Focus + Tasks) */}
+        <div className="w-full lg:w-80 xl:w-96 flex flex-col space-y-4 shrink-0">
+          {/* Daily Focus Goal Card */}
+          <DailyFocus
+            todayPomodoros={todayPomodorosCount}
+            todayMinutes={todayTotalMinutes}
+            dailyGoal={dailyGoal}
+            onUpdateGoal={handleUpdateGoal}
+          />
+
+          {/* Tasks Panel */}
+          <TaskList
+            tasks={tasks}
+            activeTaskId={activeTaskId}
+            onAddTask={handleAddTask}
+            onToggleComplete={handleToggleComplete}
+            onSelectActive={handleSelectActive}
+            onEditTask={handleEditTask}
+            onDeleteTask={handleDeleteTask}
+          />
+        </div>
       </main>
 
       {/* 4. Minimal Footer / Mobile Stats Badge */}
@@ -338,7 +475,7 @@ export function App() {
           Press <kbd className="px-1.5 py-0.5 rounded bg-white/10 font-mono text-[10px] text-white/80">Space</kbd> to Start/Pause • <kbd className="px-1.5 py-0.5 rounded bg-white/10 font-mono text-[10px] text-white/80">R</kbd> to Reset
         </div>
         <div className="hover:text-white/80 transition-colors">
-          Atmospheric Study Space
+          Atmospheric Personal Focus Workspace
         </div>
       </footer>
 

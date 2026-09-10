@@ -7,6 +7,7 @@ interface MainTimerDisplayProps {
   mode: TimerMode;
   state: TimerState;
   completedPomodoros: number;
+  activeTaskTitle?: string | null;
 }
 
 export const MainTimerDisplay: React.FC<MainTimerDisplayProps> = ({
@@ -15,6 +16,7 @@ export const MainTimerDisplay: React.FC<MainTimerDisplayProps> = ({
   mode,
   state,
   completedPomodoros,
+  activeTaskTitle,
 }) => {
   const minutes = Math.floor(timeLeftSeconds / 60);
   const seconds = timeLeftSeconds % 60;
@@ -38,7 +40,16 @@ export const MainTimerDisplay: React.FC<MainTimerDisplayProps> = ({
       : 'Long Break';
 
   return (
-    <div className="relative flex flex-col items-center justify-center my-6 md:my-10 select-none">
+    <div className="relative flex flex-col items-center justify-center my-4 sm:my-6 select-none">
+      {/* Active Task Floating Pill if set */}
+      {activeTaskTitle && (
+        <div className="mb-3 px-4 py-1.5 rounded-full glass-pill border border-white/20 flex items-center space-x-2 text-xs font-medium max-w-xs sm:max-w-md animate-fade-in">
+          <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" />
+          <span className="text-white/50 uppercase tracking-wider text-[10px]">Focusing on:</span>
+          <span className="text-white truncate font-semibold">{activeTaskTitle}</span>
+        </div>
+      )}
+
       {/* Outer SVG Smooth Progress Ring */}
       <div className="relative flex items-center justify-center w-72 h-72 sm:w-88 sm:h-88 md:w-96 md:h-96">
         <svg
