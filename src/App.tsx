@@ -28,6 +28,7 @@ const AuthModal = lazy(() =>
   import('./components/AuthModal').then((m) => ({ default: m.AuthModal }))
 );
 
+import type { AuthModalMode } from './components/AuthModal';
 import type {
   TimerMode,
   TimerState,
@@ -102,6 +103,7 @@ export function App() {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>(() => SyncEngine.getStatus());
   const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState<AuthModalMode>('signup');
 
   // 2. Timer State
   const [mode, setMode] = useState<TimerMode>('pomodoro');
@@ -133,8 +135,15 @@ export function App() {
 
   // Auth state listener and initial cloud sync
   useEffect(() => {
-    const unsubAuth = onAuthStateChange((currentUser) => {
+    const unsubAuth = onAuthStateChange((currentUser, event) => {
       setUser(currentUser);
+
+      // Handle password recovery link from Supabase email
+      if (event === 'PASSWORD_RECOVERY') {
+        setAuthModalMode('update-password');
+        setIsAuthOpen(true);
+      }
+
       if (currentUser) {
         SyncEngine.pullAndMerge(currentUser.id).then(() => {
           // Re-hydrate local states with latest merged cloud data
@@ -683,6 +692,11 @@ export function App() {
     }
   }, [user]);
 
+  const handleOpenAuth = useCallback((initialMode: AuthModalMode = 'signup') => {
+    setAuthModalMode(initialMode);
+    setIsAuthOpen(true);
+  }, []);
+
   const handleAuthSuccess = useCallback((authedUser: UserProfile) => {
     setUser(authedUser);
     setSettings(loadSettings());
@@ -722,7 +736,7 @@ export function App() {
         onToggleTheme={handleToggleTheme}
         user={user}
         syncStatus={syncStatus}
-        onOpenAuth={() => setIsAuthOpen(true)}
+        onOpenAuth={() => handleOpenAuth('signup')}
       />
 
       {/* 3. Main Center Focus Workspace (True 3-Column Desktop Layout) */}
@@ -870,7 +884,7 @@ export function App() {
             }}
             user={user}
             syncStatus={syncStatus}
-            onOpenAuth={() => setIsAuthOpen(true)}
+            onOpenAuth={() => handleOpenAuth('signup')}
             onSignOut={handleSignOut}
             onSyncNow={handleSyncNow}
           />
@@ -926,6 +940,7 @@ export function App() {
             isOpen={isAuthOpen}
             onClose={() => setIsAuthOpen(false)}
             theme={settings.theme}
+            initialMode={authModalMode}
             onAuthSuccess={handleAuthSuccess}
           />
         )}

@@ -11,6 +11,29 @@ export interface AuthResponse {
 const UNCONFIGURED_AUTH_ERROR =
   'Cloud synchronization is not configured. Add Supabase credentials in .env to enable accounts, or continue using Luno locally in Guest Mode.';
 
+const formatAuthError = (message: string): string => {
+  const lower = message.toLowerCase();
+  if (lower.includes('invalid login credentials') || lower.includes('invalid_credentials')) {
+    return 'Incorrect email or password. Please check your credentials and try again.';
+  }
+  if (lower.includes('email not confirmed')) {
+    return 'Please confirm your email address before signing in. Check your inbox for the confirmation email.';
+  }
+  if (lower.includes('user already registered') || lower.includes('already exists')) {
+    return 'An account with this email address already exists. Please sign in instead.';
+  }
+  if (lower.includes('password should be at least') || lower.includes('password is too short')) {
+    return 'Password must be at least 6 characters long.';
+  }
+  if (lower.includes('rate limit') || lower.includes('too many requests') || lower.includes('over_email_send_rate_limit')) {
+    return 'Too many requests. Please wait a moment before trying again.';
+  }
+  if (lower.includes('failed to fetch') || lower.includes('network error')) {
+    return 'Unable to reach the authentication server. Please check your internet connection.';
+  }
+  return message;
+};
+
 export const signUp = async (email: string, password: string): Promise<AuthResponse> => {
   const trimmedEmail = email.trim().toLowerCase();
   if (!trimmedEmail || !trimmedEmail.includes('@')) {
@@ -30,13 +53,17 @@ export const signUp = async (email: string, password: string): Promise<AuthRespo
   }
 
   try {
+    const redirectUrl = typeof window !== 'undefined' ? `${window.location.origin}` : undefined;
     const { data, error } = await client.auth.signUp({
       email: trimmedEmail,
       password,
+      options: {
+        emailRedirectTo: redirectUrl,
+      },
     });
 
     if (error) {
-      return { user: null, error: error.message };
+      return { user: null, error: formatAuthError(error.message) };
     }
 
     // Check if Supabase project requires email confirmation
@@ -60,7 +87,7 @@ export const signUp = async (email: string, password: string): Promise<AuthRespo
 
     return { user: null, error: 'Unable to complete account registration.' };
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Sign up encountered an unexpected error.';
+    const msg = err instanceof Error ? formatAuthError(err.message) : 'Sign up encountered an unexpected error.';
     return { user: null, error: msg };
   }
 };
@@ -90,7 +117,7 @@ export const signIn = async (email: string, password: string): Promise<AuthRespo
     });
 
     if (error) {
-      return { user: null, error: error.message };
+      return { user: null, error: formatAuthError(error.message) };
     }
 
     if (data.user) {
@@ -104,8 +131,106 @@ export const signIn = async (email: string, password: string): Promise<AuthRespo
 
     return { user: null, error: 'Unable to sign in.' };
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Sign in encountered an unexpected error.';
+    const msg = err instanceof Error ? formatAuthError(err.message) : 'Sign in encountered an unexpected error.';
     return { user: null, error: msg };
+  }
+};
+
+export const resetPasswordForEmail = async (email: string): Promise<{ success: boolean; error: string | null }> => {
+  const trimmedEmail = email.trim().toLowerCase();
+  if (!trimmedEmail || !trimmedEmail.includes('@')) {
+    return { success: false, error: 'Please provide a valid email address.' };
+  }
+
+  if (!isSupabaseConfigured()) {
+    return { success: false, error: UNCONFIGURED_AUTH_ERROR };
+  }
+
+  const client = getSupabaseClient();
+  if (!client) {
+    return { success: false, error: UNCONFIGURED_AUTH_ERROR };
+  }
+
+  try {
+    const redirectUrl = typeof window !== 'undefined' ? `${window.location.origin}` : undefined;
+    const { error } = await client.auth.resetPasswordForEmail(trimmedEmail, {
+      redirectTo: redirectUrl,
+    });
+
+    if (error) {
+      return { success: false, error: formatAuthError(error.message) };
+    }
+
+    return { success: true, error: null };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? formatAuthError(err.message) : 'Failed to send password reset email.';
+    return { success: false, error: msg };
+  }
+};
+
+export const updateUserPassword = async (newPassword: string): Promise<{ success: boolean; error: string | null }> => {
+  if (!newPassword || newPassword.length < 6) {
+    return { success: false, error: 'Password must be at least 6 characters long.' };
+  }
+
+  if (!isSupabaseConfigured()) {
+    return { success: false, error: UNCONFIGURED_AUTH_ERROR };
+  }
+
+  const client = getSupabaseClient();
+  if (!client) {
+    return { success: false, error: UNCONFIGURED_AUTH_ERROR };
+  }
+
+  try {
+    const { error } = await client.auth.updateUser({
+      password: newPassword,
+    });
+
+    if (error) {
+      return { success: false, error: formatAuthError(error.message) };
+    }
+
+    return { success: true, error: null };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? formatAuthError(err.message) : 'Failed to update password.';
+    return { success: false, error: msg };
+  }
+};
+
+export const resendConfirmationEmail = async (email: string): Promise<{ success: boolean; error: string | null }> => {
+  const trimmedEmail = email.trim().toLowerCase();
+  if (!trimmedEmail || !trimmedEmail.includes('@')) {
+    return { success: false, error: 'Please provide a valid email address.' };
+  }
+
+  if (!isSupabaseConfigured()) {
+    return { success: false, error: UNCONFIGURED_AUTH_ERROR };
+  }
+
+  const client = getSupabaseClient();
+  if (!client) {
+    return { success: false, error: UNCONFIGURED_AUTH_ERROR };
+  }
+
+  try {
+    const redirectUrl = typeof window !== 'undefined' ? `${window.location.origin}` : undefined;
+    const { error } = await client.auth.resend({
+      type: 'signup',
+      email: trimmedEmail,
+      options: {
+        emailRedirectTo: redirectUrl,
+      },
+    });
+
+    if (error) {
+      return { success: false, error: formatAuthError(error.message) };
+    }
+
+    return { success: true, error: null };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? formatAuthError(err.message) : 'Failed to resend confirmation email.';
+    return { success: false, error: msg };
   }
 };
 
@@ -114,9 +239,9 @@ export const signOut = async (): Promise<{ error: string | null }> => {
   if (client) {
     try {
       const { error } = await client.auth.signOut();
-      if (error) return { error: error.message };
+      if (error) return { error: formatAuthError(error.message) };
     } catch (err: unknown) {
-      return { error: err instanceof Error ? err.message : 'Sign out failed.' };
+      return { error: err instanceof Error ? formatAuthError(err.message) : 'Sign out failed.' };
     }
   }
   return { error: null };
@@ -140,19 +265,22 @@ export const getCurrentUser = async (): Promise<UserProfile | null> => {
 };
 
 export const onAuthStateChange = (
-  callback: (user: UserProfile | null) => void
+  callback: (user: UserProfile | null, event?: string) => void
 ): (() => void) => {
   const client = getSupabaseClient();
   if (client) {
-    const { data: { subscription } } = client.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = client.auth.onAuthStateChange((event, session) => {
       if (session?.user) {
-        callback({
-          id: session.user.id,
-          email: session.user.email || '',
-          createdAt: session.user.created_at ? new Date(session.user.created_at).getTime() : Date.now(),
-        });
+        callback(
+          {
+            id: session.user.id,
+            email: session.user.email || '',
+            createdAt: session.user.created_at ? new Date(session.user.created_at).getTime() : Date.now(),
+          },
+          event
+        );
       } else {
-        callback(null);
+        callback(null, event);
       }
     });
     return () => subscription.unsubscribe();
