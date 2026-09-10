@@ -46,9 +46,13 @@ export const FocusHistoryModal: React.FC<FocusHistoryModalProps> = ({
   const hasHistory = totalPomodoros > 0;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-md transition-all">
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-md transition-all cursor-pointer"
+    >
       <div
-        className="relative w-full max-w-4xl p-5 sm:p-8 rounded-t-3xl sm:rounded-3xl glass-modal text-white shadow-2xl border border-white/15 animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+        className="relative w-full max-w-4xl p-5 sm:p-8 rounded-t-3xl sm:rounded-3xl glass-modal text-white shadow-2xl border border-white/15 animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col overflow-hidden cursor-default"
         role="dialog"
         aria-modal="true"
         aria-labelledby="history-title"

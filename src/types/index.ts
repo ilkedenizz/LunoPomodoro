@@ -62,11 +62,14 @@ export interface Task {
   createdAt: number;
   completedAt?: number;
   pomodoros: number;
+  updatedAt?: number;
+  deletedAt?: number;
 }
 
 export interface DailyGoal {
   targetPomodoros: number; // default 4
   targetMinutes: number;   // default 100
+  updatedAt?: number;
 }
 
 export interface TrackMixerState {
@@ -85,4 +88,21 @@ export interface AtmospherePreset {
   atmosphereId: string;
   soundMixer: SoundMixerState;
   createdAt: number;
+  updatedAt?: number;
 }
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  createdAt: number;
+}
+
+export type SyncState = 'idle' | 'syncing' | 'synced' | 'offline' | 'error';
+
+export interface SyncStatus {
+  state: SyncState;
+  lastSyncedAt: number | null;
+  pendingCount: number;
+  errorMessage?: string;
+}
+

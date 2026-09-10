@@ -19,9 +19,13 @@ export const AmbienceAudioPlayer: React.FC<AmbienceAudioPlayerProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md">
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md cursor-pointer"
+    >
       <div
-        className="relative w-full max-w-xl p-6 sm:p-8 rounded-3xl glass-modal text-white shadow-2xl border border-white/20 animate-in fade-in zoom-in-95 duration-200 max-h-[85vh] flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+        className="relative w-full max-w-xl p-6 sm:p-8 rounded-3xl glass-modal text-white shadow-2xl border border-white/20 animate-in fade-in zoom-in-95 duration-200 max-h-[85vh] flex flex-col cursor-default"
         role="dialog"
         aria-modal="true"
         aria-labelledby="audio-mixer-title"

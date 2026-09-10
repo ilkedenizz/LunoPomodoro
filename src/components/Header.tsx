@@ -9,8 +9,10 @@ import {
   TrendingUp,
   Moon,
   Sun,
+  User,
+  Cloud,
 } from 'lucide-react';
-import type { AtmosphereTheme, AppTheme } from '../types';
+import type { AtmosphereTheme, AppTheme, UserProfile, SyncStatus } from '../types';
 
 interface HeaderProps {
   currentAtmosphere: AtmosphereTheme;
@@ -27,6 +29,9 @@ interface HeaderProps {
   timerRunning: boolean;
   theme?: AppTheme;
   onToggleTheme?: () => void;
+  user: UserProfile | null;
+  syncStatus?: SyncStatus;
+  onOpenAuth: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = React.memo(({
@@ -44,6 +49,9 @@ export const Header: React.FC<HeaderProps> = React.memo(({
   timerRunning,
   theme = 'dark',
   onToggleTheme,
+  user,
+  syncStatus,
+  onOpenAuth,
 }) => {
   const isLight = theme === 'light';
 
@@ -196,6 +204,47 @@ export const Header: React.FC<HeaderProps> = React.memo(({
           title="Keyboard Shortcuts"
         >
           <Keyboard className="w-4 h-4" />
+        </button>
+
+        {/* Account / Sync Button */}
+        <button
+          onClick={onOpenAuth}
+          aria-label={user ? `Account (${user.email})` : 'Account & Cloud Sync'}
+          className={`relative p-2.5 rounded-xl glass-panel glass-panel-hover transition-all focus:outline-none focus-visible:ring-2 ${
+            user
+              ? isLight
+                ? 'text-indigo-600 bg-indigo-50/70 border-indigo-200'
+                : 'text-indigo-300 bg-indigo-500/20 border-indigo-400/30'
+              : isLight
+              ? 'text-slate-700 hover:text-slate-900 focus-visible:ring-slate-400'
+              : 'text-white/80 hover:text-white focus-visible:ring-white/50'
+          }`}
+          title={
+            user
+              ? syncStatus?.state === 'syncing'
+                ? `Syncing: ${user.email}`
+                : syncStatus?.state === 'offline'
+                ? `Offline: ${user.email}`
+                : (syncStatus?.pendingCount ?? 0) > 0
+                ? `Saved locally (sync will retry): ${user.email}`
+                : `Synced: ${user.email}`
+              : 'Using Luno locally (Cloud Sync)'
+          }
+        >
+          {user ? <User className="w-4 h-4" /> : <Cloud className="w-4 h-4" />}
+          {user && (
+            <span
+              className={`absolute -top-1 -right-1 w-2 h-2 rounded-full ${
+                syncStatus?.state === 'syncing'
+                  ? 'bg-amber-400 animate-spin'
+                  : syncStatus?.state === 'offline'
+                  ? 'bg-slate-400'
+                  : (syncStatus?.pendingCount ?? 0) > 0
+                  ? 'bg-amber-300'
+                  : 'bg-emerald-400'
+              }`}
+            />
+          )}
         </button>
 
         {/* Settings Button */}

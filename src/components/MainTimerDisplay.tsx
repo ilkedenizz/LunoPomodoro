@@ -61,7 +61,7 @@ export const MainTimerDisplay: React.FC<MainTimerDisplayProps> = React.memo(({
       className="relative flex flex-col items-center justify-center my-2 sm:my-3 select-none w-full"
     >
       {/* Main Outer Timer Circle Container with Radial Glow */}
-      <div className="relative flex items-center justify-center w-72 h-72 sm:w-80 sm:h-80 md:w-88 md:h-88 xl:w-96 xl:h-96">
+      <div className="relative flex items-center justify-center w-[260px] h-[260px] xs:w-72 xs:h-72 sm:w-80 sm:h-80 md:w-88 md:h-88 xl:w-96 xl:h-96">
         {/* Atmospheric Radial Light Glow behind Timer */}
         <div
           className={`absolute inset-0 rounded-full transition-all duration-1000 pointer-events-none ${
@@ -114,7 +114,7 @@ export const MainTimerDisplay: React.FC<MainTimerDisplayProps> = React.memo(({
         </svg>
 
         {/* Central Display Content */}
-        <div className="flex flex-col items-center justify-center text-center z-10 p-6">
+        <div className="flex flex-col items-center justify-center text-center z-10 p-4 sm:p-6">
           {/* Mode Pill Label */}
           <div
             className={`px-3 py-1 mb-2 rounded-full text-[11px] tracking-widest uppercase font-medium border transition-all duration-300 ${
@@ -137,7 +137,7 @@ export const MainTimerDisplay: React.FC<MainTimerDisplayProps> = React.memo(({
 
           {/* Large Monospace Timer Display */}
           <div
-            className="font-timer text-6xl sm:text-7xl md:text-8xl font-bold tracking-tight drop-shadow-2xl my-1 select-none transition-colors duration-300"
+            className="font-timer text-5xl xs:text-6xl sm:text-7xl md:text-8xl font-bold tracking-tight drop-shadow-2xl my-1 select-none transition-colors duration-300"
             style={{ color: activeColorHex }}
           >
             {formattedTime}

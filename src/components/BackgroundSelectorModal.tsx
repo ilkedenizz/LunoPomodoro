@@ -54,9 +54,13 @@ export const BackgroundSelectorModal: React.FC<BackgroundSelectorModalProps> = (
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-md transition-all">
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-md transition-all cursor-pointer"
+    >
       <div
-        className={`relative w-full max-w-3xl p-5 sm:p-8 rounded-t-3xl sm:rounded-3xl glass-modal shadow-2xl animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col ${
+        onClick={(e) => e.stopPropagation()}
+        className={`relative w-full max-w-3xl p-5 sm:p-8 rounded-t-3xl sm:rounded-3xl glass-modal shadow-2xl animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col cursor-default ${
           isLight ? 'text-slate-900 border-slate-200/80' : 'text-white border-white/20'
         }`}
         role="dialog"

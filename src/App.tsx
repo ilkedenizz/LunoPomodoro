@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from 'react';
 import confetti from 'canvas-confetti';
 import { BackgroundView } from './components/BackgroundView';
 import { Header } from './components/Header';
@@ -24,6 +24,9 @@ const ShortcutsModal = lazy(() =>
 const FocusHistoryModal = lazy(() =>
   import('./components/FocusHistoryModal').then((m) => ({ default: m.FocusHistoryModal }))
 );
+const AuthModal = lazy(() =>
+  import('./components/AuthModal').then((m) => ({ default: m.AuthModal }))
+);
 
 import type {
   TimerMode,
@@ -36,6 +39,8 @@ import type {
   SoundMixerState,
   AtmospherePreset,
   AppTheme,
+  UserProfile,
+  SyncStatus,
 } from './types';
 import {
   loadSettings,
@@ -60,6 +65,14 @@ import {
 import { getAtmosphereById } from './utils/backgrounds';
 import { playCompletionChime, ambientEngine } from './utils/sound';
 import { isToday } from './utils/dates';
+import { onAuthStateChange, signOut } from './services/auth';
+import {
+  SyncEngine,
+  markTaskPending,
+  markSettingsPending,
+  markDailyGoalPending,
+  markSessionPending,
+} from './services/syncEngine';
 
 export function App() {
   // 1. Settings & Persistence
@@ -84,6 +97,11 @@ export function App() {
   const [atmospherePresets, setAtmospherePresets] = useState<AtmospherePreset[]>(() =>
     loadAtmospherePresets()
   );
+
+  // User & Sync State (Local-first)
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>(() => SyncEngine.getStatus());
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
 
   // 2. Timer State
   const [mode, setMode] = useState<TimerMode>('pomodoro');
@@ -112,45 +130,86 @@ export function App() {
   // High precision timer reference
   const expectedEndRef = useRef<number | null>(null);
 
+  // Auth state listener and initial cloud sync
+  useEffect(() => {
+    const unsubAuth = onAuthStateChange((currentUser) => {
+      setUser(currentUser);
+      if (currentUser) {
+        SyncEngine.pullAndMerge(currentUser.id).then(() => {
+          // Re-hydrate local states with latest merged cloud data
+          setSettings(loadSettings());
+          setTasks(loadTasks());
+          setSessions(loadSessions());
+          setDailyGoal(loadDailyGoal());
+          setAtmospherePresets(loadAtmospherePresets());
+          setFavoriteAtmospheres(loadFavoriteAtmospheres());
+        });
+      }
+    });
+
+    const unsubSync = SyncEngine.subscribe((status) => {
+      setSyncStatus(status);
+    });
+
+    return () => {
+      unsubAuth();
+      unsubSync();
+    };
+  }, []);
+
   // Synchronize Sound Mixer State with Web Audio Ambient Synth Engine
   useEffect(() => {
     ambientEngine.syncMixerState(soundMixerState);
   }, [soundMixerState]);
 
-  const handleMixerChange = (newState: SoundMixerState) => {
+  const handleMixerChange = useCallback((newState: SoundMixerState) => {
     setSoundMixerState(newState);
     saveSoundMixerState(newState);
-  };
+  }, []);
 
   // Favorites Handler
-  const handleToggleFavorite = (atmoId: string) => {
-    const isFav = favoriteAtmospheres.includes(atmoId);
-    const updated = isFav
-      ? favoriteAtmospheres.filter((id) => id !== atmoId)
-      : [...favoriteAtmospheres, atmoId];
-    setFavoriteAtmospheres(updated);
-    saveFavoriteAtmospheres(updated);
-  };
+  const handleToggleFavorite = useCallback((atmoId: string) => {
+    setFavoriteAtmospheres((prev) => {
+      const isFav = prev.includes(atmoId);
+      const updated = isFav ? prev.filter((id) => id !== atmoId) : [...prev, atmoId];
+      saveFavoriteAtmospheres(updated);
+      if (user) {
+        markSettingsPending();
+        SyncEngine.pushSettings(settings, updated, user.id);
+      }
+      return updated;
+    });
+  }, [user, settings]);
 
   // Presets Handlers
-  const handleSavePreset = (preset: AtmospherePreset) => {
-    const updated = [preset, ...atmospherePresets];
-    setAtmospherePresets(updated);
-    saveAtmospherePresets(updated);
-  };
+  const handleSavePreset = useCallback((preset: AtmospherePreset) => {
+    setAtmospherePresets((prev) => {
+      const updated = [preset, ...prev.filter((p) => p.id !== preset.id)];
+      saveAtmospherePresets(updated);
+      if (user) {
+        SyncEngine.pushPreset(preset, user.id);
+      }
+      return updated;
+    });
+  }, [user]);
 
-  const handleDeletePreset = (presetId: string) => {
-    const updated = atmospherePresets.filter((p) => p.id !== presetId);
-    setAtmospherePresets(updated);
-    saveAtmospherePresets(updated);
-  };
+  const handleDeletePreset = useCallback((presetId: string) => {
+    setAtmospherePresets((prev) => {
+      const updated = prev.filter((p) => p.id !== presetId);
+      saveAtmospherePresets(updated);
+      if (user) {
+        SyncEngine.pushDeletedPreset(presetId, user.id);
+      }
+      return updated;
+    });
+  }, [user]);
 
-  const handleApplyPreset = (preset: AtmospherePreset) => {
+  const handleApplyPreset = useCallback((preset: AtmospherePreset) => {
     const atmo = getAtmosphereById(preset.atmosphereId, settings.theme);
     setAtmosphere(atmo);
     saveBackground(atmo.id, settings.theme);
     handleMixerChange(preset.soundMixer);
-  };
+  }, [settings.theme, handleMixerChange]);
 
   // Document Title update
   useEffect(() => {
@@ -176,30 +235,40 @@ export function App() {
     return () => document.removeEventListener('fullscreenchange', handleFsChange);
   }, []);
 
-  const toggleFullscreen = () => {
+  const toggleFullscreen = useCallback(() => {
     if (!document.fullscreenElement) {
       document.documentElement.requestFullscreen().catch(() => {});
     } else {
       document.exitFullscreen().catch(() => {});
     }
-  };
+  }, []);
 
-  // Today Statistics Calculation
-  const todaySessions = sessions.filter((s) => isToday(s.timestamp));
-  const todayPomodorosCount = todaySessions.filter((s) => s.mode === 'pomodoro').length;
-  const todayTotalMinutes = todaySessions.reduce((acc, s) => acc + s.durationMinutes, 0);
+  // Today Statistics Calculation (memoized)
+  const todaySessions = useMemo(() => sessions.filter((s) => isToday(s.timestamp)), [sessions]);
+  const todayPomodorosCount = useMemo(
+    () => todaySessions.filter((s) => s.mode === 'pomodoro').length,
+    [todaySessions]
+  );
+  const todayTotalMinutes = useMemo(
+    () => todaySessions.reduce((acc, s) => acc + s.durationMinutes, 0),
+    [todaySessions]
+  );
 
-  // Active Task
-  const activeTask = tasks.find((t) => t.id === activeTaskId && !t.completed);
+  // Active Task (memoized)
+  const activeTask = useMemo(
+    () => tasks.find((t) => t.id === activeTaskId && !t.completed),
+    [tasks, activeTaskId]
+  );
   const activeTaskTitle = activeTask ? activeTask.title : null;
 
   // Check if any ambient track is actively playing
-  const isAudioPlaying = Object.values(soundMixerState.tracks).some(
-    (t) => t.volume > 0 && !t.muted
+  const isAudioPlaying = useMemo(
+    () => Object.values(soundMixerState.tracks).some((t) => t.volume > 0 && !t.muted),
+    [soundMixerState]
   );
 
   // Task Handlers
-  const handleAddTask = (title: string) => {
+  const handleAddTask = useCallback((title: string) => {
     const newTask: Task = {
       id: Math.random().toString(36).substring(2, 9),
       title,
@@ -207,58 +276,104 @@ export function App() {
       createdAt: Date.now(),
       pomodoros: 0,
     };
-    const updated = [newTask, ...tasks];
-    setTasks(updated);
-    saveTasks(updated);
-
-    if (!activeTaskId) {
-      setActiveTaskId(newTask.id);
-      saveActiveTaskId(newTask.id);
-    }
-  };
-
-  const handleToggleComplete = (id: string) => {
-    const updated = tasks.map((t) => {
-      if (t.id === id) {
-        const nextCompleted = !t.completed;
-        return {
-          ...t,
-          completed: nextCompleted,
-          completedAt: nextCompleted ? Date.now() : undefined,
-        };
-      }
-      return t;
+    setTasks((prev) => {
+      const updated = [newTask, ...prev];
+      saveTasks(updated);
+      return updated;
     });
-    setTasks(updated);
-    saveTasks(updated);
-  };
 
-  const handleSelectActive = (id: string) => {
-    const nextId = activeTaskId === id ? null : id;
-    setActiveTaskId(nextId);
-    saveActiveTaskId(nextId);
-  };
-
-  const handleEditTask = (id: string, newTitle: string) => {
-    const updated = tasks.map((t) => (t.id === id ? { ...t, title: newTitle } : t));
-    setTasks(updated);
-    saveTasks(updated);
-  };
-
-  const handleDeleteTask = (id: string) => {
-    const updated = tasks.filter((t) => t.id !== id);
-    setTasks(updated);
-    saveTasks(updated);
-    if (activeTaskId === id) {
-      setActiveTaskId(null);
-      saveActiveTaskId(null);
+    if (user) {
+      markTaskPending(newTask.id);
+      SyncEngine.pushTask(newTask, user.id);
     }
-  };
 
-  const handleUpdateGoal = (newGoal: DailyGoal) => {
+    setActiveTaskId((prevActive) => {
+      if (!prevActive) {
+        saveActiveTaskId(newTask.id);
+        return newTask.id;
+      }
+      return prevActive;
+    });
+  }, [user]);
+
+  const handleToggleComplete = useCallback((id: string) => {
+    setTasks((prev) => {
+      let toggledTask: Task | null = null;
+      const updated = prev.map((t) => {
+        if (t.id === id) {
+          const nextCompleted = !t.completed;
+          toggledTask = {
+            ...t,
+            completed: nextCompleted,
+            completedAt: nextCompleted ? Date.now() : undefined,
+            updatedAt: Date.now(),
+          };
+          return toggledTask;
+        }
+        return t;
+      });
+      saveTasks(updated);
+      if (user && toggledTask) {
+        markTaskPending(id);
+        SyncEngine.pushTask(toggledTask, user.id);
+      }
+      return updated;
+    });
+  }, [user]);
+
+  const handleSelectActive = useCallback((id: string) => {
+    setActiveTaskId((prev) => {
+      const nextId = prev === id ? null : id;
+      saveActiveTaskId(nextId);
+      return nextId;
+    });
+  }, []);
+
+  const handleEditTask = useCallback((id: string, newTitle: string) => {
+    setTasks((prev) => {
+      let editedTask: Task | null = null;
+      const updated = prev.map((t) => {
+        if (t.id === id) {
+          editedTask = { ...t, title: newTitle, updatedAt: Date.now() };
+          return editedTask;
+        }
+        return t;
+      });
+      saveTasks(updated);
+      if (user && editedTask) {
+        markTaskPending(id);
+        SyncEngine.pushTask(editedTask, user.id);
+      }
+      return updated;
+    });
+  }, [user]);
+
+  const handleDeleteTask = useCallback((id: string) => {
+    setTasks((prev) => {
+      const updated = prev.filter((t) => t.id !== id);
+      saveTasks(updated);
+      if (user) {
+        SyncEngine.pushDeletedTask(id, user.id);
+      }
+      return updated;
+    });
+    setActiveTaskId((prev) => {
+      if (prev === id) {
+        saveActiveTaskId(null);
+        return null;
+      }
+      return prev;
+    });
+  }, [user]);
+
+  const handleUpdateGoal = useCallback((newGoal: DailyGoal) => {
     setDailyGoal(newGoal);
     saveDailyGoal(newGoal);
-  };
+    if (user) {
+      markDailyGoalPending();
+      SyncEngine.pushDailyGoal(newGoal, user.id);
+    }
+  }, [user]);
 
   // Handle Session Completion
   const handleSessionComplete = useCallback(() => {
@@ -296,16 +411,27 @@ export function App() {
       setSessions(updatedSessions);
       nextPomodoroCount += 1;
 
+      if (user) {
+        markSessionPending(newSession.id);
+        SyncEngine.pushSession(newSession, user.id);
+      }
+
       // Increment active task pomodoros count if present
       if (activeTaskId) {
         setTasks((prevTasks) => {
+          let targetTask: Task | null = null;
           const updated = prevTasks.map((t) => {
             if (t.id === activeTaskId) {
-              return { ...t, pomodoros: t.pomodoros + 1 };
+              targetTask = { ...t, pomodoros: t.pomodoros + 1, updatedAt: Date.now() };
+              return targetTask;
             }
             return t;
           });
           saveTasks(updated);
+          if (user && targetTask) {
+            markTaskPending(activeTaskId);
+            SyncEngine.pushTask(targetTask, user.id);
+          }
           return updated;
         });
       }
@@ -348,6 +474,7 @@ export function App() {
     getModeDurationSeconds,
     activeTaskId,
     activeTaskTitle,
+    user,
   ]);
 
   // Main Timer Countdown Loop
@@ -433,13 +560,15 @@ export function App() {
     }
   }, [mode, todayPomodorosCount, getModeDurationSeconds]);
 
-  const handleSelectMode = (newMode: TimerMode) => {
-    if (newMode === mode) return;
-    setTimerState('idle');
-    expectedEndRef.current = null;
-    setMode(newMode);
-    setTimeLeft(getModeDurationSeconds(newMode));
-  };
+  const handleSelectMode = useCallback((newMode: TimerMode) => {
+    setMode((prevMode) => {
+      if (newMode === prevMode) return prevMode;
+      setTimerState('idle');
+      expectedEndRef.current = null;
+      setTimeLeft(getModeDurationSeconds(newMode));
+      return newMode;
+    });
+  }, [getModeDurationSeconds]);
 
   // Keyboard Shortcuts Listener
   useEffect(() => {
@@ -465,6 +594,7 @@ export function App() {
         setIsAudioOpen(false);
         setIsShortcutsOpen(false);
         setIsHistoryOpen(false);
+        setIsAuthOpen(false);
       }
     };
 
@@ -492,14 +622,43 @@ export function App() {
     }
   }, [settings.theme]);
 
-  const handleToggleTheme = () => {
-    const nextTheme: AppTheme = settings.theme === 'light' ? 'dark' : 'light';
-    const updated = { ...settings, theme: nextTheme };
-    setSettings(updated);
-    saveSettings(updated);
-    const targetBg = getAtmosphereById(loadSavedBackground(nextTheme), nextTheme);
-    setAtmosphere(targetBg);
-  };
+  const handleToggleTheme = useCallback(() => {
+    setSettings((prev) => {
+      const nextTheme: AppTheme = prev.theme === 'light' ? 'dark' : 'light';
+      const updated = { ...prev, theme: nextTheme };
+      saveSettings(updated);
+      const targetBg = getAtmosphereById(loadSavedBackground(nextTheme), nextTheme);
+      setAtmosphere(targetBg);
+      return updated;
+    });
+  }, []);
+
+  const handleSignOut = useCallback(async () => {
+    await signOut();
+    setUser(null);
+  }, []);
+
+  const handleSyncNow = useCallback(async () => {
+    if (user) {
+      await SyncEngine.pullAndMerge(user.id);
+      setSettings(loadSettings());
+      setTasks(loadTasks());
+      setSessions(loadSessions());
+      setDailyGoal(loadDailyGoal());
+      setAtmospherePresets(loadAtmospherePresets());
+      setFavoriteAtmospheres(loadFavoriteAtmospheres());
+    }
+  }, [user]);
+
+  const handleAuthSuccess = useCallback((authedUser: UserProfile) => {
+    setUser(authedUser);
+    setSettings(loadSettings());
+    setTasks(loadTasks());
+    setSessions(loadSessions());
+    setDailyGoal(loadDailyGoal());
+    setAtmospherePresets(loadAtmospherePresets());
+    setFavoriteAtmospheres(loadFavoriteAtmospheres());
+  }, []);
 
   const isLight = settings.theme === 'light';
 
@@ -528,6 +687,9 @@ export function App() {
         timerRunning={timerState === 'running'}
         theme={settings.theme}
         onToggleTheme={handleToggleTheme}
+        user={user}
+        syncStatus={syncStatus}
+        onOpenAuth={() => setIsAuthOpen(true)}
       />
 
       {/* 3. Main Center Focus Workspace (True 3-Column Desktop Layout) */}
@@ -658,6 +820,10 @@ export function App() {
               }
               setSettings(newSettings);
               saveSettings(newSettings);
+              if (user) {
+                markSettingsPending();
+                SyncEngine.pushSettings(newSettings, favoriteAtmospheres, user.id);
+              }
               if (timerState === 'idle') {
                 setTimeLeft(getModeDurationSeconds(mode, newSettings));
               }
@@ -666,6 +832,11 @@ export function App() {
               localStorage.removeItem('pomodoro_sessions_v1');
               setSessions([]);
             }}
+            user={user}
+            syncStatus={syncStatus}
+            onOpenAuth={() => setIsAuthOpen(true)}
+            onSignOut={handleSignOut}
+            onSyncNow={handleSyncNow}
           />
         )}
 
@@ -711,6 +882,15 @@ export function App() {
             isOpen={isHistoryOpen}
             onClose={() => setIsHistoryOpen(false)}
             sessions={sessions}
+          />
+        )}
+
+        {isAuthOpen && (
+          <AuthModal
+            isOpen={isAuthOpen}
+            onClose={() => setIsAuthOpen(false)}
+            theme={settings.theme}
+            onAuthSuccess={handleAuthSuccess}
           />
         )}
       </Suspense>

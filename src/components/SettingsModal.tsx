@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { X, Volume2, Bell, RefreshCw, Sparkles, Sliders, Moon, Sun, Palette, Check } from 'lucide-react';
-import type { TimerSettings, AppTheme, TimerColorId } from '../types';
+import { X, Volume2, Bell, RefreshCw, Sparkles, Sliders, Moon, Sun, Palette, Check, User, Cloud, LogOut } from 'lucide-react';
+import type { TimerSettings, AppTheme, TimerColorId, UserProfile, SyncStatus } from '../types';
 import { TIMER_COLORS } from '../utils/timerColors';
 
 interface DurationInputProps {
@@ -107,6 +107,11 @@ interface SettingsModalProps {
   settings: TimerSettings;
   onSaveSettings: (newSettings: TimerSettings) => void;
   onResetStats: () => void;
+  user?: UserProfile | null;
+  syncStatus?: SyncStatus;
+  onOpenAuth?: () => void;
+  onSignOut?: () => void;
+  onSyncNow?: () => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -115,6 +120,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   settings,
   onSaveSettings,
   onResetStats,
+  user,
+  syncStatus,
+  onOpenAuth,
+  onSignOut,
+  onSyncNow,
 }) => {
   if (!isOpen) return null;
 
@@ -125,9 +135,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const isLight = settings.theme === 'light';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-md transition-all">
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-md transition-all cursor-pointer"
+    >
       <div
-        className={`relative w-full max-w-md p-5 sm:p-8 rounded-t-3xl sm:rounded-3xl glass-modal overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col ${
+        onClick={(e) => e.stopPropagation()}
+        className={`relative w-full max-w-md p-5 sm:p-8 rounded-t-3xl sm:rounded-3xl glass-modal overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col cursor-default ${
           isLight ? 'text-slate-900 border-slate-200/80' : 'text-white border-white/15'
         }`}
         role="dialog"
@@ -376,6 +390,106 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 />
               </label>
             </div>
+          </div>
+
+          {/* Account & Cloud Sync */}
+          <div>
+            <h3 className={`text-[11px] font-mono font-semibold uppercase tracking-wider mb-3 flex items-center gap-1.5 ${
+              isLight ? 'text-slate-500' : 'text-white/50'
+            }`}>
+              <User className="w-3.5 h-3.5" /> Account & Cloud Sync
+            </h3>
+
+            {user ? (
+              <div className={`p-4 rounded-2xl border space-y-3 ${
+                isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2.5">
+                    <div className="w-8 h-8 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold text-xs uppercase shrink-0">
+                      {user.email.slice(0, 2)}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-xs font-semibold truncate max-w-[180px]">{user.email}</div>
+                      <div className="text-[10px] flex items-center gap-1 font-medium">
+                        {syncStatus?.state === 'syncing' ? (
+                          <span className="text-amber-400 flex items-center gap-1">
+                            <RefreshCw className="w-3 h-3 animate-spin" /> Syncing...
+                          </span>
+                        ) : syncStatus?.state === 'offline' ? (
+                          <span className="text-slate-400 flex items-center gap-1">
+                            <Cloud className="w-3 h-3" /> Offline — changes saved locally
+                          </span>
+                        ) : (syncStatus?.pendingCount ?? 0) > 0 ? (
+                          <span className="text-amber-300 flex items-center gap-1">
+                            <RefreshCw className="w-3 h-3" /> Saved locally — sync will retry
+                          </span>
+                        ) : (
+                          <span className="text-emerald-500 flex items-center gap-1">
+                            <Check className="w-3 h-3" /> Synced
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={onSignOut}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all flex items-center gap-1.5 shrink-0 ${
+                      isLight
+                        ? 'bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200'
+                        : 'bg-rose-500/20 text-rose-300 hover:bg-rose-500/30 border border-rose-500/30'
+                    }`}
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    <span>Sign Out</span>
+                  </button>
+                </div>
+
+                {onSyncNow && (
+                  <button
+                    type="button"
+                    onClick={onSyncNow}
+                    className={`w-full py-2 rounded-xl text-xs font-medium border flex items-center justify-center gap-1.5 transition-all ${
+                      isLight
+                        ? 'bg-white hover:bg-slate-100 border-slate-200 text-slate-700'
+                        : 'bg-white/10 hover:bg-white/15 border-white/10 text-white/90'
+                    }`}
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                    <span>Sync Now</span>
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className={`p-4 rounded-2xl border flex items-center justify-between gap-3 ${
+                isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'
+              }`}>
+                <div>
+                  <div className="text-xs font-semibold">Using Luno locally</div>
+                  <div className={`text-[11px] ${isLight ? 'text-slate-500' : 'text-white/60'}`}>
+                    Local Mode (Guest) — all data saved on this device
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onOpenAuth?.();
+                  }}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 shadow-sm shrink-0 ${
+                    isLight
+                      ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+                      : 'bg-white text-black hover:bg-white/90'
+                  }`}
+                >
+                  <Cloud className="w-3.5 h-3.5" />
+                  <span>Cloud Sync</span>
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
