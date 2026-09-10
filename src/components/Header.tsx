@@ -40,7 +40,7 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <header className="relative z-20 w-full px-4 md:px-8 py-4 flex items-center justify-between">
-      {/* Brand & Atmosphere Label */}
+      {/* Brand & Atmosphere Title */}
       <div className="flex items-center space-x-3">
         <div className="relative flex items-center justify-center w-9 h-9 rounded-xl glass-panel">
           <Sparkles className="w-4 h-4 text-white/90" />
@@ -49,10 +49,10 @@ export const Header: React.FC<HeaderProps> = ({
           )}
         </div>
         <div>
-          <h1 className="text-sm font-semibold tracking-wider text-white uppercase font-sans">
-            Study<span className="text-white/50">Flow</span>
+          <h1 className="text-base font-bold tracking-wider text-white uppercase font-sans">
+            Luno
           </h1>
-          <p className="text-xs text-white/60 font-medium">
+          <p className="text-xs text-white/60 font-medium line-clamp-1">
             {currentAtmosphere.name}
           </p>
         </div>
@@ -62,36 +62,38 @@ export const Header: React.FC<HeaderProps> = ({
       <button
         onClick={onOpenHistory}
         aria-label="View focus history and statistics"
-        className="hidden md:flex items-center space-x-2 px-4 py-1.5 rounded-full glass-pill glass-panel-hover text-xs font-medium text-white/90 cursor-pointer"
+        className="hidden md:flex items-center space-x-2 px-4 py-1.5 rounded-full glass-pill glass-panel-hover text-xs font-medium text-white/90 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
         title="View Focus History"
       >
         <span className="w-2 h-2 rounded-full bg-emerald-400/80 animate-pulse" />
         <span className="text-white/60">Today:</span>
-        <span className="font-semibold text-white">{todayPomodoros} {todayPomodoros === 1 ? 'pomodoro' : 'pomodoros'}</span>
+        <span className="font-semibold text-white">
+          {todayPomodoros} {todayPomodoros === 1 ? 'pomodoro' : 'pomodoros'}
+        </span>
         <span className="text-white/40">•</span>
         <span className="text-white/80">{formatHoursMinutes(todayMinutes)} focused</span>
       </button>
 
       {/* Action Control Buttons */}
-      <div className="flex items-center space-x-2">
+      <div className="flex items-center space-x-1.5 sm:space-x-2">
         {/* Focus History Button */}
         <button
           onClick={onOpenHistory}
           aria-label="Open Focus History"
-          className="p-2.5 rounded-xl glass-panel glass-panel-hover text-white/80 hover:text-white transition-all"
+          className="p-2.5 rounded-xl glass-panel glass-panel-hover text-white/80 hover:text-white transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
           title="Focus History & Stats"
         >
           <TrendingUp className="w-4 h-4" />
         </button>
 
-        {/* Ambience Audio Toggle Button */}
+        {/* Ambient Studio / Sound Mixer Toggle Button */}
         <button
           onClick={onOpenAudio}
-          aria-label="Toggle ambient music"
-          className={`relative p-2.5 rounded-xl glass-panel glass-panel-hover text-white/80 hover:text-white transition-all ${
-            isAudioPlaying ? 'ring-1 ring-white/40 bg-white/15' : ''
+          aria-label="Toggle ambient music and sound mixer"
+          className={`relative p-2.5 rounded-xl glass-panel glass-panel-hover text-white/80 hover:text-white transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50 ${
+            isAudioPlaying ? 'ring-1 ring-indigo-400/60 bg-indigo-500/20' : ''
           }`}
-          title="Ambient Sounds (M)"
+          title="Ambient Sound Mixer (M)"
         >
           <Music className="w-4 h-4" />
           {isAudioPlaying && (
@@ -103,8 +105,8 @@ export const Header: React.FC<HeaderProps> = ({
         <button
           onClick={onOpenBackgrounds}
           aria-label="Select atmosphere background"
-          className="p-2.5 rounded-xl glass-panel glass-panel-hover text-white/80 hover:text-white transition-all"
-          title="Change Atmosphere"
+          className="p-2.5 rounded-xl glass-panel glass-panel-hover text-white/80 hover:text-white transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+          title="Atmosphere Studio"
         >
           <ImageIcon className="w-4 h-4" />
         </button>
@@ -113,7 +115,7 @@ export const Header: React.FC<HeaderProps> = ({
         <button
           onClick={onOpenShortcuts}
           aria-label="View keyboard shortcuts"
-          className="hidden sm:flex p-2.5 rounded-xl glass-panel glass-panel-hover text-white/80 hover:text-white transition-all"
+          className="hidden sm:flex p-2.5 rounded-xl glass-panel glass-panel-hover text-white/80 hover:text-white transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
           title="Keyboard Shortcuts"
         >
           <Keyboard className="w-4 h-4" />
@@ -123,7 +125,7 @@ export const Header: React.FC<HeaderProps> = ({
         <button
           onClick={onOpenSettings}
           aria-label="Timer settings"
-          className="p-2.5 rounded-xl glass-panel glass-panel-hover text-white/80 hover:text-white transition-all"
+          className="p-2.5 rounded-xl glass-panel glass-panel-hover text-white/80 hover:text-white transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
           title="Settings"
         >
           <Settings className="w-4 h-4" />
@@ -133,7 +135,7 @@ export const Header: React.FC<HeaderProps> = ({
         <button
           onClick={onToggleFullscreen}
           aria-label="Toggle fullscreen mode"
-          className="hidden sm:flex p-2.5 rounded-xl glass-panel glass-panel-hover text-white/80 hover:text-white transition-all"
+          className="hidden sm:flex p-2.5 rounded-xl glass-panel glass-panel-hover text-white/80 hover:text-white transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
           title="Toggle Fullscreen"
         >
           {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}

@@ -46,9 +46,9 @@ export const FocusHistoryModal: React.FC<FocusHistoryModalProps> = ({
   const hasHistory = totalPomodoros > 0;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/70 backdrop-blur-md">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-md transition-all">
       <div
-        className="relative w-full max-w-4xl p-5 sm:p-8 rounded-3xl glass-modal text-white shadow-2xl border border-white/20 animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col overflow-hidden"
+        className="relative w-full max-w-4xl p-5 sm:p-8 rounded-t-3xl sm:rounded-3xl glass-modal text-white shadow-2xl border border-white/15 animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col overflow-hidden"
         role="dialog"
         aria-modal="true"
         aria-labelledby="history-title"
@@ -56,43 +56,43 @@ export const FocusHistoryModal: React.FC<FocusHistoryModalProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-white/10 shrink-0">
           <div className="flex items-center space-x-3">
-            <div className="p-2.5 rounded-2xl glass-panel text-indigo-300">
+            <div className="p-2.5 rounded-2xl glass-panel text-indigo-300 border border-white/15">
               <TrendingUp className="w-5 h-5" />
             </div>
             <div>
-              <h2 id="history-title" className="text-xl font-bold text-white tracking-tight">
-                Focus History
+              <h2 id="history-title" className="text-lg sm:text-xl font-bold text-white tracking-tight">
+                Focus History & Analytics
               </h2>
-              <p className="text-xs text-white/60 font-medium">Your focus, over time.</p>
+              <p className="text-xs text-white/60 font-medium">Your personal focus journey over time</p>
             </div>
           </div>
 
           <button
             onClick={onClose}
             aria-label="Close Focus History"
-            className="p-2 rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-all"
+            className="p-2 rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Content Body */}
-        <div className="flex-1 overflow-y-auto py-6 space-y-6 pr-1">
+        <div className="flex-1 overflow-y-auto py-5 space-y-6 pr-1">
           {!hasHistory ? (
             /* Peaceful Empty State */
             <div className="py-16 px-4 text-center flex flex-col items-center justify-center space-y-4">
               <div className="p-4 rounded-full bg-white/5 border border-white/10 text-indigo-300 animate-pulse">
                 <Sparkles className="w-8 h-8" />
               </div>
-              <h3 className="text-lg font-bold text-white uppercase tracking-wider">
-                Your Focus Journey Starts Here
+              <h3 className="text-base sm:text-lg font-bold text-white uppercase tracking-wider">
+                YOUR FOCUS JOURNEY STARTS HERE
               </h3>
               <p className="text-xs text-white/60 max-w-sm">
-                Complete your first Pomodoro session to start building your statistics and streak history.
+                Complete your first Pomodoro session in Luno to unlock your statistics, charts, and streak history.
               </p>
               <button
                 onClick={onClose}
-                className="px-6 py-2.5 rounded-2xl bg-white text-black font-semibold text-xs hover:bg-white/90 transition-all"
+                className="px-6 py-2.5 rounded-2xl bg-white text-black font-semibold text-xs hover:bg-white/90 transition-all cursor-pointer"
               >
                 Start Focusing
               </button>
@@ -176,4 +176,3 @@ export const FocusHistoryModal: React.FC<FocusHistoryModalProps> = ({
     </div>
   );
 };
-

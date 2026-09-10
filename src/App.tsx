@@ -146,7 +146,7 @@ export function App() {
     const formatted = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     const modeName =
       mode === 'pomodoro' ? 'Pomodoro' : mode === 'shortBreak' ? 'Short Break' : 'Long Break';
-    document.title = `(${formatted}) ${modeName} • StudyFlow`;
+    document.title = `(${formatted}) ${modeName} • Luno`;
   }, [timeLeft, mode]);
 
   // Fullscreen change listener
@@ -520,11 +520,11 @@ export function App() {
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
           <span>Today: {todayPomodorosCount} pomodoros ({todayTotalMinutes}m focused)</span>
         </button>
-        <div className="hidden md:block">
-          Press <kbd className="px-1.5 py-0.5 rounded bg-white/10 font-mono text-[10px] text-white/80">Space</kbd> to Start/Pause • <kbd className="px-1.5 py-0.5 rounded bg-white/10 font-mono text-[10px] text-white/80">R</kbd> to Reset • <kbd className="px-1.5 py-0.5 rounded bg-white/10 font-mono text-[10px] text-white/80">M</kbd> for Audio
+        <div className="hidden md:block font-mono text-[11px] text-white/60">
+          Press <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-[10px] text-white/90">Space</kbd> Start/Pause • <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-[10px] text-white/90">R</kbd> Reset • <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-[10px] text-white/90">M</kbd> Audio
         </div>
-        <div className="hover:text-white/80 transition-colors">
-          Atmospheric Personal Focus Workspace
+        <div className="hover:text-white/80 transition-colors text-[11px] font-medium">
+          Luno — Focus in your own atmosphere
         </div>
       </footer>
 

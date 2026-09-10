@@ -2,7 +2,8 @@
 
 @layer base {
   :root {
-    font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+    font-family: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
+    color-scheme: dark;
   }
   
   body {
@@ -20,13 +21,13 @@
   letter-spacing: -0.04em;
 }
 
-/* Glassmorphism Classes */
+/* Glassmorphism Design System */
 .glass-panel {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.05);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.35);
 }
 
 .glass-panel-hover {
@@ -34,30 +35,39 @@
 }
 
 .glass-panel-hover:hover {
-  background: rgba(255, 255, 255, 0.12);
-  border-color: rgba(255, 255, 255, 0.25);
-  box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.5);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.22);
+  box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.45);
 }
 
 .glass-pill {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.07);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.14);
 }
 
 .glass-pill-active {
-  background: rgba(255, 255, 255, 0.22);
-  border-color: rgba(255, 255, 255, 0.4);
-  box-shadow: 0 4px 20px rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.35);
+  box-shadow: 0 4px 20px rgba(255, 255, 255, 0.12);
 }
 
 .glass-modal {
-  background: rgba(13, 15, 23, 0.85);
+  background: rgba(13, 15, 23, 0.88);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.7);
+}
+
+/* Atmospheric Timer Radial Light Glow */
+.timer-radial-glow {
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.07) 0%, rgba(99, 102, 241, 0.04) 45%, transparent 70%);
+}
+
+.timer-radial-glow-running {
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.11) 0%, rgba(99, 102, 241, 0.07) 50%, transparent 75%);
 }
 
 /* Custom Scrollbar */
@@ -81,20 +91,26 @@
 
 /* Animations */
 @keyframes pulse-soft {
-  0%, 100% { opacity: 0.8; transform: scale(1); }
-  50% { opacity: 1; transform: scale(1.03); }
+  0%, 100% { opacity: 0.85; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.02); }
 }
 
 .animate-pulse-soft {
-  animation: pulse-soft 3s ease-in-out infinite;
+  animation: pulse-soft 4s ease-in-out infinite;
 }
 
-@keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-6px); }
+/* Prefers Reduced Motion Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .animate-pulse-soft,
+  .animate-pulse,
+  .animate-spin-slow,
+  .animate-ping {
+    animation: none !important;
+  }
 }
-
-.animate-float {
-  animation: float 6s ease-in-out infinite;
-}
-
