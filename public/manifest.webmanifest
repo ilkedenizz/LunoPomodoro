@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "Luno — Atmospheric Focus Space",
   "short_name": "Luno",
   "description": "Luno is a calm, atmospheric Pomodoro timer with immersive soundscapes, ambient visuals, and personalized focus tracking.",
@@ -10,7 +10,7 @@
   "categories": ["productivity", "utilities", "lifestyle"],
   "icons": [
     {
-      "src": "/favicon.svg",
+      "src": "/favicon.svg?v=2",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"

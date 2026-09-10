@@ -1,6 +1,5 @@
 import React from 'react';
 import {
-  Sparkles,
   Music,
   Image as ImageIcon,
   Settings,
@@ -59,8 +58,25 @@ export const Header: React.FC<HeaderProps> = React.memo(({
     <header className="relative z-20 w-full px-4 md:px-8 py-3 sm:py-3.5 flex items-center justify-between shrink-0">
       {/* Brand & Atmosphere Title */}
       <div className="flex items-center space-x-3">
-        <div className="relative flex items-center justify-center w-9 h-9 rounded-xl glass-panel">
-          <Sparkles className={`w-4 h-4 ${isLight ? 'text-indigo-600' : 'text-white/90'}`} />
+        <div className="relative flex items-center justify-center w-9 h-9 rounded-xl glass-panel p-1.5 shadow-sm">
+          <svg className="w-full h-full" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+            <circle
+              cx="32"
+              cy="32"
+              r="21"
+              stroke={isLight ? '#4f46e5' : '#ffffff'}
+              strokeWidth="4"
+              strokeLinecap="round"
+              strokeDasharray="98 34"
+              transform="rotate(-90 32 32)"
+              opacity="0.9"
+            />
+            <path
+              d="M32 19 C32 27.5 32 27.5 23.5 32 C32 32 32 32 32 45 C32 36.5 32 36.5 40.5 32 C32 32 32 32 32 19 Z"
+              fill={isLight ? '#4f46e5' : '#ec4899'}
+            />
+            <circle cx="32" cy="32" r="2.5" fill="#ffffff" />
+          </svg>
           {timerRunning && (
             <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-400 rounded-full animate-ping" />
           )}
