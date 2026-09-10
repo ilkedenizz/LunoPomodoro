@@ -205,11 +205,16 @@ To set up multi-device synchronization:
 
 1. Create a project at [supabase.com](https://supabase.com).
 2. Open the **SQL Editor** in your Supabase dashboard.
-3. Paste and run the contents of [`supabase/schema.sql`](file:///C:/dev/Pomodoro/supabase/schema.sql).
-4. Configure your desired Authentication providers (Email/Password) under **Authentication > Providers**.
-5. Copy your Project URL and Anon Public Key from **Project Settings > API**.
-6. Create a `.env` file with `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
-7. Restart your development server (`npm run dev`).
+3. Paste and run the contents of [`supabase/schema.sql`](supabase/schema.sql).
+4. Configure your Authentication settings under **Authentication > URL Configuration**:
+   * **Site URL**: `http://localhost:5173` (for local development) or your production domain (e.g., `https://your-domain.com`).
+   * **Redirect URLs**: Add `http://localhost:5173/**` and `https://your-domain.com/**` to support email confirmation and password reset recovery redirects.
+5. Configure Authentication Providers under **Authentication > Providers > Email**:
+   * Enable Email provider.
+   * (Optional) Toggle "Confirm email" based on your preference (Luno handles both instant sign-in and confirmation-pending states).
+6. Copy your Project URL and Anon Public Key from **Project Settings > API**.
+7. Create a `.env` file in the project root with `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
+8. Restart your development server (`npm run dev`).
 
 ### Database Tables Created by `schema.sql`:
 * `public.user_settings`: User timer durations, theme preferences, volume, and timer color.
