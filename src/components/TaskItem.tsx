@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { CheckCircle2, Circle, Trash2, Edit2, Check, Target } from 'lucide-react';
-import type { Task } from '../types';
+import type { Task, AppTheme } from '../types';
 
 interface TaskItemProps {
   task: Task;
@@ -9,6 +9,7 @@ interface TaskItemProps {
   onSelectActive: (id: string) => void;
   onEditTask: (id: string, newTitle: string) => void;
   onDeleteTask: (id: string) => void;
+  theme?: AppTheme;
 }
 
 export const TaskItem: React.FC<TaskItemProps> = ({
@@ -18,10 +19,13 @@ export const TaskItem: React.FC<TaskItemProps> = ({
   onSelectActive,
   onEditTask,
   onDeleteTask,
+  theme = 'dark',
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(task.title);
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
+
+  const isLight = theme === 'light';
 
   const handleSaveEdit = () => {
     const trimmed = editTitle.trim();
@@ -44,8 +48,12 @@ export const TaskItem: React.FC<TaskItemProps> = ({
     <div
       className={`group relative flex items-center justify-between p-3 rounded-2xl transition-all duration-200 border ${
         isActive
-          ? 'bg-white/15 border-white/40 ring-1 ring-white/30 shadow-lg'
-          : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20'
+          ? isLight
+            ? 'bg-black/10 border-black/25 ring-1 ring-black/20 shadow-md text-slate-900'
+            : 'bg-white/15 border-white/40 ring-1 ring-white/30 shadow-lg text-white'
+          : isLight
+          ? 'bg-black/[0.03] border-black/5 hover:bg-black/[0.07] hover:border-black/15 text-slate-800'
+          : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20 text-white'
       }`}
     >
       {/* Left Area: Checkbox + Title / Edit Input */}
@@ -54,12 +62,18 @@ export const TaskItem: React.FC<TaskItemProps> = ({
         <button
           onClick={() => onToggleComplete(task.id)}
           aria-label={task.completed ? 'Mark task as incomplete' : 'Mark task as completed'}
-          className="text-white/60 hover:text-white transition-colors shrink-0 focus:outline-none"
+          className="shrink-0 focus:outline-none transition-colors"
         >
           {task.completed ? (
-            <CheckCircle2 className="w-5 h-5 text-emerald-400 fill-emerald-400/20" />
+            <CheckCircle2 className="w-5 h-5 text-emerald-500 fill-emerald-500/20" />
           ) : (
-            <Circle className="w-5 h-5 text-white/40 hover:text-white/80" />
+            <Circle
+              className={`w-5 h-5 ${
+                isLight
+                  ? 'text-slate-400 hover:text-slate-800'
+                  : 'text-white/40 hover:text-white/80'
+              }`}
+            />
           )}
         </button>
 
@@ -72,12 +86,16 @@ export const TaskItem: React.FC<TaskItemProps> = ({
               onChange={(e) => setEditTitle(e.target.value)}
               onKeyDown={handleKeyDown}
               autoFocus
-              className="w-full bg-white/10 border border-white/30 rounded-lg px-2 py-0.5 text-xs text-white focus:outline-none"
+              className={`w-full rounded-lg px-2 py-0.5 text-xs focus:outline-none ${
+                isLight
+                  ? 'bg-white text-slate-900 border border-slate-300'
+                  : 'bg-white/10 text-white border border-white/30'
+              }`}
             />
             <button
               onClick={handleSaveEdit}
               aria-label="Save title"
-              className="p-1 text-emerald-300 hover:text-emerald-200"
+              className="p-1 text-emerald-600 hover:text-emerald-500"
             >
               <Check className="w-4 h-4" />
             </button>
@@ -90,13 +108,23 @@ export const TaskItem: React.FC<TaskItemProps> = ({
           >
             <span
               className={`text-xs sm:text-sm font-medium transition-all line-clamp-1 ${
-                task.completed ? 'line-through text-white/40' : 'text-white/90'
+                task.completed
+                  ? isLight
+                    ? 'line-through text-slate-400'
+                    : 'line-through text-white/40'
+                  : isLight
+                  ? 'text-slate-900'
+                  : 'text-white/90'
               }`}
             >
               {task.title}
             </span>
             {task.pomodoros > 0 && (
-              <span className="text-[10px] text-white/50 font-mono">
+              <span
+                className={`text-[10px] font-mono ${
+                  isLight ? 'text-slate-500' : 'text-white/50'
+                }`}
+              >
                 {task.pomodoros} {task.pomodoros === 1 ? 'pomodoro' : 'pomodoros'}
               </span>
             )}
@@ -114,11 +142,15 @@ export const TaskItem: React.FC<TaskItemProps> = ({
             title={isActive ? 'Currently Focusing' : 'Set as Active Task'}
             className={`p-1.5 rounded-lg text-xs font-medium transition-all flex items-center space-x-1 ${
               isActive
-                ? 'bg-white text-black font-semibold shadow-glow'
+                ? isLight
+                  ? 'bg-slate-900 text-white font-semibold shadow-sm'
+                  : 'bg-white text-black font-semibold shadow-glow'
+                : isLight
+                ? 'text-slate-400 hover:text-slate-900 hover:bg-black/5 opacity-0 group-hover:opacity-100 sm:opacity-100'
                 : 'text-white/40 hover:text-white hover:bg-white/10 opacity-0 group-hover:opacity-100 sm:opacity-100'
             }`}
           >
-            <Target className={`w-3.5 h-3.5 ${isActive ? 'text-black' : ''}`} />
+            <Target className="w-3.5 h-3.5" />
             {isActive && <span className="text-[10px] hidden sm:inline">Focusing</span>}
           </button>
         )}
@@ -128,7 +160,11 @@ export const TaskItem: React.FC<TaskItemProps> = ({
           <button
             onClick={() => setIsEditing(true)}
             aria-label="Edit task title"
-            className="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/10 opacity-0 group-hover:opacity-100 transition-all"
+            className={`p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all ${
+              isLight
+                ? 'text-slate-400 hover:text-slate-900 hover:bg-black/5'
+                : 'text-white/40 hover:text-white hover:bg-white/10'
+            }`}
             title="Edit task"
           >
             <Edit2 className="w-3.5 h-3.5" />
@@ -140,13 +176,15 @@ export const TaskItem: React.FC<TaskItemProps> = ({
           <div className="flex items-center space-x-1">
             <button
               onClick={() => onDeleteTask(task.id)}
-              className="px-2 py-0.5 rounded bg-red-500/80 hover:bg-red-500 text-white text-[10px] font-semibold transition-all"
+              className="px-2 py-0.5 rounded bg-red-500 hover:bg-red-600 text-white text-[10px] font-semibold transition-all"
             >
               Delete
             </button>
             <button
               onClick={() => setIsConfirmingDelete(false)}
-              className="px-1.5 py-0.5 text-white/50 hover:text-white text-[10px]"
+              className={`px-1.5 py-0.5 text-[10px] ${
+                isLight ? 'text-slate-500 hover:text-slate-900' : 'text-white/50 hover:text-white'
+              }`}
             >
               No
             </button>
@@ -155,7 +193,11 @@ export const TaskItem: React.FC<TaskItemProps> = ({
           <button
             onClick={() => setIsConfirmingDelete(true)}
             aria-label="Delete task"
-            className="p-1.5 rounded-lg text-white/40 hover:text-red-300 hover:bg-white/10 opacity-0 group-hover:opacity-100 transition-all"
+            className={`p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all ${
+              isLight
+                ? 'text-slate-400 hover:text-rose-600 hover:bg-black/5'
+                : 'text-white/40 hover:text-red-300 hover:bg-white/10'
+            }`}
             title="Delete task"
           >
             <Trash2 className="w-3.5 h-3.5" />

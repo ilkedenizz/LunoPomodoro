@@ -1,5 +1,6 @@
 import React from 'react';
-import type { TimerMode, TimerState } from '../types';
+import type { TimerMode, TimerState, AppTheme, TimerColorId } from '../types';
+import { getTimerColor } from '../utils/timerColors';
 
 interface MainTimerDisplayProps {
   timeLeftSeconds: number;
@@ -8,6 +9,8 @@ interface MainTimerDisplayProps {
   state: TimerState;
   completedPomodoros: number;
   activeTaskTitle?: string | null;
+  theme?: AppTheme;
+  timerColor?: TimerColorId;
 }
 
 export const MainTimerDisplay: React.FC<MainTimerDisplayProps> = ({
@@ -17,6 +20,8 @@ export const MainTimerDisplay: React.FC<MainTimerDisplayProps> = ({
   state,
   completedPomodoros,
   activeTaskTitle,
+  theme = 'dark',
+  timerColor = 'default',
 }) => {
   const minutes = Math.floor(timeLeftSeconds / 60);
   const seconds = timeLeftSeconds % 60;
@@ -41,6 +46,12 @@ export const MainTimerDisplay: React.FC<MainTimerDisplayProps> = ({
 
   const isRunning = state === 'running';
   const isPaused = state === 'paused';
+  const isLight = theme === 'light';
+
+  const colorDef = getTimerColor(timerColor);
+  const activeColorHex = isLight ? colorDef.lightHex : colorDef.darkHex;
+  const activeStrokeHex = isLight ? colorDef.lightStroke : colorDef.darkStroke;
+  const activeGlowHex = isLight ? colorDef.lightGlow : colorDef.darkGlow;
 
   return (
     <div className="relative flex flex-col items-center justify-center my-2 sm:my-3 select-none w-full">
@@ -55,6 +66,9 @@ export const MainTimerDisplay: React.FC<MainTimerDisplayProps> = ({
               ? 'timer-radial-glow opacity-60'
               : 'timer-radial-glow opacity-80'
           }`}
+          style={{
+            boxShadow: isRunning ? `0 0 80px ${activeGlowHex}` : undefined,
+          }}
         />
 
         {/* Outer SVG Progress Ring */}
@@ -67,7 +81,7 @@ export const MainTimerDisplay: React.FC<MainTimerDisplayProps> = ({
             cx="50"
             cy="50"
             r="44"
-            className="stroke-white/10"
+            className={isLight ? 'stroke-slate-900/10' : 'stroke-white/10'}
             strokeWidth="2.5"
             fill="none"
           />
@@ -76,11 +90,15 @@ export const MainTimerDisplay: React.FC<MainTimerDisplayProps> = ({
             cx="50"
             cy="50"
             r="44"
-            className={`transition-all duration-1000 ease-linear ${
-              mode === 'pomodoro'
-                ? 'stroke-white/90'
-                : 'stroke-teal-300/90'
-            }`}
+            className="transition-all duration-1000 ease-linear"
+            style={{
+              stroke:
+                mode === 'pomodoro'
+                  ? activeStrokeHex
+                  : isLight
+                  ? '#0d9488'
+                  : '#5eead4',
+            }}
             strokeWidth="3"
             strokeDasharray="276.46"
             strokeDashoffset={276.46 - (276.46 * progress) / 100}
@@ -95,9 +113,15 @@ export const MainTimerDisplay: React.FC<MainTimerDisplayProps> = ({
           <div
             className={`px-3 py-1 mb-2 rounded-full text-[11px] tracking-widest uppercase font-medium border transition-all duration-300 ${
               isPaused
-                ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                ? isLight
+                  ? 'bg-amber-100 text-amber-800 border-amber-300 shadow-sm'
+                  : 'bg-amber-500/20 text-amber-300 border-amber-500/40'
                 : isRunning
-                ? 'bg-white/15 text-white border-white/25 shadow-md'
+                ? isLight
+                  ? 'bg-slate-900/10 text-slate-900 border-slate-900/20 shadow-sm'
+                  : 'bg-white/15 text-white border-white/25 shadow-md'
+                : isLight
+                ? 'bg-slate-900/5 text-slate-600 border-slate-900/10'
                 : 'bg-white/10 text-white/70 border-white/10'
             }`}
           >
@@ -108,7 +132,8 @@ export const MainTimerDisplay: React.FC<MainTimerDisplayProps> = ({
           {/* Large Monospace Timer Display */}
           <div
             aria-label={`Timer: ${formattedTime}, ${modeTitle}`}
-            className="font-timer text-6xl sm:text-7xl md:text-8xl font-bold tracking-tight text-white drop-shadow-2xl my-1 select-none"
+            className="font-timer text-6xl sm:text-7xl md:text-8xl font-bold tracking-tight drop-shadow-2xl my-1 select-none transition-colors duration-300"
+            style={{ color: activeColorHex }}
           >
             {formattedTime}
           </div>
@@ -127,16 +152,27 @@ export const MainTimerDisplay: React.FC<MainTimerDisplayProps> = ({
                   title={`Session ${step} of 4`}
                   className={`h-2 rounded-full transition-all duration-500 ${
                     isCurrent
-                      ? 'w-6 bg-white shadow-glow'
+                      ? 'w-6 shadow-glow'
                       : isDone
-                      ? 'w-2 bg-white/80'
+                      ? isLight
+                        ? 'w-2 bg-slate-700/70'
+                        : 'w-2 bg-white/80'
+                      : isLight
+                      ? 'w-2 bg-slate-400/25'
                       : 'w-2 bg-white/20'
                   }`}
+                  style={{
+                    backgroundColor: isCurrent ? activeStrokeHex : undefined,
+                  }}
                 />
               );
             })}
           </div>
-          <span className="text-[11px] text-white/50 mt-1 font-mono">
+          <span
+            className={`text-[11px] mt-1 font-mono ${
+              isLight ? 'text-slate-500' : 'text-white/50'
+            }`}
+          >
             Session {currentCycleIndex} of 4
           </span>
         </div>
@@ -144,12 +180,25 @@ export const MainTimerDisplay: React.FC<MainTimerDisplayProps> = ({
 
       {/* Active Task Floating Pill below Timer */}
       {activeTaskTitle && (
-        <div className="mt-3 px-4 py-1.5 rounded-full glass-pill border border-white/20 flex items-center space-x-2 text-xs font-medium max-w-[280px] sm:max-w-sm md:max-w-md transition-all duration-300 animate-fadeIn">
-          <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse shrink-0" />
-          <span className="text-white/50 uppercase tracking-widest text-[9px] font-mono shrink-0">
+        <div
+          className={`mt-3 px-4 py-1.5 rounded-full glass-pill flex items-center space-x-2 text-xs font-medium max-w-[280px] sm:max-w-sm md:max-w-md transition-all duration-300 animate-fadeIn ${
+            isLight
+              ? 'border-slate-300/60 text-slate-800'
+              : 'border-white/20 text-white'
+          }`}
+        >
+          <span
+            className="w-1.5 h-1.5 rounded-full animate-pulse shrink-0"
+            style={{ backgroundColor: activeStrokeHex }}
+          />
+          <span
+            className={`uppercase tracking-widest text-[9px] font-mono shrink-0 ${
+              isLight ? 'text-slate-500' : 'text-white/50'
+            }`}
+          >
             FOCUSING ON:
           </span>
-          <span className="text-white truncate font-semibold">{activeTaskTitle}</span>
+          <span className="truncate font-semibold">{activeTaskTitle}</span>
         </div>
       )}
     </div>

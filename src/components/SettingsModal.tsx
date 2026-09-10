@@ -1,6 +1,7 @@
 import React from 'react';
-import { X, Volume2, Bell, RefreshCw, Zap, Sliders } from 'lucide-react';
-import type { TimerSettings } from '../types';
+import { X, Volume2, Bell, RefreshCw, Zap, Sliders, Moon, Sun, Palette, Check } from 'lucide-react';
+import type { TimerSettings, AppTheme, TimerColorId } from '../types';
+import { TIMER_COLORS } from '../utils/timerColors';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -32,6 +33,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     handleChange(key, updated);
   };
 
+  const isLight = settings.theme === 'light';
+
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-md transition-all">
       <div
@@ -46,7 +49,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <div className="p-2 rounded-xl bg-white/10 text-white border border-white/15">
               <Sliders className="w-4 h-4" />
             </div>
-            <h2 id="settings-title" className="text-lg sm:text-xl font-bold text-white tracking-tight">
+            <h2 id="settings-title" className="text-lg sm:text-xl font-bold tracking-tight">
               Timer Settings
             </h2>
           </div>
@@ -62,6 +65,81 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
         {/* Content Body */}
         <div className="space-y-6 py-4 overflow-y-auto pr-1 flex-1">
+          {/* Appearance / Theme Mode */}
+          <div>
+            <h3 className="text-[11px] font-mono font-semibold uppercase tracking-wider text-white/50 mb-3 flex items-center gap-1.5">
+              <Sun className="w-3.5 h-3.5" /> Appearance / Theme
+            </h3>
+            <div className="grid grid-cols-2 gap-2 p-1 bg-white/5 rounded-2xl border border-white/10">
+              <button
+                type="button"
+                onClick={() => handleChange('theme', 'dark' as AppTheme)}
+                className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-medium transition-all ${
+                  settings.theme !== 'light'
+                    ? 'bg-white/20 text-white shadow-md border border-white/25 font-semibold'
+                    : 'text-white/60 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <Moon className="w-4 h-4" />
+                <span>Dark Theme</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleChange('theme', 'light' as AppTheme)}
+                className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-medium transition-all ${
+                  settings.theme === 'light'
+                    ? 'bg-amber-100 text-slate-900 shadow-md border border-amber-300 font-semibold'
+                    : 'text-white/60 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <Sun className="w-4 h-4 text-amber-500" />
+                <span>Light Theme</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Timer Color Picker */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-[11px] font-mono font-semibold uppercase tracking-wider text-white/50 flex items-center gap-1.5">
+                <Palette className="w-3.5 h-3.5" /> Timer Color
+              </h3>
+              <span className="text-[11px] font-medium text-white/70">
+                {TIMER_COLORS.find((c) => c.id === (settings.timerColor || 'default'))?.name}
+              </span>
+            </div>
+
+            <div className="p-3 rounded-2xl bg-white/5 border border-white/10">
+              <div className="grid grid-cols-5 sm:grid-cols-9 gap-2">
+                {TIMER_COLORS.map((color) => {
+                  const isSelected = (settings.timerColor || 'default') === color.id;
+                  return (
+                    <button
+                      key={color.id}
+                      type="button"
+                      onClick={() => handleChange('timerColor', color.id as TimerColorId)}
+                      aria-label={`Select ${color.name} timer color`}
+                      title={`${color.name} (${color.nameTr})`}
+                      className={`relative w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80 ${
+                        isSelected
+                          ? 'scale-110 ring-2 ring-white ring-offset-2 ring-offset-black/50 shadow-lg'
+                          : 'hover:scale-105 opacity-80 hover:opacity-100'
+                      }`}
+                      style={{
+                        backgroundColor: color.swatchHex,
+                      }}
+                    >
+                      {isSelected && (
+                        <Check className="w-4 h-4 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] stroke-[3]" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
           {/* Time Durations */}
           <div>
             <h3 className="text-[11px] font-mono font-semibold uppercase tracking-wider text-white/50 mb-3">
@@ -213,7 +291,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           <button
             onClick={onClose}
-            className="px-6 py-2 rounded-xl bg-white text-black font-semibold text-sm hover:bg-white/90 transition-all"
+            className={`px-6 py-2 rounded-xl font-semibold text-sm transition-all ${
+              isLight
+                ? 'bg-slate-900 text-white hover:bg-slate-800'
+                : 'bg-white text-black hover:bg-white/90'
+            }`}
           >
             Done
           </button>

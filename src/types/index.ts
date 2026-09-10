@@ -1,6 +1,18 @@
 export type TimerMode = 'pomodoro' | 'shortBreak' | 'longBreak';
 export type TimerState = 'idle' | 'running' | 'paused';
 
+export type AppTheme = 'dark' | 'light';
+export type TimerColorId =
+  | 'default'
+  | 'white'
+  | 'red'
+  | 'orange'
+  | 'yellow'
+  | 'green'
+  | 'blue'
+  | 'purple'
+  | 'pink';
+
 export interface TimerSettings {
   pomodoroDuration: number; // in minutes
   shortBreakDuration: number; // in minutes
@@ -11,6 +23,8 @@ export interface TimerSettings {
   soundVolume: number;
   notificationsEnabled: boolean;
   tickingEnabled: boolean;
+  theme: AppTheme;
+  timerColor: TimerColorId;
 }
 
 export interface FocusSession {
@@ -26,9 +40,12 @@ export interface AtmosphereTheme {
   name: string;
   tagline: string;
   imageUrl?: string;
+  imageUrlLight?: string;
   cssBackground: string;
+  cssBackgroundLight?: string;
   fallbackGradient?: string;
   overlayOpacity: number;
+  overlayOpacityLight?: number;
   recommendedSounds?: { track: AmbientSoundId; volume: number }[];
 }
 

@@ -23,6 +23,7 @@ import type {
   DailyGoal,
   SoundMixerState,
   AtmospherePreset,
+  AppTheme,
 } from './types';
 import {
   loadSettings,
@@ -439,10 +440,36 @@ export function App() {
     handleSkip,
   ]);
 
+  // Theme synchronization effect
+  useEffect(() => {
+    const currentTheme = settings.theme || 'dark';
+    document.documentElement.setAttribute('data-theme', currentTheme);
+    if (currentTheme === 'light') {
+      document.documentElement.classList.add('theme-light');
+      document.documentElement.classList.remove('theme-dark');
+    } else {
+      document.documentElement.classList.add('theme-dark');
+      document.documentElement.classList.remove('theme-light');
+    }
+  }, [settings.theme]);
+
+  const handleToggleTheme = () => {
+    const nextTheme: AppTheme = settings.theme === 'light' ? 'dark' : 'light';
+    const updated = { ...settings, theme: nextTheme };
+    setSettings(updated);
+    saveSettings(updated);
+  };
+
+  const isLight = settings.theme === 'light';
+
   return (
-    <div className="relative h-screen min-h-[100dvh] max-h-[100dvh] w-full flex flex-col justify-between items-center overflow-x-hidden overflow-y-auto xl:overflow-y-hidden font-sans text-white">
+    <div
+      className={`relative h-screen min-h-[100dvh] max-h-[100dvh] w-full flex flex-col justify-between items-center overflow-x-hidden overflow-y-auto xl:overflow-y-hidden font-sans transition-colors duration-500 ${
+        isLight ? 'theme-light text-slate-900' : 'theme-dark text-white'
+      }`}
+    >
       {/* 1. Full-screen Atmospheric Background View */}
-      <BackgroundView atmosphere={atmosphere} />
+      <BackgroundView atmosphere={atmosphere} theme={settings.theme} />
 
       {/* 2. Top Header Bar */}
       <Header
@@ -458,6 +485,8 @@ export function App() {
         isFullscreen={isFullscreen}
         onToggleFullscreen={toggleFullscreen}
         timerRunning={timerState === 'running'}
+        theme={settings.theme}
+        onToggleTheme={handleToggleTheme}
       />
 
       {/* 3. Main Center Focus Workspace (True 3-Column Desktop Layout) */}
@@ -470,15 +499,20 @@ export function App() {
               todayMinutes={todayTotalMinutes}
               dailyGoal={dailyGoal}
               onUpdateGoal={handleUpdateGoal}
+              theme={settings.theme}
             />
           </div>
 
           {/* Center Column: Pomodoro Timer (Viewport Geometric Center) */}
           <div className="order-1 md:order-1 xl:order-2 md:col-span-2 xl:col-span-1 w-full flex flex-col items-center justify-center max-w-xl mx-auto">
             {/* 1. Timer Mode Selector */}
-            <TimerModeSelector currentMode={mode} onSelectMode={handleSelectMode} />
+            <TimerModeSelector
+              currentMode={mode}
+              onSelectMode={handleSelectMode}
+              theme={settings.theme}
+            />
 
-            {/* 2. Central Timer Display with Mode Label, 25:00, Sessions, and Active Task */}
+            {/* 2. Central Timer Display with Mode Label, 25:00, Sessions, Active Task, and chosen Timer Color */}
             <MainTimerDisplay
               timeLeftSeconds={timeLeft}
               totalDurationSeconds={getModeDurationSeconds(mode)}
@@ -486,6 +520,8 @@ export function App() {
               state={timerState}
               completedPomodoros={todayPomodorosCount}
               activeTaskTitle={activeTaskTitle}
+              theme={settings.theme}
+              timerColor={settings.timerColor}
             />
 
             {/* 3. Timer Controls */}
@@ -496,6 +532,7 @@ export function App() {
               onResume={handleResume}
               onReset={handleReset}
               onSkip={handleSkip}
+              theme={settings.theme}
             />
           </div>
 
@@ -509,24 +546,59 @@ export function App() {
               onSelectActive={handleSelectActive}
               onEditTask={handleEditTask}
               onDeleteTask={handleDeleteTask}
+              theme={settings.theme}
             />
           </div>
         </div>
       </main>
 
       {/* 4. Minimal Footer / Mobile Stats Badge */}
-      <footer className="relative z-10 w-full py-2.5 sm:py-3 px-6 text-center flex flex-col sm:flex-row items-center justify-between text-xs text-white/50 space-y-2 sm:space-y-0 shrink-0">
+      <footer className="relative z-10 w-full py-2.5 sm:py-3 px-6 text-center flex flex-col sm:flex-row items-center justify-between text-xs space-y-2 sm:space-y-0 shrink-0">
         <button
           onClick={() => setIsHistoryOpen(true)}
-          className="md:hidden flex items-center space-x-2 px-3 py-1 rounded-full glass-pill text-white/80 cursor-pointer"
+          className={`md:hidden flex items-center space-x-2 px-3 py-1 rounded-full glass-pill cursor-pointer ${
+            isLight ? 'text-slate-800' : 'text-white/80'
+          }`}
         >
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
           <span>Today: {todayPomodorosCount} pomodoros ({todayTotalMinutes}m focused)</span>
         </button>
-        <div className="hidden md:block font-mono text-[11px] text-white/60">
-          Press <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-[10px] text-white/90">Space</kbd> Start/Pause • <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-[10px] text-white/90">R</kbd> Reset • <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-[10px] text-white/90">M</kbd> Audio
+        <div
+          className={`hidden md:block font-mono text-[11px] ${
+            isLight ? 'text-slate-500' : 'text-white/60'
+          }`}
+        >
+          Press{' '}
+          <kbd
+            className={`px-1.5 py-0.5 rounded text-[10px] ${
+              isLight ? 'bg-black/10 text-slate-800' : 'bg-white/10 text-white/90'
+            }`}
+          >
+            Space
+          </kbd>{' '}
+          Start/Pause •{' '}
+          <kbd
+            className={`px-1.5 py-0.5 rounded text-[10px] ${
+              isLight ? 'bg-black/10 text-slate-800' : 'bg-white/10 text-white/90'
+            }`}
+          >
+            R
+          </kbd>{' '}
+          Reset •{' '}
+          <kbd
+            className={`px-1.5 py-0.5 rounded text-[10px] ${
+              isLight ? 'bg-black/10 text-slate-800' : 'bg-white/10 text-white/90'
+            }`}
+          >
+            M
+          </kbd>{' '}
+          Audio
         </div>
-        <div className="hover:text-white/80 transition-colors text-[11px] font-medium">
+        <div
+          className={`transition-colors text-[11px] font-medium ${
+            isLight ? 'text-slate-600 hover:text-slate-900' : 'text-white/60 hover:text-white/80'
+          }`}
+        >
           Luno — Focus in your own atmosphere
         </div>
       </footer>

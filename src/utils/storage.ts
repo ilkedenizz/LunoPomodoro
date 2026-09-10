@@ -20,6 +20,8 @@ export const DEFAULT_SETTINGS: TimerSettings = {
   soundVolume: 0.8,
   notificationsEnabled: true,
   tickingEnabled: false,
+  theme: 'dark',
+  timerColor: 'default',
 };
 
 export const DEFAULT_DAILY_GOAL: DailyGoal = {

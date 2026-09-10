@@ -1,18 +1,22 @@
 import React, { useState } from 'react';
 import { Plus, X } from 'lucide-react';
+import type { AppTheme } from '../types';
 
 interface TaskInputProps {
   onAddTask: (title: string) => void;
   onCancel?: () => void;
   autoFocus?: boolean;
+  theme?: AppTheme;
 }
 
 export const TaskInput: React.FC<TaskInputProps> = ({
   onAddTask,
   onCancel,
   autoFocus = true,
+  theme = 'dark',
 }) => {
   const [title, setTitle] = useState('');
+  const isLight = theme === 'light';
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,8 +35,14 @@ export const TaskInput: React.FC<TaskInputProps> = ({
 
   return (
     <form onSubmit={handleSubmit} className="relative w-full">
-      <div className="flex items-center space-x-2 p-2 px-3 rounded-xl bg-white/10 border border-white/20 backdrop-blur-md focus-within:ring-2 focus-within:ring-white/40 transition-all">
-        <Plus className="w-4 h-4 text-white/50 shrink-0" />
+      <div
+        className={`flex items-center space-x-2 p-2 px-3 rounded-xl backdrop-blur-md focus-within:ring-2 transition-all ${
+          isLight
+            ? 'bg-black/5 border border-black/15 focus-within:ring-slate-400'
+            : 'bg-white/10 border border-white/20 focus-within:ring-white/40'
+        }`}
+      >
+        <Plus className={`w-4 h-4 shrink-0 ${isLight ? 'text-slate-400' : 'text-white/50'}`} />
         <input
           type="text"
           value={title}
@@ -40,14 +50,22 @@ export const TaskInput: React.FC<TaskInputProps> = ({
           onKeyDown={handleKeyDown}
           placeholder="What's on your mind?"
           autoFocus={autoFocus}
-          className="w-full bg-transparent text-sm text-white placeholder-white/40 focus:outline-none"
+          className={`w-full bg-transparent text-sm focus:outline-none ${
+            isLight
+              ? 'text-slate-900 placeholder-slate-400'
+              : 'text-white placeholder-white/40'
+          }`}
           aria-label="New task title"
         />
         {title.length > 0 && (
           <button
             type="submit"
             aria-label="Add task"
-            className="px-2.5 py-1 rounded-lg bg-white text-black font-semibold text-xs hover:bg-white/90 transition-all shrink-0"
+            className={`px-2.5 py-1 rounded-lg font-semibold text-xs transition-all shrink-0 ${
+              isLight
+                ? 'bg-slate-900 text-white hover:bg-slate-800'
+                : 'bg-white text-black hover:bg-white/90'
+            }`}
           >
             Add
           </button>
@@ -57,7 +75,11 @@ export const TaskInput: React.FC<TaskInputProps> = ({
             type="button"
             onClick={onCancel}
             aria-label="Cancel adding task"
-            className="p-1 rounded-lg text-white/40 hover:text-white hover:bg-white/10 transition-all shrink-0"
+            className={`p-1 rounded-lg transition-all shrink-0 ${
+              isLight
+                ? 'text-slate-400 hover:text-slate-900 hover:bg-black/5'
+                : 'text-white/40 hover:text-white hover:bg-white/10'
+            }`}
           >
             <X className="w-4 h-4" />
           </button>
