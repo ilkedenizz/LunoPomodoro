@@ -458,6 +458,8 @@ export function App() {
     const updated = { ...settings, theme: nextTheme };
     setSettings(updated);
     saveSettings(updated);
+    const targetBg = getAtmosphereById(loadSavedBackground(nextTheme), nextTheme);
+    setAtmosphere(targetBg);
   };
 
   const isLight = settings.theme === 'light';
@@ -609,6 +611,10 @@ export function App() {
         onClose={() => setIsSettingsOpen(false)}
         settings={settings}
         onSaveSettings={(newSettings) => {
+          if (newSettings.theme !== settings.theme) {
+            const targetBg = getAtmosphereById(loadSavedBackground(newSettings.theme), newSettings.theme);
+            setAtmosphere(targetBg);
+          }
           setSettings(newSettings);
           saveSettings(newSettings);
           if (timerState === 'idle') {
@@ -627,7 +633,7 @@ export function App() {
         activeId={atmosphere.id}
         onSelect={(bg) => {
           setAtmosphere(bg);
-          saveBackground(bg.id);
+          saveBackground(bg.id, settings.theme);
         }}
         favoriteIds={favoriteAtmospheres}
         onToggleFavorite={handleToggleFavorite}
@@ -637,6 +643,7 @@ export function App() {
         onApplyPreset={handleApplyPreset}
         onSavePreset={handleSavePreset}
         onDeletePreset={handleDeletePreset}
+        theme={settings.theme}
       />
 
       <AmbienceAudioPlayer

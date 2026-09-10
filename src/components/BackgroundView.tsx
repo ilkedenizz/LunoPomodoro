@@ -33,9 +33,7 @@ export const BackgroundView: React.FC<BackgroundViewProps> = ({
   const isLight = theme === 'light';
 
   const renderBackgroundLayer = (atmo: AtmosphereTheme) => {
-    const bgStyle = isLight
-      ? atmo.cssBackgroundLight || atmo.cssBackground
-      : atmo.cssBackground || atmo.fallbackGradient;
+    const bgStyle = atmo.cssBackground || atmo.fallbackGradient || '';
 
     return (
       <div
@@ -48,19 +46,14 @@ export const BackgroundView: React.FC<BackgroundViewProps> = ({
           backgroundPosition: 'center',
           backgroundRepeat: 'no-repeat',
         }}
-      >
-        {/* Soft atmospheric ambient light accents for light theme */}
-        {isLight && (
-          <div className="absolute inset-0 bg-gradient-to-b from-white/40 via-transparent to-white/60 pointer-events-none" />
-        )}
-      </div>
+      />
     );
   };
 
   return (
     <div
       className={`fixed inset-0 w-full h-full min-h-[100dvh] max-h-[100dvh] pointer-events-none z-0 overflow-hidden select-none transition-colors duration-700 ${
-        isLight ? 'bg-[#faf8f5]' : 'bg-[#050508]'
+        isLight ? 'bg-[#fbfaf8]' : 'bg-[#050508]'
       }`}
     >
       {/* Previous Background layer for crossfade */}
@@ -88,10 +81,10 @@ export const BackgroundView: React.FC<BackgroundViewProps> = ({
         className="absolute inset-0 transition-opacity duration-700 pointer-events-none"
         style={{
           backgroundColor: isLight
-            ? `rgba(255, 255, 255, ${currentBg.overlayOpacityLight ?? 0.05})`
+            ? 'transparent'
             : `rgba(5, 5, 10, ${currentBg.overlayOpacity ?? 0.35})`,
           backgroundImage: isLight
-            ? 'radial-gradient(circle at center, transparent 65%, rgba(0, 0, 0, 0.04) 100%)'
+            ? 'radial-gradient(circle at center, transparent 75%, rgba(0, 0, 0, 0.03) 100%)'
             : 'radial-gradient(circle at center, transparent 30%, rgba(0, 0, 0, 0.75) 100%)',
         }}
       />

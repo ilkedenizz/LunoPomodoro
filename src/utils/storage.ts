@@ -1,4 +1,4 @@
-import type { TimerSettings, FocusSession, Task, DailyGoal, SoundMixerState, AtmospherePreset } from '../types';
+import type { TimerSettings, FocusSession, Task, DailyGoal, SoundMixerState, AtmospherePreset, AppTheme } from '../types';
 
 const SETTINGS_KEY = 'pomodoro_settings_v1';
 const SESSIONS_KEY = 'pomodoro_sessions_v1';
@@ -81,17 +81,28 @@ export const saveSession = (session: FocusSession): FocusSession[] => {
   return updated;
 };
 
-export const loadSavedBackground = (): string => {
+const BACKGROUND_DARK_KEY = 'luno_background_dark_v1';
+const BACKGROUND_LIGHT_KEY = 'luno_background_light_v1';
+
+export const loadSavedBackground = (theme: AppTheme = 'dark'): string => {
   try {
-    return localStorage.getItem(BACKGROUND_KEY) || 'tokyo';
+    if (theme === 'light') {
+      return localStorage.getItem(BACKGROUND_LIGHT_KEY) || 'soft-ivory';
+    }
+    return localStorage.getItem(BACKGROUND_DARK_KEY) || localStorage.getItem(BACKGROUND_KEY) || 'tokyo';
   } catch {
-    return 'tokyo';
+    return theme === 'light' ? 'soft-ivory' : 'tokyo';
   }
 };
 
-export const saveBackground = (id: string): void => {
+export const saveBackground = (id: string, theme: AppTheme = 'dark'): void => {
   try {
-    localStorage.setItem(BACKGROUND_KEY, id);
+    if (theme === 'light') {
+      localStorage.setItem(BACKGROUND_LIGHT_KEY, id);
+    } else {
+      localStorage.setItem(BACKGROUND_DARK_KEY, id);
+      localStorage.setItem(BACKGROUND_KEY, id);
+    }
   } catch (err) {
     console.error('Failed to save background choice', err);
   }

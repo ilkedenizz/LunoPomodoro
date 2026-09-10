@@ -152,7 +152,9 @@ export const MainTimerDisplay: React.FC<MainTimerDisplayProps> = ({
                   title={`Session ${step} of 4`}
                   className={`h-2 rounded-full transition-all duration-500 ${
                     isCurrent
-                      ? 'w-6 shadow-glow'
+                      ? isLight
+                        ? 'w-6 bg-slate-900 shadow-sm'
+                        : 'w-6 bg-white shadow-glow'
                       : isDone
                       ? isLight
                         ? 'w-2 bg-slate-700/70'
@@ -161,9 +163,6 @@ export const MainTimerDisplay: React.FC<MainTimerDisplayProps> = ({
                       ? 'w-2 bg-slate-400/25'
                       : 'w-2 bg-white/20'
                   }`}
-                  style={{
-                    backgroundColor: isCurrent ? activeStrokeHex : undefined,
-                  }}
                 />
               );
             })}
@@ -187,10 +186,7 @@ export const MainTimerDisplay: React.FC<MainTimerDisplayProps> = ({
               : 'border-white/20 text-white'
           }`}
         >
-          <span
-            className="w-1.5 h-1.5 rounded-full animate-pulse shrink-0"
-            style={{ backgroundColor: activeStrokeHex }}
-          />
+          <span className={`w-1.5 h-1.5 rounded-full animate-pulse shrink-0 ${isLight ? 'bg-indigo-600' : 'bg-indigo-400'}`} />
           <span
             className={`uppercase tracking-widest text-[9px] font-mono shrink-0 ${
               isLight ? 'text-slate-500' : 'text-white/50'

@@ -92,68 +92,76 @@
 }
 
 /* Light Theme Adaptations */
+html.theme-light,
+body.theme-light,
+[data-theme='light'] {
+  background-color: #fbfaf8 !important;
+  color: #0f172a !important;
+  color-scheme: light;
+}
+
 .theme-light {
   color: #0f172a !important;
 }
 
 .theme-light .glass-panel {
-  background: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.82);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(0, 0, 0, 0.07);
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05), 0 2px 6px -1px rgba(0, 0, 0, 0.02);
   color: #0f172a;
 }
 
 .theme-light .glass-panel-hover:hover {
-  background: rgba(255, 255, 255, 0.9);
-  border-color: rgba(0, 0, 0, 0.14);
-  box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.1);
+  background: rgba(255, 255, 255, 0.95);
+  border-color: rgba(0, 0, 0, 0.12);
+  box-shadow: 0 8px 28px -4px rgba(0, 0, 0, 0.08), 0 4px 10px -2px rgba(0, 0, 0, 0.03);
 }
 
 .theme-light .glass-pill {
-  background: rgba(255, 255, 255, 0.75);
+  background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  border: 1px solid rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(0, 0, 0, 0.08);
   color: #1e293b;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
 }
 
 .theme-light .glass-pill-active {
-  background: rgba(255, 255, 255, 0.95);
-  border-color: rgba(0, 0, 0, 0.18);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  background: #ffffff;
+  border-color: rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
   color: #0f172a;
 }
 
 .theme-light .glass-modal {
-  background: rgba(255, 255, 255, 0.94);
+  background: rgba(255, 255, 255, 0.96);
   backdrop-filter: blur(28px);
   -webkit-backdrop-filter: blur(28px);
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.12), 0 8px 24px rgba(0, 0, 0, 0.06);
   color: #0f172a;
 }
 
 .theme-light .timer-radial-glow {
-  background: radial-gradient(circle, rgba(99, 102, 241, 0.08) 0%, rgba(244, 114, 182, 0.04) 45%, transparent 70%);
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.7) 0%, rgba(240, 235, 225, 0.3) 45%, transparent 70%);
 }
 
 .theme-light .timer-radial-glow-running {
-  background: radial-gradient(circle, rgba(99, 102, 241, 0.14) 0%, rgba(244, 114, 182, 0.08) 50%, transparent 75%);
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.9) 0%, rgba(240, 235, 225, 0.45) 50%, transparent 75%);
 }
 
 .theme-light ::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.05);
+  background: rgba(0, 0, 0, 0.04);
 }
 
 .theme-light ::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.18);
+  background: rgba(0, 0, 0, 0.15);
 }
 
 .theme-light ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(0, 0, 0, 0.28);
 }
 
 /* Custom Scrollbar */

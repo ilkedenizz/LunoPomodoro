@@ -39,13 +39,11 @@ export interface AtmosphereTheme {
   id: string;
   name: string;
   tagline: string;
+  themeType?: 'dark' | 'light' | 'both';
   imageUrl?: string;
-  imageUrlLight?: string;
   cssBackground: string;
-  cssBackgroundLight?: string;
   fallbackGradient?: string;
   overlayOpacity: number;
-  overlayOpacityLight?: number;
   recommendedSounds?: { track: AmbientSoundId; volume: number }[];
 }
 
