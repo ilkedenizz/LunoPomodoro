@@ -5,49 +5,94 @@ export const ATMOSPHERES: AtmosphereTheme[] = [
     id: 'tokyo',
     name: 'Tokyo Rain',
     tagline: 'Neon reflections on wet Shibuya streets',
-    imageUrl: 'https://images.unsplash.com/photo-1503899036084-c55cdd92da26?q=80&w=2000&auto=format&fit=crop',
-    fallbackGradient: 'linear-gradient(135deg, #0d0f18 0%, #1e1b4b 50%, #31103f 100%)',
+    cssBackground: `
+      radial-gradient(circle at 20% 30%, rgba(236, 72, 153, 0.25) 0%, transparent 50%),
+      radial-gradient(circle at 80% 70%, rgba(59, 130, 246, 0.25) 0%, transparent 50%),
+      radial-gradient(circle at 50% 10%, rgba(168, 85, 247, 0.2) 0%, transparent 40%),
+      linear-gradient(135deg, #070914 0%, #0d1127 40%, #150d2a 100%)
+    `,
     overlayOpacity: 0.35,
+    recommendedSounds: [
+      { track: 'rain', volume: 0.6 },
+      { track: 'lofi', volume: 0.3 },
+    ],
   },
   {
     id: 'cozy-room',
     name: 'Cozy Study',
-    tagline: 'Warm amber glow & desk aesthetic',
-    imageUrl: 'https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?q=80&w=2000&auto=format&fit=crop',
-    fallbackGradient: 'linear-gradient(135deg, #1c1917 0%, #292524 50%, #44403c 100%)',
+    tagline: 'Warm amber lamp glow & quiet desk aesthetic',
+    cssBackground: `
+      radial-gradient(circle at 85% 25%, rgba(245, 158, 11, 0.3) 0%, transparent 45%),
+      radial-gradient(circle at 15% 85%, rgba(180, 83, 9, 0.2) 0%, transparent 50%),
+      radial-gradient(circle at 50% 50%, rgba(120, 53, 15, 0.15) 0%, transparent 60%),
+      linear-gradient(135deg, #120d0a 0%, #1f140e 50%, #291a12 100%)
+    `,
     overlayOpacity: 0.4,
+    recommendedSounds: [
+      { track: 'fire', volume: 0.5 },
+      { track: 'cafe', volume: 0.3 },
+    ],
   },
   {
     id: 'library',
     name: 'Midnight Library',
-    tagline: 'Quiet wooden shelves and antique books',
-    imageUrl: 'https://images.unsplash.com/photo-1507842217343-583bb7270b66?q=80&w=2000&auto=format&fit=crop',
-    fallbackGradient: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%)',
+    tagline: 'Quiet wooden shelves and antique spotlights',
+    cssBackground: `
+      radial-gradient(circle at 50% 15%, rgba(217, 119, 6, 0.22) 0%, transparent 40%),
+      radial-gradient(circle at 10% 75%, rgba(30, 58, 138, 0.25) 0%, transparent 50%),
+      radial-gradient(circle at 90% 80%, rgba(15, 23, 42, 0.4) 0%, transparent 50%),
+      linear-gradient(135deg, #090e1a 0%, #111a2e 50%, #1a243b 100%)
+    `,
     overlayOpacity: 0.45,
+    recommendedSounds: [
+      { track: 'lofi', volume: 0.4 },
+      { track: 'fire', volume: 0.2 },
+    ],
   },
   {
     id: 'cafe',
     name: 'Rainy Café',
-    tagline: 'Dimly lit coffee house by window',
-    imageUrl: 'https://images.unsplash.com/photo-1442512595331-e89e73853f31?q=80&w=2000&auto=format&fit=crop',
-    fallbackGradient: 'linear-gradient(135deg, #180e0a 0%, #2c1810 50%, #422015 100%)',
+    tagline: 'Dimly lit coffee house by window glass',
+    cssBackground: `
+      radial-gradient(circle at 25% 20%, rgba(251, 146, 60, 0.25) 0%, transparent 45%),
+      radial-gradient(circle at 75% 65%, rgba(194, 65, 12, 0.2) 0%, transparent 50%),
+      radial-gradient(circle at 50% 90%, rgba(30, 27, 75, 0.3) 0%, transparent 60%),
+      linear-gradient(135deg, #130a06 0%, #21120b 50%, #18111e 100%)
+    `,
     overlayOpacity: 0.4,
+    recommendedSounds: [
+      { track: 'rain', volume: 0.5 },
+      { track: 'cafe', volume: 0.5 },
+    ],
   },
   {
     id: 'rain',
     name: 'Glass Raindrops',
-    tagline: 'Soft rainfall against window glass',
-    imageUrl: 'https://images.unsplash.com/photo-1515694346937-94d85e41e6f0?q=80&w=2000&auto=format&fit=crop',
-    fallbackGradient: 'linear-gradient(135deg, #09131d 0%, #132337 50%, #1c324a 100%)',
+    tagline: 'Soft rainfall against dark window glass',
+    cssBackground: `
+      radial-gradient(circle at 50% 30%, rgba(56, 189, 248, 0.2) 0%, transparent 50%),
+      radial-gradient(circle at 20% 80%, rgba(14, 165, 233, 0.15) 0%, transparent 45%),
+      radial-gradient(circle at 80% 85%, rgba(30, 58, 138, 0.25) 0%, transparent 50%),
+      linear-gradient(135deg, #060e1a 0%, #0d1b2e 50%, #142740 100%)
+    `,
     overlayOpacity: 0.35,
+    recommendedSounds: [{ track: 'rain', volume: 0.8 }],
   },
   {
     id: 'night-city',
     name: 'Night Cityscape',
-    tagline: 'Panoramic city lights under starry sky',
-    imageUrl: 'https://images.unsplash.com/photo-1519501025264-65ba15a82390?q=80&w=2000&auto=format&fit=crop',
-    fallbackGradient: 'linear-gradient(135deg, #0a0a0f 0%, #121324 50%, #1f2038 100%)',
+    tagline: 'Panoramic city lights under a starry sky',
+    cssBackground: `
+      radial-gradient(circle at 30% 70%, rgba(168, 85, 247, 0.25) 0%, transparent 45%),
+      radial-gradient(circle at 70% 30%, rgba(99, 102, 241, 0.25) 0%, transparent 50%),
+      radial-gradient(circle at 50% 90%, rgba(244, 63, 94, 0.15) 0%, transparent 40%),
+      linear-gradient(135deg, #070712 0%, #101124 50%, #191a38 100%)
+    `,
     overlayOpacity: 0.4,
+    recommendedSounds: [
+      { track: 'lofi', volume: 0.5 },
+      { track: 'waves', volume: 0.2 },
+    ],
   },
 ];
 

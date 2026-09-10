@@ -1,4 +1,4 @@
-import type { AmbientSoundId } from '../types';
+import type { AmbientSoundId, SoundMixerState } from '../types';
 
 let audioCtx: AudioContext | null = null;
 
@@ -77,13 +77,15 @@ export const playTickSound = (volume = 0.2): void => {
   }
 };
 
-// Ambient Sound Synthesizer Engine
+// Ambient Sound Synthesizer Engine with Multi-Track Sound Mixer
 class AmbientEngine {
   private ctx: AudioContext | null = null;
   private masterGain: GainNode | null = null;
+  private trackGains: Partial<Record<Exclude<AmbientSoundId, 'off'>, GainNode>> = {};
   private activeNodes: (AudioNode | { stop: () => void })[] = [];
   public currentTrack: AmbientSoundId = 'off';
   public currentVolume = 0.5;
+  private isInitialized = false;
 
   public setVolume(vol: number) {
     this.currentVolume = vol;
@@ -100,13 +102,12 @@ class AmbientEngine {
     return this.currentVolume;
   }
 
-
   public stop() {
     if (this.masterGain && this.ctx) {
       this.masterGain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.1);
     }
     setTimeout(() => {
-      this.activeNodes.forEach(node => {
+      this.activeNodes.forEach((node) => {
         try {
           if ('stop' in node && typeof node.stop === 'function') {
             node.stop();
@@ -116,39 +117,88 @@ class AmbientEngine {
         } catch {}
       });
       this.activeNodes = [];
+      this.trackGains = {};
       this.currentTrack = 'off';
+      this.isInitialized = false;
     }, 150);
   }
 
-  public playTrack(trackId: AmbientSoundId, volume = 0.5) {
-    this.stop();
-    if (trackId === 'off') return;
+  private initEngine(masterVol: number) {
+    if (this.isInitialized && this.ctx && this.masterGain) return;
+    this.ctx = getAudioContext();
+    const now = this.ctx.currentTime;
 
-    this.currentTrack = trackId;
-    this.currentVolume = volume;
+    this.masterGain = this.ctx.createGain();
+    this.masterGain.gain.setValueAtTime(masterVol, now);
+    this.masterGain.connect(this.ctx.destination);
 
-    try {
-      this.ctx = getAudioContext();
-      const now = this.ctx.currentTime;
+    this.isInitialized = true;
+  }
 
-      this.masterGain = this.ctx.createGain();
-      this.masterGain.gain.setValueAtTime(volume, now);
-      this.masterGain.connect(this.ctx.destination);
+  public syncMixerState(state: SoundMixerState) {
+    const trackKeys: Exclude<AmbientSoundId, 'off'>[] = ['rain', 'cafe', 'fire', 'waves', 'lofi'];
 
-      if (trackId === 'rain') {
-        this.generateRainSound();
-      } else if (trackId === 'waves') {
-        this.generateOceanWaves();
-      } else if (trackId === 'fire') {
-        this.generateFireplace();
-      } else if (trackId === 'cafe') {
-        this.generateCafeMurmur();
-      } else if (trackId === 'lofi') {
-        this.generateLofiChords();
-      }
-    } catch (err) {
-      console.error('Failed to start ambient sound synth:', err);
+    const hasAnyActiveTrack = trackKeys.some((t) => {
+      const trackState = state.tracks[t];
+      return trackState && !trackState.muted && trackState.volume > 0;
+    });
+
+    if (!hasAnyActiveTrack) {
+      if (this.isInitialized) this.stop();
+      return;
     }
+
+    this.initEngine(state.masterVolume);
+    if (!this.ctx || !this.masterGain) return;
+
+    this.masterGain.gain.setTargetAtTime(state.masterVolume, this.ctx.currentTime, 0.05);
+
+    trackKeys.forEach((t) => {
+      const trackState = state.tracks[t];
+      const targetVol = trackState && !trackState.muted ? trackState.volume : 0;
+
+      if (!this.trackGains[t] && targetVol > 0) {
+        // Start track generator for this sound
+        const gainNode = this.ctx!.createGain();
+        gainNode.gain.setValueAtTime(targetVol, this.ctx!.currentTime);
+        gainNode.connect(this.masterGain!);
+        this.trackGains[t] = gainNode;
+
+        this.generateTrackSound(t, gainNode);
+      } else if (this.trackGains[t]) {
+        this.trackGains[t]!.gain.setTargetAtTime(targetVol, this.ctx!.currentTime, 0.05);
+      }
+    });
+
+    this.currentTrack = hasAnyActiveTrack ? 'rain' : 'off';
+  }
+
+  public playTrack(trackId: AmbientSoundId, volume = 0.5) {
+    if (trackId === 'off') {
+      this.stop();
+      return;
+    }
+    const defaultMixer: SoundMixerState = {
+      masterVolume: volume,
+      tracks: {
+        rain: { volume: trackId === 'rain' ? 1 : 0, muted: false },
+        cafe: { volume: trackId === 'cafe' ? 1 : 0, muted: false },
+        fire: { volume: trackId === 'fire' ? 1 : 0, muted: false },
+        waves: { volume: trackId === 'waves' ? 1 : 0, muted: false },
+        lofi: { volume: trackId === 'lofi' ? 1 : 0, muted: false },
+      },
+    };
+    this.syncMixerState(defaultMixer);
+  }
+
+  private generateTrackSound(trackId: Exclude<AmbientSoundId, 'off'>, targetGain: GainNode) {
+    if (!this.ctx) return;
+
+    if (trackId === 'rain') this.generateRainSoundToNode(targetGain);
+    else if (trackId === 'waves') this.generateOceanWavesToNode(targetGain);
+    else if (trackId === 'fire') this.generateFireplaceToNode(targetGain);
+    else if (trackId === 'cafe') this.generateCafeMurmurToNode(targetGain);
+    else if (trackId === 'lofi') this.generateLofiChordsToNode(targetGain);
   }
 
   private createPinkNoiseBuffer(): AudioBuffer {
@@ -173,8 +223,8 @@ class AmbientEngine {
     return buffer;
   }
 
-  private generateRainSound() {
-    if (!this.ctx || !this.masterGain) return;
+  private generateRainSoundToNode(targetGain: GainNode) {
+    if (!this.ctx) return;
     const buffer = this.createPinkNoiseBuffer();
     const noiseSource = this.ctx.createBufferSource();
     noiseSource.buffer = buffer;
@@ -185,14 +235,14 @@ class AmbientEngine {
     filter.frequency.setValueAtTime(1000, this.ctx.currentTime);
 
     noiseSource.connect(filter);
-    filter.connect(this.masterGain);
+    filter.connect(targetGain);
     noiseSource.start();
 
     this.activeNodes.push(noiseSource);
   }
 
-  private generateOceanWaves() {
-    if (!this.ctx || !this.masterGain) return;
+  private generateOceanWavesToNode(targetGain: GainNode) {
+    if (!this.ctx) return;
     const buffer = this.createPinkNoiseBuffer();
     const noiseSource = this.ctx.createBufferSource();
     noiseSource.buffer = buffer;
@@ -212,7 +262,7 @@ class AmbientEngine {
     lfoGain.connect(filter.frequency);
 
     noiseSource.connect(filter);
-    filter.connect(this.masterGain);
+    filter.connect(targetGain);
 
     noiseSource.start();
     lfo.start();
@@ -220,8 +270,8 @@ class AmbientEngine {
     this.activeNodes.push(noiseSource, lfo);
   }
 
-  private generateFireplace() {
-    if (!this.ctx || !this.masterGain) return;
+  private generateFireplaceToNode(targetGain: GainNode) {
+    if (!this.ctx) return;
     const buffer = this.createPinkNoiseBuffer();
     const noiseSource = this.ctx.createBufferSource();
     noiseSource.buffer = buffer;
@@ -232,14 +282,14 @@ class AmbientEngine {
     filter.frequency.setValueAtTime(350, this.ctx.currentTime);
 
     noiseSource.connect(filter);
-    filter.connect(this.masterGain);
+    filter.connect(targetGain);
     noiseSource.start();
 
     this.activeNodes.push(noiseSource);
   }
 
-  private generateCafeMurmur() {
-    if (!this.ctx || !this.masterGain) return;
+  private generateCafeMurmurToNode(targetGain: GainNode) {
+    if (!this.ctx) return;
     const buffer = this.createPinkNoiseBuffer();
     const noiseSource = this.ctx.createBufferSource();
     noiseSource.buffer = buffer;
@@ -251,17 +301,17 @@ class AmbientEngine {
     bandpass.Q.setValueAtTime(1.5, this.ctx.currentTime);
 
     noiseSource.connect(bandpass);
-    bandpass.connect(this.masterGain);
+    bandpass.connect(targetGain);
     noiseSource.start();
 
     this.activeNodes.push(noiseSource);
   }
 
-  private generateLofiChords() {
-    if (!this.ctx || !this.masterGain) return;
+  private generateLofiChordsToNode(targetGain: GainNode) {
+    if (!this.ctx) return;
     const notes = [261.63, 329.63, 392.00, 493.88]; // Cmaj7 pad
     notes.forEach((freq) => {
-      if (!this.ctx || !this.masterGain) return;
+      if (!this.ctx) return;
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
 
@@ -271,7 +321,7 @@ class AmbientEngine {
       gain.gain.setValueAtTime(0.06, this.ctx.currentTime);
 
       osc.connect(gain);
-      gain.connect(this.masterGain);
+      gain.connect(targetGain);
       osc.start();
 
       this.activeNodes.push(osc);

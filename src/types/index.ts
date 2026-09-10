@@ -25,9 +25,11 @@ export interface AtmosphereTheme {
   id: string;
   name: string;
   tagline: string;
-  imageUrl: string;
-  fallbackGradient: string;
+  imageUrl?: string;
+  cssBackground: string;
+  fallbackGradient?: string;
   overlayOpacity: number;
+  recommendedSounds?: { track: AmbientSoundId; volume: number }[];
 }
 
 export type AmbientSoundId = 'off' | 'rain' | 'cafe' | 'waves' | 'fire' | 'lofi';
@@ -52,3 +54,20 @@ export interface DailyGoal {
   targetMinutes: number;   // default 100
 }
 
+export interface TrackMixerState {
+  volume: number; // 0..1
+  muted: boolean;
+}
+
+export interface SoundMixerState {
+  masterVolume: number; // 0..1
+  tracks: Record<Exclude<AmbientSoundId, 'off'>, TrackMixerState>;
+}
+
+export interface AtmospherePreset {
+  id: string;
+  name: string;
+  atmosphereId: string;
+  soundMixer: SoundMixerState;
+  createdAt: number;
+}

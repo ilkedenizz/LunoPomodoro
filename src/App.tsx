@@ -19,9 +19,10 @@ import type {
   TimerSettings,
   FocusSession,
   AtmosphereTheme,
-  AmbientSoundId,
   Task,
   DailyGoal,
+  SoundMixerState,
+  AtmospherePreset,
 } from './types';
 import {
   loadSettings,
@@ -36,6 +37,12 @@ import {
   saveDailyGoal,
   loadActiveTaskId,
   saveActiveTaskId,
+  loadFavoriteAtmospheres,
+  saveFavoriteAtmospheres,
+  loadSoundMixerState,
+  saveSoundMixerState,
+  loadAtmospherePresets,
+  saveAtmospherePresets,
 } from './utils/storage';
 import { getAtmosphereById } from './utils/backgrounds';
 import { playCompletionChime, ambientEngine } from './utils/sound';
@@ -54,6 +61,17 @@ export function App() {
   const [dailyGoal, setDailyGoal] = useState<DailyGoal>(() => loadDailyGoal());
   const [activeTaskId, setActiveTaskId] = useState<string | null>(() => loadActiveTaskId());
 
+  // Phase 4 State: Atmosphere 2.0, Multi-track Sound Mixer & Presets
+  const [favoriteAtmospheres, setFavoriteAtmospheres] = useState<string[]>(() =>
+    loadFavoriteAtmospheres()
+  );
+  const [soundMixerState, setSoundMixerState] = useState<SoundMixerState>(() =>
+    loadSoundMixerState()
+  );
+  const [atmospherePresets, setAtmospherePresets] = useState<AtmospherePreset[]>(() =>
+    loadAtmospherePresets()
+  );
+
   // 2. Timer State
   const [mode, setMode] = useState<TimerMode>('pomodoro');
   const [timerState, setTimerState] = useState<TimerState>('idle');
@@ -71,9 +89,6 @@ export function App() {
   const [timeLeft, setTimeLeft] = useState<number>(() => getModeDurationSeconds('pomodoro'));
 
   // 3. Audio & Modals
-  const [ambientTrack, setAmbientTrack] = useState<AmbientSoundId>('off');
-  const [ambientVolume, setAmbientVolume] = useState<number>(0.5);
-
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isBackgroundsOpen, setIsBackgroundsOpen] = useState(false);
   const [isAudioOpen, setIsAudioOpen] = useState(false);
@@ -83,6 +98,46 @@ export function App() {
 
   // High precision timer reference
   const expectedEndRef = useRef<number | null>(null);
+
+  // Synchronize Sound Mixer State with Web Audio Ambient Synth Engine
+  useEffect(() => {
+    ambientEngine.syncMixerState(soundMixerState);
+  }, [soundMixerState]);
+
+  const handleMixerChange = (newState: SoundMixerState) => {
+    setSoundMixerState(newState);
+    saveSoundMixerState(newState);
+  };
+
+  // Favorites Handler
+  const handleToggleFavorite = (atmoId: string) => {
+    const isFav = favoriteAtmospheres.includes(atmoId);
+    const updated = isFav
+      ? favoriteAtmospheres.filter((id) => id !== atmoId)
+      : [...favoriteAtmospheres, atmoId];
+    setFavoriteAtmospheres(updated);
+    saveFavoriteAtmospheres(updated);
+  };
+
+  // Presets Handlers
+  const handleSavePreset = (preset: AtmospherePreset) => {
+    const updated = [preset, ...atmospherePresets];
+    setAtmospherePresets(updated);
+    saveAtmospherePresets(updated);
+  };
+
+  const handleDeletePreset = (presetId: string) => {
+    const updated = atmospherePresets.filter((p) => p.id !== presetId);
+    setAtmospherePresets(updated);
+    saveAtmospherePresets(updated);
+  };
+
+  const handleApplyPreset = (preset: AtmospherePreset) => {
+    const atmo = getAtmosphereById(preset.atmosphereId);
+    setAtmosphere(atmo);
+    saveBackground(atmo.id);
+    handleMixerChange(preset.soundMixer);
+  };
 
   // Document Title update
   useEffect(() => {
@@ -111,23 +166,6 @@ export function App() {
     }
   };
 
-  // Sound Engine Volume Sync
-  useEffect(() => {
-    ambientEngine.setVolume(ambientVolume);
-  }, [ambientVolume]);
-
-  const handleSelectAmbientTrack = useCallback(
-    (track: AmbientSoundId) => {
-      setAmbientTrack(track);
-      if (track === 'off') {
-        ambientEngine.stop();
-      } else {
-        ambientEngine.playTrack(track, ambientVolume);
-      }
-    },
-    [ambientVolume]
-  );
-
   // Today Statistics Calculation
   const todaySessions = sessions.filter((s) => isToday(s.timestamp));
   const todayPomodorosCount = todaySessions.filter((s) => s.mode === 'pomodoro').length;
@@ -136,6 +174,11 @@ export function App() {
   // Active Task
   const activeTask = tasks.find((t) => t.id === activeTaskId && !t.completed);
   const activeTaskTitle = activeTask ? activeTask.title : null;
+
+  // Check if any ambient track is actively playing
+  const isAudioPlaying = Object.values(soundMixerState.tracks).some(
+    (t) => t.volume > 0 && !t.muted
+  );
 
   // Task Handlers
   const handleAddTask = (title: string) => {
@@ -361,7 +404,6 @@ export function App() {
   // Keyboard Shortcuts Listener
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't trigger if user is typing in an input element
       if (['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target as HTMLElement).tagName)) {
         return;
       }
@@ -376,7 +418,7 @@ export function App() {
       } else if (e.code === 'KeyS') {
         handleSkip();
       } else if (e.code === 'KeyM') {
-        handleSelectAmbientTrack(ambientTrack === 'off' ? 'rain' : 'off');
+        setIsAudioOpen((prev) => !prev);
       } else if (e.code === 'Escape') {
         setIsSettingsOpen(false);
         setIsBackgroundsOpen(false);
@@ -390,13 +432,11 @@ export function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [
     timerState,
-    ambientTrack,
     handlePause,
     handleResume,
     handleStart,
     handleReset,
     handleSkip,
-    handleSelectAmbientTrack,
   ]);
 
   return (
@@ -414,7 +454,7 @@ export function App() {
         onOpenAudio={() => setIsAudioOpen(true)}
         onOpenShortcuts={() => setIsShortcutsOpen(true)}
         onOpenHistory={() => setIsHistoryOpen(true)}
-        isAudioPlaying={ambientTrack !== 'off'}
+        isAudioPlaying={isAudioPlaying}
         isFullscreen={isFullscreen}
         onToggleFullscreen={toggleFullscreen}
         timerRunning={timerState === 'running'}
@@ -481,7 +521,7 @@ export function App() {
           <span>Today: {todayPomodorosCount} pomodoros ({todayTotalMinutes}m focused)</span>
         </button>
         <div className="hidden md:block">
-          Press <kbd className="px-1.5 py-0.5 rounded bg-white/10 font-mono text-[10px] text-white/80">Space</kbd> to Start/Pause • <kbd className="px-1.5 py-0.5 rounded bg-white/10 font-mono text-[10px] text-white/80">R</kbd> to Reset
+          Press <kbd className="px-1.5 py-0.5 rounded bg-white/10 font-mono text-[10px] text-white/80">Space</kbd> to Start/Pause • <kbd className="px-1.5 py-0.5 rounded bg-white/10 font-mono text-[10px] text-white/80">R</kbd> to Reset • <kbd className="px-1.5 py-0.5 rounded bg-white/10 font-mono text-[10px] text-white/80">M</kbd> for Audio
         </div>
         <div className="hover:text-white/80 transition-colors">
           Atmospheric Personal Focus Workspace
@@ -514,15 +554,21 @@ export function App() {
           setAtmosphere(bg);
           saveBackground(bg.id);
         }}
+        favoriteIds={favoriteAtmospheres}
+        onToggleFavorite={handleToggleFavorite}
+        mixerState={soundMixerState}
+        onMixerChange={handleMixerChange}
+        presets={atmospherePresets}
+        onApplyPreset={handleApplyPreset}
+        onSavePreset={handleSavePreset}
+        onDeletePreset={handleDeletePreset}
       />
 
       <AmbienceAudioPlayer
         isOpen={isAudioOpen}
         onClose={() => setIsAudioOpen(false)}
-        activeTrack={ambientTrack}
-        volume={ambientVolume}
-        onSelectTrack={handleSelectAmbientTrack}
-        onChangeVolume={setAmbientVolume}
+        mixerState={soundMixerState}
+        onChangeMixerState={handleMixerChange}
       />
 
       <ShortcutsModal
