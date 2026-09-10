@@ -127,8 +127,9 @@ export function App() {
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  // High precision timer reference
+  // High precision timer reference & idempotency flag
   const expectedEndRef = useRef<number | null>(null);
+  const isCompletingRef = useRef<boolean>(false);
 
   // Auth state listener and initial cloud sync
   useEffect(() => {
@@ -215,6 +216,12 @@ export function App() {
   useEffect(() => {
     if (timerState === 'idle') {
       document.title = 'Luno — Focus in your own atmosphere';
+      return;
+    }
+    if (timerState === 'completed') {
+      const completionText =
+        mode === 'pomodoro' ? '🎉 Focus Completed!' : '☕ Break Finished!';
+      document.title = `${completionText} • Luno`;
       return;
     }
     const mins = Math.floor(timeLeft / 60);
@@ -375,9 +382,14 @@ export function App() {
     }
   }, [user]);
 
-  // Handle Session Completion
+  // Handle Session Completion (Strictly Idempotent)
   const handleSessionComplete = useCallback(() => {
-    setTimerState('idle');
+    if (isCompletingRef.current) return;
+    isCompletingRef.current = true;
+
+    expectedEndRef.current = null;
+    setTimeLeft(0);
+    setTimerState('completed');
 
     // Alarm Sound
     if (settings.soundEnabled) {
@@ -392,13 +404,12 @@ export function App() {
           : '⚡ Break Time Ended!';
       const body =
         mode === 'pomodoro'
-          ? 'Great work! Take a well-deserved break.'
+          ? 'Great work! Take a break or continue focusing in Luno.'
           : 'Ready to focus again? Let’s start the next session.';
       new Notification(title, { body });
     }
 
     // Handle Pomodoro session log & celebration
-    let nextPomodoroCount = todayPomodorosCount;
     if (mode === 'pomodoro') {
       const newSession: FocusSession = {
         id: Math.random().toString(36).substring(2, 9),
@@ -409,7 +420,6 @@ export function App() {
       };
       const updatedSessions = saveSession(newSession);
       setSessions(updatedSessions);
-      nextPomodoroCount += 1;
 
       if (user) {
         markSessionPending(newSession.id);
@@ -443,35 +453,25 @@ export function App() {
         origin: { y: 0.6 },
         colors: ['#ffffff', '#a855f7', '#38bdf8', '#34d399'],
       });
-    }
-
-    // Cycle Navigation
-    if (mode === 'pomodoro') {
-      const nextMode: TimerMode =
-        nextPomodoroCount % 4 === 0 ? 'longBreak' : 'shortBreak';
-      setMode(nextMode);
-      const nextDuration = getModeDurationSeconds(nextMode);
-      setTimeLeft(nextDuration);
-
-      if (settings.autoStartBreaks) {
-        setTimerState('running');
-        expectedEndRef.current = Date.now() + nextDuration * 1000;
-      }
     } else {
-      setMode('pomodoro');
-      const nextDuration = getModeDurationSeconds('pomodoro');
-      setTimeLeft(nextDuration);
+      // Break completion: log break session
+      const breakSession: FocusSession = {
+        id: Math.random().toString(36).substring(2, 9),
+        timestamp: Date.now(),
+        mode: mode,
+        durationMinutes: mode === 'shortBreak' ? settings.shortBreakDuration : settings.longBreakDuration,
+      };
+      const updatedSessions = saveSession(breakSession);
+      setSessions(updatedSessions);
 
-      if (settings.autoStartPomodoros) {
-        setTimerState('running');
-        expectedEndRef.current = Date.now() + nextDuration * 1000;
+      if (user) {
+        markSessionPending(breakSession.id);
+        SyncEngine.pushSession(breakSession, user.id);
       }
     }
   }, [
     mode,
     settings,
-    todayPomodorosCount,
-    getModeDurationSeconds,
     activeTaskId,
     activeTaskTitle,
     user,
@@ -526,9 +526,12 @@ export function App() {
 
   // Timer Controls
   const handleStart = useCallback(() => {
-    expectedEndRef.current = Date.now() + timeLeft * 1000;
+    isCompletingRef.current = false;
+    const targetDuration = timeLeft <= 0 ? getModeDurationSeconds(mode) : timeLeft;
+    setTimeLeft(targetDuration);
+    expectedEndRef.current = Date.now() + targetDuration * 1000;
     setTimerState('running');
-  }, [timeLeft]);
+  }, [timeLeft, mode, getModeDurationSeconds]);
 
   const handlePause = useCallback(() => {
     setTimerState('paused');
@@ -536,17 +539,20 @@ export function App() {
   }, []);
 
   const handleResume = useCallback(() => {
+    isCompletingRef.current = false;
     expectedEndRef.current = Date.now() + timeLeft * 1000;
     setTimerState('running');
   }, [timeLeft]);
 
   const handleReset = useCallback(() => {
+    isCompletingRef.current = false;
     setTimerState('idle');
     expectedEndRef.current = null;
     setTimeLeft(getModeDurationSeconds(mode));
   }, [mode, getModeDurationSeconds]);
 
   const handleSkip = useCallback(() => {
+    isCompletingRef.current = false;
     setTimerState('idle');
     expectedEndRef.current = null;
     if (mode === 'pomodoro') {
@@ -560,15 +566,38 @@ export function App() {
     }
   }, [mode, todayPomodorosCount, getModeDurationSeconds]);
 
+  // Action: User explicitly chooses to take a break after Pomodoro
+  const handleStartBreak = useCallback(() => {
+    isCompletingRef.current = false;
+    const nextBreakMode: TimerMode =
+      todayPomodorosCount > 0 && todayPomodorosCount % 4 === 0 ? 'longBreak' : 'shortBreak';
+    setMode(nextBreakMode);
+    const breakDuration = getModeDurationSeconds(nextBreakMode);
+    setTimeLeft(breakDuration);
+    expectedEndRef.current = Date.now() + breakDuration * 1000;
+    setTimerState('running');
+  }, [todayPomodorosCount, getModeDurationSeconds]);
+
+  // Action: User explicitly chooses to continue with another Focus session
+  const handleContinueFocus = useCallback(() => {
+    isCompletingRef.current = false;
+    setMode('pomodoro');
+    const focusDuration = getModeDurationSeconds('pomodoro');
+    setTimeLeft(focusDuration);
+    expectedEndRef.current = Date.now() + focusDuration * 1000;
+    setTimerState('running');
+  }, [getModeDurationSeconds]);
+
   const handleSelectMode = useCallback((newMode: TimerMode) => {
     setMode((prevMode) => {
-      if (newMode === prevMode) return prevMode;
+      if (newMode === prevMode && timerState !== 'completed') return prevMode;
+      isCompletingRef.current = false;
       setTimerState('idle');
       expectedEndRef.current = null;
       setTimeLeft(getModeDurationSeconds(newMode));
       return newMode;
     });
-  }, [getModeDurationSeconds]);
+  }, [timerState, getModeDurationSeconds]);
 
   // Keyboard Shortcuts Listener
   useEffect(() => {
@@ -581,11 +610,13 @@ export function App() {
         e.preventDefault();
         if (timerState === 'running') handlePause();
         else if (timerState === 'paused') handleResume();
+        else if (timerState === 'completed') handleContinueFocus();
         else handleStart();
       } else if (e.code === 'KeyR') {
         handleReset();
       } else if (e.code === 'KeyS') {
-        handleSkip();
+        if (timerState === 'completed') handleStartBreak();
+        else handleSkip();
       } else if (e.code === 'KeyM') {
         setIsAudioOpen((prev) => !prev);
       } else if (e.code === 'Escape') {
@@ -607,6 +638,8 @@ export function App() {
     handleStart,
     handleReset,
     handleSkip,
+    handleStartBreak,
+    handleContinueFocus,
   ]);
 
   // Theme synchronization effect
@@ -735,6 +768,9 @@ export function App() {
               onResume={handleResume}
               onReset={handleReset}
               onSkip={handleSkip}
+              onStartBreak={handleStartBreak}
+              onContinueFocus={handleContinueFocus}
+              breakType={todayPomodorosCount > 0 && todayPomodorosCount % 4 === 0 ? 'longBreak' : 'shortBreak'}
               theme={settings.theme}
             />
           </div>

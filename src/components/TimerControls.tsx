@@ -1,5 +1,5 @@
 import React from 'react';
-import { Play, Pause, RotateCcw, SkipForward } from 'lucide-react';
+import { Play, Pause, RotateCcw, SkipForward, Coffee, Sparkles } from 'lucide-react';
 import type { TimerState, AppTheme } from '../types';
 
 interface TimerControlsProps {
@@ -9,6 +9,9 @@ interface TimerControlsProps {
   onResume: () => void;
   onReset: () => void;
   onSkip: () => void;
+  onStartBreak?: () => void;
+  onContinueFocus?: () => void;
+  breakType?: 'shortBreak' | 'longBreak';
   theme?: AppTheme;
 }
 
@@ -19,11 +22,67 @@ export const TimerControls: React.FC<TimerControlsProps> = React.memo(({
   onResume,
   onReset,
   onSkip,
+  onStartBreak,
+  onContinueFocus,
+  breakType = 'shortBreak',
   theme = 'dark',
 }) => {
   const isRunning = timerState === 'running';
   const isPaused = timerState === 'paused';
+  const isCompleted = timerState === 'completed';
   const isLight = theme === 'light';
+
+  if (isCompleted) {
+    return (
+      <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 z-20 my-2 animate-in fade-in zoom-in-95 duration-200">
+        {/* Reset Button */}
+        <button
+          onClick={onReset}
+          aria-label="Reset timer to start"
+          className={`min-w-[48px] min-h-[48px] p-3.5 sm:p-4 rounded-2xl glass-panel glass-panel-hover transition-all transform active:scale-95 focus:outline-none focus-visible:ring-2 ${
+            isLight
+              ? 'text-slate-600 hover:text-slate-900 focus-visible:ring-slate-400'
+              : 'text-white/70 hover:text-white focus-visible:ring-white/60'
+          }`}
+          title="Reset (R)"
+        >
+          <RotateCcw className="w-5 h-5 sm:w-6 sm:h-6" />
+        </button>
+
+        {/* Start Break Button */}
+        {onStartBreak && (
+          <button
+            onClick={onStartBreak}
+            aria-label={breakType === 'longBreak' ? 'Start Long Break' : 'Start Short Break'}
+            className={`min-h-[48px] px-5 sm:px-7 py-3.5 sm:py-4 rounded-2xl font-semibold text-sm sm:text-base border shadow-xl hover:scale-[1.02] active:scale-95 transition-all duration-200 flex items-center space-x-2 focus:outline-none focus-visible:ring-2 cursor-pointer ${
+              isLight
+                ? 'bg-teal-50 border-teal-200 text-teal-800 hover:bg-teal-100/80 focus-visible:ring-teal-400'
+                : 'bg-teal-500/20 border-teal-500/40 text-teal-200 hover:bg-teal-500/30 focus-visible:ring-teal-400'
+            }`}
+          >
+            <Coffee className="w-4 h-4 sm:w-5 sm:h-5 text-teal-400 shrink-0" />
+            <span>{breakType === 'longBreak' ? 'Start Long Break' : 'Start Break'}</span>
+          </button>
+        )}
+
+        {/* Continue Focus Button */}
+        {onContinueFocus && (
+          <button
+            onClick={onContinueFocus}
+            aria-label="Continue Focus"
+            className={`min-h-[48px] px-6 sm:px-8 py-3.5 sm:py-4 rounded-2xl font-semibold text-sm sm:text-base shadow-2xl hover:scale-[1.03] active:scale-95 transition-all duration-200 flex items-center space-x-2.5 focus:outline-none focus-visible:ring-4 cursor-pointer ${
+              isLight
+                ? 'bg-slate-900 text-white hover:bg-slate-800 focus-visible:ring-slate-400'
+                : 'bg-white text-black hover:bg-white/90 focus-visible:ring-white/60'
+            }`}
+          >
+            <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 shrink-0 text-amber-400" />
+            <span>Continue Focus</span>
+          </button>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="flex items-center justify-center space-x-4 sm:space-x-6 z-20 my-2">

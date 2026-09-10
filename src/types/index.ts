@@ -1,5 +1,5 @@
 export type TimerMode = 'pomodoro' | 'shortBreak' | 'longBreak';
-export type TimerState = 'idle' | 'running' | 'paused';
+export type TimerState = 'idle' | 'running' | 'paused' | 'completed';
 
 export type AppTheme = 'dark' | 'light';
 export type TimerColorId =

@@ -35,29 +35,43 @@ export const MainTimerDisplay: React.FC<MainTimerDisplayProps> = React.memo(({
       ? ((totalDurationSeconds - timeLeftSeconds) / totalDurationSeconds) * 100
       : 0;
 
-  const currentCycleIndex = (completedPomodoros % 4) + 1;
-
-  const modeTitle =
-    mode === 'pomodoro'
-      ? 'Focus Session'
-      : mode === 'shortBreak'
-      ? 'Short Break'
-      : 'Long Break';
-
   const isRunning = state === 'running';
   const isPaused = state === 'paused';
+  const isCompleted = state === 'completed';
   const isLight = theme === 'light';
 
   const colorDef = getTimerColor(timerColor);
-  const activeColorHex = isLight ? colorDef.lightHex : colorDef.darkHex;
-  const activeStrokeHex = isLight ? colorDef.lightStroke : colorDef.darkStroke;
-  const activeGlowHex = isLight ? colorDef.lightGlow : colorDef.darkGlow;
+  const activeColorHex = isCompleted
+    ? isLight ? '#059669' : '#34d399'
+    : isLight ? colorDef.lightHex : colorDef.darkHex;
+  const activeStrokeHex = isCompleted
+    ? isLight ? '#059669' : '#34d399'
+    : isLight ? colorDef.lightStroke : colorDef.darkStroke;
+  const activeGlowHex = isCompleted
+    ? 'rgba(52, 211, 153, 0.45)'
+    : isLight ? colorDef.lightGlow : colorDef.darkGlow;
+
+  const cycleRemainder = completedPomodoros % 4;
+  const completedInCycle = cycleRemainder === 0 && completedPomodoros > 0 ? 4 : cycleRemainder;
+  const nextCycleIndex = cycleRemainder + 1;
+
+  const modeTitle = isCompleted
+    ? mode === 'pomodoro'
+      ? 'Focus Session Completed'
+      : 'Break Finished'
+    : mode === 'pomodoro'
+    ? 'Focus Session'
+    : mode === 'shortBreak'
+    ? 'Short Break'
+    : 'Long Break';
+
+  const effectiveProgress = isCompleted ? 100 : progress;
 
   return (
     <div
       role="timer"
       aria-label={`${modeTitle}: ${formattedTime}`}
-      aria-live={isPaused ? 'polite' : 'off'}
+      aria-live={isPaused || isCompleted ? 'polite' : 'off'}
       className="relative flex flex-col items-center justify-center my-2 sm:my-3 select-none w-full"
     >
       {/* Main Outer Timer Circle Container with Radial Glow */}
@@ -65,14 +79,16 @@ export const MainTimerDisplay: React.FC<MainTimerDisplayProps> = React.memo(({
         {/* Atmospheric Radial Light Glow behind Timer */}
         <div
           className={`absolute inset-0 rounded-full transition-all duration-1000 pointer-events-none ${
-            isRunning
+            isCompleted
+              ? 'timer-radial-glow opacity-90'
+              : isRunning
               ? 'timer-radial-glow-running animate-pulse-soft'
               : isPaused
               ? 'timer-radial-glow opacity-60'
               : 'timer-radial-glow opacity-80'
           }`}
           style={{
-            boxShadow: isRunning ? `0 0 80px ${activeGlowHex}` : undefined,
+            boxShadow: isRunning || isCompleted ? `0 0 80px ${activeGlowHex}` : undefined,
           }}
         />
 
@@ -99,7 +115,9 @@ export const MainTimerDisplay: React.FC<MainTimerDisplayProps> = React.memo(({
             className="transition-all duration-1000 ease-linear"
             style={{
               stroke:
-                mode === 'pomodoro'
+                isCompleted
+                  ? isLight ? '#059669' : '#34d399'
+                  : mode === 'pomodoro'
                   ? activeStrokeHex
                   : isLight
                   ? '#0d9488'
@@ -107,7 +125,7 @@ export const MainTimerDisplay: React.FC<MainTimerDisplayProps> = React.memo(({
             }}
             strokeWidth="3"
             strokeDasharray="276.46"
-            strokeDashoffset={276.46 - (276.46 * progress) / 100}
+            strokeDashoffset={276.46 - (276.46 * effectiveProgress) / 100}
             strokeLinecap="round"
             fill="none"
           />
@@ -118,7 +136,11 @@ export const MainTimerDisplay: React.FC<MainTimerDisplayProps> = React.memo(({
           {/* Mode Pill Label */}
           <div
             className={`px-3 py-1 mb-2 rounded-full text-[11px] tracking-widest uppercase font-medium border transition-all duration-300 ${
-              isPaused
+              isCompleted
+                ? isLight
+                  ? 'bg-emerald-100 text-emerald-800 border-emerald-300 shadow-sm font-bold'
+                  : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-glow font-bold'
+                : isPaused
                 ? isLight
                   ? 'bg-amber-100 text-amber-800 border-amber-300 shadow-sm'
                   : 'bg-amber-500/20 text-amber-300 border-amber-500/40'
@@ -133,6 +155,7 @@ export const MainTimerDisplay: React.FC<MainTimerDisplayProps> = React.memo(({
           >
             <span>{modeTitle}</span>
             {isPaused && <span className="ml-1.5 font-bold">• PAUSED</span>}
+            {isCompleted && <span className="ml-1.5 font-bold">• DONE</span>}
           </div>
 
           {/* Large Monospace Timer Display */}
@@ -144,12 +167,15 @@ export const MainTimerDisplay: React.FC<MainTimerDisplayProps> = React.memo(({
           </div>
 
           {/* 4-Pomodoro Cycle Dots */}
-          <div className="flex items-center space-x-2 mt-3" aria-label={`Cycle progress: session ${currentCycleIndex} of 4`}>
+          <div
+            className="flex items-center space-x-2 mt-3"
+            aria-label={`Cycle progress: ${completedInCycle} of 4 sessions completed`}
+          >
             {[1, 2, 3, 4].map((step) => {
-              const isDone =
-                step < currentCycleIndex ||
-                (step === 4 && completedPomodoros > 0 && completedPomodoros % 4 === 0);
-              const isCurrent = step === currentCycleIndex && mode === 'pomodoro';
+              const isDone = isCompleted && mode === 'pomodoro'
+                ? step <= completedInCycle
+                : step <= cycleRemainder;
+              const isCurrent = !isCompleted && step === nextCycleIndex && mode === 'pomodoro';
 
               return (
                 <div
@@ -162,8 +188,8 @@ export const MainTimerDisplay: React.FC<MainTimerDisplayProps> = React.memo(({
                         : 'w-6 bg-white shadow-glow'
                       : isDone
                       ? isLight
-                        ? 'w-2 bg-slate-700/70'
-                        : 'w-2 bg-white/80'
+                        ? 'w-3.5 bg-emerald-600 shadow-sm'
+                        : 'w-3.5 bg-emerald-400 shadow-glow'
                       : isLight
                       ? 'w-2 bg-slate-400/25'
                       : 'w-2 bg-white/20'
@@ -177,7 +203,9 @@ export const MainTimerDisplay: React.FC<MainTimerDisplayProps> = React.memo(({
               isLight ? 'text-slate-500' : 'text-white/50'
             }`}
           >
-            Session {currentCycleIndex} of 4
+            {isCompleted && mode === 'pomodoro'
+              ? `${completedInCycle} of 4 Completed`
+              : `Session ${nextCycleIndex} of 4`}
           </span>
         </div>
       </div>
