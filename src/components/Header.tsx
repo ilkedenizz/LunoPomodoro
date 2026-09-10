@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles, Music, Image as ImageIcon, Settings, Maximize2, Minimize2, Keyboard } from 'lucide-react';
+import { Sparkles, Music, Image as ImageIcon, Settings, Maximize2, Minimize2, Keyboard, TrendingUp } from 'lucide-react';
 import type { AtmosphereTheme } from '../types';
 
 interface HeaderProps {
@@ -10,6 +10,7 @@ interface HeaderProps {
   onOpenSettings: () => void;
   onOpenAudio: () => void;
   onOpenShortcuts: () => void;
+  onOpenHistory: () => void;
   isAudioPlaying: boolean;
   isFullscreen: boolean;
   onToggleFullscreen: () => void;
@@ -24,6 +25,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenSettings,
   onOpenAudio,
   onOpenShortcuts,
+  onOpenHistory,
   isAudioPlaying,
   isFullscreen,
   onToggleFullscreen,
@@ -57,16 +59,31 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* Today Stats Pill - Desktop */}
-      <div className="hidden md:flex items-center space-x-2 px-4 py-1.5 rounded-full glass-pill text-xs font-medium text-white/90">
+      <button
+        onClick={onOpenHistory}
+        aria-label="View focus history and statistics"
+        className="hidden md:flex items-center space-x-2 px-4 py-1.5 rounded-full glass-pill glass-panel-hover text-xs font-medium text-white/90 cursor-pointer"
+        title="View Focus History"
+      >
         <span className="w-2 h-2 rounded-full bg-emerald-400/80 animate-pulse" />
         <span className="text-white/60">Today:</span>
         <span className="font-semibold text-white">{todayPomodoros} {todayPomodoros === 1 ? 'pomodoro' : 'pomodoros'}</span>
         <span className="text-white/40">•</span>
         <span className="text-white/80">{formatHoursMinutes(todayMinutes)} focused</span>
-      </div>
+      </button>
 
       {/* Action Control Buttons */}
       <div className="flex items-center space-x-2">
+        {/* Focus History Button */}
+        <button
+          onClick={onOpenHistory}
+          aria-label="Open Focus History"
+          className="p-2.5 rounded-xl glass-panel glass-panel-hover text-white/80 hover:text-white transition-all"
+          title="Focus History & Stats"
+        >
+          <TrendingUp className="w-4 h-4" />
+        </button>
+
         {/* Ambience Audio Toggle Button */}
         <button
           onClick={onOpenAudio}

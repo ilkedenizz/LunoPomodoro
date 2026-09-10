@@ -11,6 +11,7 @@ import { AmbienceAudioPlayer } from './components/AmbienceAudioPlayer';
 import { ShortcutsModal } from './components/ShortcutsModal';
 import { DailyFocus } from './components/DailyFocus';
 import { TaskList } from './components/TaskList';
+import { FocusHistoryModal } from './components/FocusHistoryModal';
 
 import type {
   TimerMode,
@@ -77,6 +78,7 @@ export function App() {
   const [isBackgroundsOpen, setIsBackgroundsOpen] = useState(false);
   const [isAudioOpen, setIsAudioOpen] = useState(false);
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   // High precision timer reference
@@ -227,6 +229,7 @@ export function App() {
         timestamp: Date.now(),
         mode: 'pomodoro',
         durationMinutes: settings.pomodoroDuration,
+        taskTitle: activeTaskTitle || undefined,
       };
       const updatedSessions = saveSession(newSession);
       setSessions(updatedSessions);
@@ -283,6 +286,7 @@ export function App() {
     todayPomodorosCount,
     getModeDurationSeconds,
     activeTaskId,
+    activeTaskTitle,
   ]);
 
   // Main Timer Countdown Loop
@@ -378,6 +382,7 @@ export function App() {
         setIsBackgroundsOpen(false);
         setIsAudioOpen(false);
         setIsShortcutsOpen(false);
+        setIsHistoryOpen(false);
       }
     };
 
@@ -408,6 +413,7 @@ export function App() {
         onOpenSettings={() => setIsSettingsOpen(true)}
         onOpenAudio={() => setIsAudioOpen(true)}
         onOpenShortcuts={() => setIsShortcutsOpen(true)}
+        onOpenHistory={() => setIsHistoryOpen(true)}
         isAudioPlaying={ambientTrack !== 'off'}
         isFullscreen={isFullscreen}
         onToggleFullscreen={toggleFullscreen}
@@ -467,10 +473,13 @@ export function App() {
 
       {/* 4. Minimal Footer / Mobile Stats Badge */}
       <footer className="relative z-10 w-full py-4 px-6 text-center flex flex-col sm:flex-row items-center justify-between text-xs text-white/50 space-y-2 sm:space-y-0">
-        <div className="md:hidden flex items-center space-x-2 px-3 py-1 rounded-full glass-pill text-white/80">
+        <button
+          onClick={() => setIsHistoryOpen(true)}
+          className="md:hidden flex items-center space-x-2 px-3 py-1 rounded-full glass-pill text-white/80 cursor-pointer"
+        >
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
           <span>Today: {todayPomodorosCount} pomodoros ({todayTotalMinutes}m focused)</span>
-        </div>
+        </button>
         <div className="hidden md:block">
           Press <kbd className="px-1.5 py-0.5 rounded bg-white/10 font-mono text-[10px] text-white/80">Space</kbd> to Start/Pause • <kbd className="px-1.5 py-0.5 rounded bg-white/10 font-mono text-[10px] text-white/80">R</kbd> to Reset
         </div>
@@ -519,6 +528,12 @@ export function App() {
       <ShortcutsModal
         isOpen={isShortcutsOpen}
         onClose={() => setIsShortcutsOpen(false)}
+      />
+
+      <FocusHistoryModal
+        isOpen={isHistoryOpen}
+        onClose={() => setIsHistoryOpen(false)}
+        sessions={sessions}
       />
     </div>
   );

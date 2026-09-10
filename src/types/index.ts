@@ -18,6 +18,7 @@ export interface FocusSession {
   timestamp: number;
   mode: TimerMode;
   durationMinutes: number;
+  taskTitle?: string;
 }
 
 export interface AtmosphereTheme {
