@@ -440,7 +440,7 @@ export function App() {
   ]);
 
   return (
-    <div className="relative min-h-screen w-full flex flex-col justify-between items-center overflow-x-hidden font-sans text-white">
+    <div className="relative h-screen min-h-[100dvh] max-h-[100dvh] w-full flex flex-col justify-between items-center overflow-x-hidden overflow-y-auto xl:overflow-y-hidden font-sans text-white">
       {/* 1. Full-screen Atmospheric Background View */}
       <BackgroundView atmosphere={atmosphere} />
 
@@ -461,7 +461,7 @@ export function App() {
       />
 
       {/* 3. Main Center Focus Workspace (True 3-Column Desktop Layout) */}
-      <main className="relative z-10 flex-1 w-full max-w-7xl 2xl:max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-2 sm:py-4 flex flex-col justify-center my-auto">
+      <main className="relative z-10 flex-1 w-full max-w-7xl 2xl:max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-1 sm:py-2 flex flex-col justify-center my-auto overflow-visible">
         <div className="w-full grid grid-cols-1 md:grid-cols-2 xl:grid-cols-[300px_1fr_300px] 2xl:grid-cols-[340px_1fr_340px] gap-6 lg:gap-8 items-center">
           {/* Left Column: Daily Focus (Desktop Left) */}
           <div className="order-2 md:order-2 xl:order-1 md:col-span-1 xl:col-span-1 w-full max-w-md xl:max-w-none mx-auto flex flex-col justify-center">
@@ -515,7 +515,7 @@ export function App() {
       </main>
 
       {/* 4. Minimal Footer / Mobile Stats Badge */}
-      <footer className="relative z-10 w-full py-4 px-6 text-center flex flex-col sm:flex-row items-center justify-between text-xs text-white/50 space-y-2 sm:space-y-0">
+      <footer className="relative z-10 w-full py-2.5 sm:py-3 px-6 text-center flex flex-col sm:flex-row items-center justify-between text-xs text-white/50 space-y-2 sm:space-y-0 shrink-0">
         <button
           onClick={() => setIsHistoryOpen(true)}
           className="md:hidden flex items-center space-x-2 px-3 py-1 rounded-full glass-pill text-white/80 cursor-pointer"

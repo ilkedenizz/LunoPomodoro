@@ -30,17 +30,21 @@ export const BackgroundView: React.FC<BackgroundViewProps> = ({ atmosphere }) =>
     const bgStyle = theme.cssBackground || theme.fallbackGradient;
     return (
       <div
-        className="absolute inset-0 bg-cover bg-center transition-transform duration-1000 scale-[1.02]"
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-transform duration-1000 scale-[1.01]"
         style={{
-          background: bgStyle,
-          backgroundImage: theme.imageUrl ? `url(${theme.imageUrl}), ${bgStyle}` : bgStyle,
+          background: theme.imageUrl
+            ? `url("${theme.imageUrl}") center / cover no-repeat, ${bgStyle}`
+            : bgStyle,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
         }}
       />
     );
   };
 
   return (
-    <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden bg-slate-950">
+    <div className="fixed inset-0 w-full h-full min-h-[100dvh] max-h-[100dvh] pointer-events-none z-0 overflow-hidden bg-[#050508] select-none">
       {/* Previous Background layer for crossfade */}
       {prevBg && (
         <div

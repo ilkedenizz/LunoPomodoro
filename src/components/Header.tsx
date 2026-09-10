@@ -39,7 +39,7 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header className="relative z-20 w-full px-4 md:px-8 py-4 flex items-center justify-between">
+    <header className="relative z-20 w-full px-4 md:px-8 py-3 sm:py-3.5 flex items-center justify-between shrink-0">
       {/* Brand & Atmosphere Title */}
       <div className="flex items-center space-x-3">
         <div className="relative flex items-center justify-center w-9 h-9 rounded-xl glass-panel">

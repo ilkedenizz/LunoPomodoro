@@ -4,14 +4,35 @@
   :root {
     font-family: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
     color-scheme: dark;
+    height: 100%;
+    min-height: 100dvh;
   }
   
+  html {
+    height: 100%;
+    min-height: 100dvh;
+    background-color: #050508;
+    overflow-x: hidden;
+  }
+
   body {
+    height: 100%;
+    min-height: 100dvh;
     background-color: #050508;
     color: #ffffff;
     overflow-x: hidden;
     user-select: none;
     -webkit-user-select: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  #root {
+    height: 100%;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
   }
 }
 
