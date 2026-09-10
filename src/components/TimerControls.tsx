@@ -12,7 +12,7 @@ interface TimerControlsProps {
   theme?: AppTheme;
 }
 
-export const TimerControls: React.FC<TimerControlsProps> = ({
+export const TimerControls: React.FC<TimerControlsProps> = React.memo(({
   timerState,
   onStart,
   onPause,
@@ -85,4 +85,6 @@ export const TimerControls: React.FC<TimerControlsProps> = ({
       </button>
     </div>
   );
-};
+});
+
+TimerControls.displayName = 'TimerControls';

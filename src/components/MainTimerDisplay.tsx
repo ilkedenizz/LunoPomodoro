@@ -13,7 +13,7 @@ interface MainTimerDisplayProps {
   timerColor?: TimerColorId;
 }
 
-export const MainTimerDisplay: React.FC<MainTimerDisplayProps> = ({
+export const MainTimerDisplay: React.FC<MainTimerDisplayProps> = React.memo(({
   timeLeftSeconds,
   totalDurationSeconds,
   mode,
@@ -54,7 +54,12 @@ export const MainTimerDisplay: React.FC<MainTimerDisplayProps> = ({
   const activeGlowHex = isLight ? colorDef.lightGlow : colorDef.darkGlow;
 
   return (
-    <div className="relative flex flex-col items-center justify-center my-2 sm:my-3 select-none w-full">
+    <div
+      role="timer"
+      aria-label={`${modeTitle}: ${formattedTime}`}
+      aria-live={isPaused ? 'polite' : 'off'}
+      className="relative flex flex-col items-center justify-center my-2 sm:my-3 select-none w-full"
+    >
       {/* Main Outer Timer Circle Container with Radial Glow */}
       <div className="relative flex items-center justify-center w-72 h-72 sm:w-80 sm:h-80 md:w-88 md:h-88 xl:w-96 xl:h-96">
         {/* Atmospheric Radial Light Glow behind Timer */}
@@ -75,6 +80,7 @@ export const MainTimerDisplay: React.FC<MainTimerDisplayProps> = ({
         <svg
           className="absolute inset-0 w-full h-full transform -rotate-90 pointer-events-none"
           viewBox="0 0 100 100"
+          aria-hidden="true"
         >
           {/* Background Track Circle */}
           <circle
@@ -131,7 +137,6 @@ export const MainTimerDisplay: React.FC<MainTimerDisplayProps> = ({
 
           {/* Large Monospace Timer Display */}
           <div
-            aria-label={`Timer: ${formattedTime}, ${modeTitle}`}
             className="font-timer text-6xl sm:text-7xl md:text-8xl font-bold tracking-tight drop-shadow-2xl my-1 select-none transition-colors duration-300"
             style={{ color: activeColorHex }}
           >
@@ -139,7 +144,7 @@ export const MainTimerDisplay: React.FC<MainTimerDisplayProps> = ({
           </div>
 
           {/* 4-Pomodoro Cycle Dots */}
-          <div className="flex items-center space-x-2 mt-3">
+          <div className="flex items-center space-x-2 mt-3" aria-label={`Cycle progress: session ${currentCycleIndex} of 4`}>
             {[1, 2, 3, 4].map((step) => {
               const isDone =
                 step < currentCycleIndex ||
@@ -199,4 +204,6 @@ export const MainTimerDisplay: React.FC<MainTimerDisplayProps> = ({
       )}
     </div>
   );
-};
+});
+
+MainTimerDisplay.displayName = 'MainTimerDisplay';

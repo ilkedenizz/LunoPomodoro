@@ -15,7 +15,7 @@ interface TaskListProps {
   theme?: AppTheme;
 }
 
-export const TaskList: React.FC<TaskListProps> = ({
+export const TaskList: React.FC<TaskListProps> = React.memo(({
   tasks,
   activeTaskId,
   onAddTask,
@@ -188,5 +188,7 @@ export const TaskList: React.FC<TaskListProps> = ({
       </div>
     </div>
   );
-};
+});
+
+TaskList.displayName = 'TaskList';
 

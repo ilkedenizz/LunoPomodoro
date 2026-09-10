@@ -40,11 +40,60 @@ export const DEFAULT_SOUND_MIXER: SoundMixerState = {
   },
 };
 
+const VALID_THEMES: AppTheme[] = ['dark', 'light'];
+const VALID_TIMER_COLORS: string[] = [
+  'default',
+  'white',
+  'red',
+  'orange',
+  'yellow',
+  'green',
+  'blue',
+  'purple',
+  'pink',
+];
+
+const sanitizeSettings = (raw: unknown): TimerSettings => {
+  if (!raw || typeof raw !== 'object') return DEFAULT_SETTINGS;
+  const data = raw as Partial<TimerSettings>;
+
+  const pomodoro = typeof data.pomodoroDuration === 'number' && data.pomodoroDuration >= 1 && data.pomodoroDuration <= 120
+    ? Math.round(data.pomodoroDuration)
+    : DEFAULT_SETTINGS.pomodoroDuration;
+
+  const shortBreak = typeof data.shortBreakDuration === 'number' && data.shortBreakDuration >= 1 && data.shortBreakDuration <= 120
+    ? Math.round(data.shortBreakDuration)
+    : DEFAULT_SETTINGS.shortBreakDuration;
+
+  const longBreak = typeof data.longBreakDuration === 'number' && data.longBreakDuration >= 1 && data.longBreakDuration <= 120
+    ? Math.round(data.longBreakDuration)
+    : DEFAULT_SETTINGS.longBreakDuration;
+
+  const theme: AppTheme = VALID_THEMES.includes(data.theme as AppTheme) ? (data.theme as AppTheme) : 'dark';
+  const timerColor = VALID_TIMER_COLORS.includes(data.timerColor as string)
+    ? (data.timerColor as TimerSettings['timerColor'])
+    : 'default';
+
+  return {
+    pomodoroDuration: pomodoro,
+    shortBreakDuration: shortBreak,
+    longBreakDuration: longBreak,
+    autoStartBreaks: Boolean(data.autoStartBreaks),
+    autoStartPomodoros: Boolean(data.autoStartPomodoros),
+    soundEnabled: data.soundEnabled !== false,
+    soundVolume: typeof data.soundVolume === 'number' && data.soundVolume >= 0 && data.soundVolume <= 1 ? data.soundVolume : 0.8,
+    notificationsEnabled: Boolean(data.notificationsEnabled),
+    tickingEnabled: Boolean(data.tickingEnabled),
+    theme,
+    timerColor,
+  };
+};
+
 export const loadSettings = (): TimerSettings => {
   try {
     const data = localStorage.getItem(SETTINGS_KEY);
     if (!data) return DEFAULT_SETTINGS;
-    return { ...DEFAULT_SETTINGS, ...JSON.parse(data) };
+    return sanitizeSettings(JSON.parse(data));
   } catch (err) {
     console.error('Failed to load settings from storage', err);
     return DEFAULT_SETTINGS;
@@ -53,7 +102,7 @@ export const loadSettings = (): TimerSettings => {
 
 export const saveSettings = (settings: TimerSettings): void => {
   try {
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(sanitizeSettings(settings)));
   } catch (err) {
     console.error('Failed to save settings to storage', err);
   }
@@ -63,7 +112,12 @@ export const loadSessions = (): FocusSession[] => {
   try {
     const data = localStorage.getItem(SESSIONS_KEY);
     if (!data) return [];
-    return JSON.parse(data);
+    const parsed = JSON.parse(data);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(
+      (s): s is FocusSession =>
+        Boolean(s && typeof s === 'object' && typeof s.id === 'string' && typeof s.timestamp === 'number')
+    );
   } catch (err) {
     console.error('Failed to load sessions', err);
     return [];
@@ -113,7 +167,21 @@ export const loadTasks = (): Task[] => {
   try {
     const data = localStorage.getItem(TASKS_KEY);
     if (!data) return [];
-    return JSON.parse(data);
+    const parsed = JSON.parse(data);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter(
+        (t): t is Task =>
+          Boolean(t && typeof t === 'object' && typeof t.id === 'string' && typeof t.title === 'string' && typeof t.completed === 'boolean')
+      )
+      .map((t) => ({
+        id: String(t.id),
+        title: String(t.title).slice(0, 200),
+        completed: Boolean(t.completed),
+        createdAt: typeof t.createdAt === 'number' ? t.createdAt : Date.now(),
+        completedAt: typeof t.completedAt === 'number' ? t.completedAt : undefined,
+        pomodoros: typeof t.pomodoros === 'number' && t.pomodoros >= 0 ? t.pomodoros : 0,
+      }));
   } catch (err) {
     console.error('Failed to load tasks', err);
     return [];
@@ -132,7 +200,21 @@ export const loadDailyGoal = (): DailyGoal => {
   try {
     const data = localStorage.getItem(DAILY_GOAL_KEY);
     if (!data) return DEFAULT_DAILY_GOAL;
-    return { ...DEFAULT_DAILY_GOAL, ...JSON.parse(data) };
+    const parsed = JSON.parse(data);
+    if (!parsed || typeof parsed !== 'object') return DEFAULT_DAILY_GOAL;
+
+    const pomodoros = typeof parsed.targetPomodoros === 'number' && parsed.targetPomodoros >= 1 && parsed.targetPomodoros <= 24
+      ? Math.round(parsed.targetPomodoros)
+      : DEFAULT_DAILY_GOAL.targetPomodoros;
+
+    const minutes = typeof parsed.targetMinutes === 'number' && parsed.targetMinutes >= 10 && parsed.targetMinutes <= 1440
+      ? Math.round(parsed.targetMinutes)
+      : pomodoros * 25;
+
+    return {
+      targetPomodoros: pomodoros,
+      targetMinutes: minutes,
+    };
   } catch (err) {
     console.error('Failed to load daily goal', err);
     return DEFAULT_DAILY_GOAL;
@@ -171,10 +253,11 @@ export const saveActiveTaskId = (id: string | null): void => {
 export const loadFavoriteAtmospheres = (): string[] => {
   try {
     const data = localStorage.getItem(FAVORITES_KEY);
-    if (!data) return ['tokyo', 'rain'];
-    return JSON.parse(data);
+    if (!data) return ['tokyo', 'rain', 'soft-ivory'];
+    const parsed = JSON.parse(data);
+    return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === 'string') : ['tokyo', 'rain', 'soft-ivory'];
   } catch {
-    return ['tokyo', 'rain'];
+    return ['tokyo', 'rain', 'soft-ivory'];
   }
 };
 
@@ -190,7 +273,20 @@ export const loadSoundMixerState = (): SoundMixerState => {
   try {
     const data = localStorage.getItem(SOUND_MIXER_KEY);
     if (!data) return DEFAULT_SOUND_MIXER;
-    return { ...DEFAULT_SOUND_MIXER, ...JSON.parse(data) };
+    const parsed = JSON.parse(data);
+    if (!parsed || typeof parsed !== 'object' || !parsed.tracks) return DEFAULT_SOUND_MIXER;
+    return {
+      masterVolume: typeof parsed.masterVolume === 'number' && parsed.masterVolume >= 0 && parsed.masterVolume <= 1
+        ? parsed.masterVolume
+        : DEFAULT_SOUND_MIXER.masterVolume,
+      tracks: {
+        rain: { volume: Number(parsed.tracks?.rain?.volume) || 0, muted: Boolean(parsed.tracks?.rain?.muted) },
+        cafe: { volume: Number(parsed.tracks?.cafe?.volume) || 0, muted: Boolean(parsed.tracks?.cafe?.muted) },
+        fire: { volume: Number(parsed.tracks?.fire?.volume) || 0, muted: Boolean(parsed.tracks?.fire?.muted) },
+        waves: { volume: Number(parsed.tracks?.waves?.volume) || 0, muted: Boolean(parsed.tracks?.waves?.muted) },
+        lofi: { volume: Number(parsed.tracks?.lofi?.volume) || 0, muted: Boolean(parsed.tracks?.lofi?.muted) },
+      },
+    };
   } catch {
     return DEFAULT_SOUND_MIXER;
   }
@@ -208,7 +304,12 @@ export const loadAtmospherePresets = (): AtmospherePreset[] => {
   try {
     const data = localStorage.getItem(PRESETS_KEY);
     if (!data) return [];
-    return JSON.parse(data);
+    const parsed = JSON.parse(data);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(
+      (p): p is AtmospherePreset =>
+        Boolean(p && typeof p === 'object' && typeof p.id === 'string' && typeof p.name === 'string' && typeof p.atmosphereId === 'string')
+    );
   } catch {
     return [];
   }

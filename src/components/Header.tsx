@@ -30,7 +30,7 @@ interface HeaderProps {
   onToggleTheme?: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({
+export const Header: React.FC<HeaderProps> = React.memo(({
   currentAtmosphere,
   todayPomodoros,
   todayMinutes,
@@ -212,4 +212,6 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
     </header>
   );
-};
+});
+
+Header.displayName = 'Header';

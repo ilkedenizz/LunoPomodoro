@@ -10,7 +10,7 @@ interface DailyFocusProps {
   theme?: AppTheme;
 }
 
-export const DailyFocus: React.FC<DailyFocusProps> = ({
+export const DailyFocus: React.FC<DailyFocusProps> = React.memo(({
   todayPomodoros,
   todayMinutes,
   dailyGoal,
@@ -179,5 +179,6 @@ export const DailyFocus: React.FC<DailyFocusProps> = ({
       )}
     </div>
   );
-};
- 
+});
+
+DailyFocus.displayName = 'DailyFocus';

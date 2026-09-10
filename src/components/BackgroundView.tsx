@@ -6,7 +6,7 @@ interface BackgroundViewProps {
   theme?: AppTheme;
 }
 
-export const BackgroundView: React.FC<BackgroundViewProps> = ({
+export const BackgroundView: React.FC<BackgroundViewProps> = React.memo(({
   atmosphere,
   theme = 'dark',
 }) => {
@@ -100,4 +100,6 @@ export const BackgroundView: React.FC<BackgroundViewProps> = ({
       />
     </div>
   );
-};
+});
+
+BackgroundView.displayName = 'BackgroundView';

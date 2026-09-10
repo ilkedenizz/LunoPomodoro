@@ -1,17 +1,29 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import confetti from 'canvas-confetti';
 import { BackgroundView } from './components/BackgroundView';
 import { Header } from './components/Header';
 import { TimerModeSelector } from './components/TimerModeSelector';
 import { MainTimerDisplay } from './components/MainTimerDisplay';
 import { TimerControls } from './components/TimerControls';
-import { SettingsModal } from './components/SettingsModal';
-import { BackgroundSelectorModal } from './components/BackgroundSelectorModal';
-import { AmbienceAudioPlayer } from './components/AmbienceAudioPlayer';
-import { ShortcutsModal } from './components/ShortcutsModal';
 import { DailyFocus } from './components/DailyFocus';
 import { TaskList } from './components/TaskList';
-import { FocusHistoryModal } from './components/FocusHistoryModal';
+
+// Lazy-loaded heavy modal components for production bundle optimization
+const SettingsModal = lazy(() =>
+  import('./components/SettingsModal').then((m) => ({ default: m.SettingsModal }))
+);
+const BackgroundSelectorModal = lazy(() =>
+  import('./components/BackgroundSelectorModal').then((m) => ({ default: m.BackgroundSelectorModal }))
+);
+const AmbienceAudioPlayer = lazy(() =>
+  import('./components/AmbienceAudioPlayer').then((m) => ({ default: m.AmbienceAudioPlayer }))
+);
+const ShortcutsModal = lazy(() =>
+  import('./components/ShortcutsModal').then((m) => ({ default: m.ShortcutsModal }))
+);
+const FocusHistoryModal = lazy(() =>
+  import('./components/FocusHistoryModal').then((m) => ({ default: m.FocusHistoryModal }))
+);
 
 import type {
   TimerMode,
@@ -53,7 +65,7 @@ export function App() {
   // 1. Settings & Persistence
   const [settings, setSettings] = useState<TimerSettings>(() => loadSettings());
   const [atmosphere, setAtmosphere] = useState<AtmosphereTheme>(() =>
-    getAtmosphereById(loadSavedBackground())
+    getAtmosphereById(loadSavedBackground(loadSettings().theme || 'dark'), loadSettings().theme || 'dark')
   );
   const [sessions, setSessions] = useState<FocusSession[]>(() => loadSessions());
 
@@ -134,21 +146,26 @@ export function App() {
   };
 
   const handleApplyPreset = (preset: AtmospherePreset) => {
-    const atmo = getAtmosphereById(preset.atmosphereId);
+    const atmo = getAtmosphereById(preset.atmosphereId, settings.theme);
     setAtmosphere(atmo);
-    saveBackground(atmo.id);
+    saveBackground(atmo.id, settings.theme);
     handleMixerChange(preset.soundMixer);
   };
 
   // Document Title update
   useEffect(() => {
+    if (timerState === 'idle') {
+      document.title = 'Luno — Focus in your own atmosphere';
+      return;
+    }
     const mins = Math.floor(timeLeft / 60);
     const secs = timeLeft % 60;
     const formatted = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     const modeName =
-      mode === 'pomodoro' ? 'Pomodoro' : mode === 'shortBreak' ? 'Short Break' : 'Long Break';
-    document.title = `(${formatted}) ${modeName} • Luno`;
-  }, [timeLeft, mode]);
+      mode === 'pomodoro' ? 'Focus' : mode === 'shortBreak' ? 'Short Break' : 'Long Break';
+    const prefix = timerState === 'paused' ? '⏸ ' : '';
+    document.title = `${prefix}(${formatted}) ${modeName} • Luno`;
+  }, [timeLeft, mode, timerState]);
 
   // Fullscreen change listener
   useEffect(() => {
@@ -342,21 +359,43 @@ export function App() {
     }
 
     const interval = setInterval(() => {
+      if (!expectedEndRef.current) return;
       const now = Date.now();
-      const remainingMs = (expectedEndRef.current || now) - now;
+      const remainingMs = expectedEndRef.current - now;
       const remainingSecs = Math.max(0, Math.ceil(remainingMs / 1000));
-
-      setTimeLeft(remainingSecs);
 
       if (remainingSecs <= 0) {
         clearInterval(interval);
         expectedEndRef.current = null;
+        setTimeLeft(0);
         handleSessionComplete();
+      } else {
+        setTimeLeft((prev) => (prev !== remainingSecs ? remainingSecs : prev));
       }
-    }, 250);
+    }, 200);
 
     return () => clearInterval(interval);
   }, [timerState, timeLeft, handleSessionComplete]);
+
+  // Tab visibility synchronization (prevents background throttle drift)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && timerState === 'running' && expectedEndRef.current) {
+        const now = Date.now();
+        const remainingMs = expectedEndRef.current - now;
+        const remainingSecs = Math.max(0, Math.ceil(remainingMs / 1000));
+        if (remainingSecs <= 0) {
+          expectedEndRef.current = null;
+          setTimeLeft(0);
+          handleSessionComplete();
+        } else {
+          setTimeLeft(remainingSecs);
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [timerState, handleSessionComplete]);
 
   // Timer Controls
   const handleStart = useCallback(() => {
@@ -605,64 +644,76 @@ export function App() {
         </div>
       </footer>
 
-      {/* 5. Modals */}
-      <SettingsModal
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-        settings={settings}
-        onSaveSettings={(newSettings) => {
-          if (newSettings.theme !== settings.theme) {
-            const targetBg = getAtmosphereById(loadSavedBackground(newSettings.theme), newSettings.theme);
-            setAtmosphere(targetBg);
-          }
-          setSettings(newSettings);
-          saveSettings(newSettings);
-          if (timerState === 'idle') {
-            setTimeLeft(getModeDurationSeconds(mode, newSettings));
-          }
-        }}
-        onResetStats={() => {
-          localStorage.removeItem('pomodoro_sessions_v1');
-          setSessions([]);
-        }}
-      />
+      {/* 5. Lazy Modals with Suspense */}
+      <Suspense fallback={null}>
+        {isSettingsOpen && (
+          <SettingsModal
+            isOpen={isSettingsOpen}
+            onClose={() => setIsSettingsOpen(false)}
+            settings={settings}
+            onSaveSettings={(newSettings) => {
+              if (newSettings.theme !== settings.theme) {
+                const targetBg = getAtmosphereById(loadSavedBackground(newSettings.theme), newSettings.theme);
+                setAtmosphere(targetBg);
+              }
+              setSettings(newSettings);
+              saveSettings(newSettings);
+              if (timerState === 'idle') {
+                setTimeLeft(getModeDurationSeconds(mode, newSettings));
+              }
+            }}
+            onResetStats={() => {
+              localStorage.removeItem('pomodoro_sessions_v1');
+              setSessions([]);
+            }}
+          />
+        )}
 
-      <BackgroundSelectorModal
-        isOpen={isBackgroundsOpen}
-        onClose={() => setIsBackgroundsOpen(false)}
-        activeId={atmosphere.id}
-        onSelect={(bg) => {
-          setAtmosphere(bg);
-          saveBackground(bg.id, settings.theme);
-        }}
-        favoriteIds={favoriteAtmospheres}
-        onToggleFavorite={handleToggleFavorite}
-        mixerState={soundMixerState}
-        onMixerChange={handleMixerChange}
-        presets={atmospherePresets}
-        onApplyPreset={handleApplyPreset}
-        onSavePreset={handleSavePreset}
-        onDeletePreset={handleDeletePreset}
-        theme={settings.theme}
-      />
+        {isBackgroundsOpen && (
+          <BackgroundSelectorModal
+            isOpen={isBackgroundsOpen}
+            onClose={() => setIsBackgroundsOpen(false)}
+            activeId={atmosphere.id}
+            onSelect={(bg) => {
+              setAtmosphere(bg);
+              saveBackground(bg.id, settings.theme);
+            }}
+            favoriteIds={favoriteAtmospheres}
+            onToggleFavorite={handleToggleFavorite}
+            mixerState={soundMixerState}
+            onMixerChange={handleMixerChange}
+            presets={atmospherePresets}
+            onApplyPreset={handleApplyPreset}
+            onSavePreset={handleSavePreset}
+            onDeletePreset={handleDeletePreset}
+            theme={settings.theme}
+          />
+        )}
 
-      <AmbienceAudioPlayer
-        isOpen={isAudioOpen}
-        onClose={() => setIsAudioOpen(false)}
-        mixerState={soundMixerState}
-        onChangeMixerState={handleMixerChange}
-      />
+        {isAudioOpen && (
+          <AmbienceAudioPlayer
+            isOpen={isAudioOpen}
+            onClose={() => setIsAudioOpen(false)}
+            mixerState={soundMixerState}
+            onChangeMixerState={handleMixerChange}
+          />
+        )}
 
-      <ShortcutsModal
-        isOpen={isShortcutsOpen}
-        onClose={() => setIsShortcutsOpen(false)}
-      />
+        {isShortcutsOpen && (
+          <ShortcutsModal
+            isOpen={isShortcutsOpen}
+            onClose={() => setIsShortcutsOpen(false)}
+          />
+        )}
 
-      <FocusHistoryModal
-        isOpen={isHistoryOpen}
-        onClose={() => setIsHistoryOpen(false)}
-        sessions={sessions}
-      />
+        {isHistoryOpen && (
+          <FocusHistoryModal
+            isOpen={isHistoryOpen}
+            onClose={() => setIsHistoryOpen(false)}
+            sessions={sessions}
+          />
+        )}
+      </Suspense>
     </div>
   );
 }

@@ -7,7 +7,7 @@ interface TimerModeSelectorProps {
   theme?: AppTheme;
 }
 
-export const TimerModeSelector: React.FC<TimerModeSelectorProps> = ({
+export const TimerModeSelector: React.FC<TimerModeSelectorProps> = React.memo(({
   currentMode,
   onSelectMode,
   theme = 'dark',
@@ -50,4 +50,6 @@ export const TimerModeSelector: React.FC<TimerModeSelectorProps> = ({
       </div>
     </nav>
   );
-};
+});
+
+TimerModeSelector.displayName = 'TimerModeSelector';
