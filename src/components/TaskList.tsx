@@ -37,7 +37,7 @@ export const TaskList: React.FC<TaskListProps> = ({
       : tasks;
 
   return (
-    <div className="w-full p-4 rounded-3xl glass-panel text-white transition-all duration-300 border border-white/10 flex flex-col max-h-[500px]">
+    <div className="w-full p-5 rounded-3xl glass-panel text-white transition-all duration-300 border border-white/10 shadow-lg flex flex-col max-h-[420px] xl:max-h-[460px]">
       {/* Panel Header */}
       <div className="flex items-center justify-between pb-3 border-b border-white/10 shrink-0">
         <div className="flex items-center space-x-2">

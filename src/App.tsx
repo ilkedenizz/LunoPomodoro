@@ -460,54 +460,57 @@ export function App() {
         timerRunning={timerState === 'running'}
       />
 
-      {/* 3. Main Center Workspace Grid */}
-      <main className="relative z-10 flex-1 w-full max-w-6xl mx-auto px-4 py-4 sm:py-6 flex flex-col lg:flex-row items-center lg:items-start justify-between gap-6 lg:gap-8 my-auto">
-        {/* Main Central Timer Column */}
-        <div className="flex-1 flex flex-col items-center justify-center w-full max-w-xl mx-auto">
-          {/* Timer Mode Selector */}
-          <TimerModeSelector currentMode={mode} onSelectMode={handleSelectMode} />
+      {/* 3. Main Center Focus Workspace (True 3-Column Desktop Layout) */}
+      <main className="relative z-10 flex-1 w-full max-w-7xl 2xl:max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-2 sm:py-4 flex flex-col justify-center my-auto">
+        <div className="w-full grid grid-cols-1 md:grid-cols-2 xl:grid-cols-[300px_1fr_300px] 2xl:grid-cols-[340px_1fr_340px] gap-6 lg:gap-8 items-center">
+          {/* Left Column: Daily Focus (Desktop Left) */}
+          <div className="order-2 md:order-2 xl:order-1 md:col-span-1 xl:col-span-1 w-full max-w-md xl:max-w-none mx-auto flex flex-col justify-center">
+            <DailyFocus
+              todayPomodoros={todayPomodorosCount}
+              todayMinutes={todayTotalMinutes}
+              dailyGoal={dailyGoal}
+              onUpdateGoal={handleUpdateGoal}
+            />
+          </div>
 
-          {/* Central Timer Display with Active Task indicator */}
-          <MainTimerDisplay
-            timeLeftSeconds={timeLeft}
-            totalDurationSeconds={getModeDurationSeconds(mode)}
-            mode={mode}
-            state={timerState}
-            completedPomodoros={todayPomodorosCount}
-            activeTaskTitle={activeTaskTitle}
-          />
+          {/* Center Column: Pomodoro Timer (Viewport Geometric Center) */}
+          <div className="order-1 md:order-1 xl:order-2 md:col-span-2 xl:col-span-1 w-full flex flex-col items-center justify-center max-w-xl mx-auto">
+            {/* 1. Timer Mode Selector */}
+            <TimerModeSelector currentMode={mode} onSelectMode={handleSelectMode} />
 
-          {/* Controls Bar */}
-          <TimerControls
-            timerState={timerState}
-            onStart={handleStart}
-            onPause={handlePause}
-            onResume={handleResume}
-            onReset={handleReset}
-            onSkip={handleSkip}
-          />
-        </div>
+            {/* 2. Central Timer Display with Mode Label, 25:00, Sessions, and Active Task */}
+            <MainTimerDisplay
+              timeLeftSeconds={timeLeft}
+              totalDurationSeconds={getModeDurationSeconds(mode)}
+              mode={mode}
+              state={timerState}
+              completedPomodoros={todayPomodorosCount}
+              activeTaskTitle={activeTaskTitle}
+            />
 
-        {/* Side / Bottom Focus Workspace Panel (Daily Focus + Tasks) */}
-        <div className="w-full lg:w-80 xl:w-96 flex flex-col space-y-4 shrink-0">
-          {/* Daily Focus Goal Card */}
-          <DailyFocus
-            todayPomodoros={todayPomodorosCount}
-            todayMinutes={todayTotalMinutes}
-            dailyGoal={dailyGoal}
-            onUpdateGoal={handleUpdateGoal}
-          />
+            {/* 3. Timer Controls */}
+            <TimerControls
+              timerState={timerState}
+              onStart={handleStart}
+              onPause={handlePause}
+              onResume={handleResume}
+              onReset={handleReset}
+              onSkip={handleSkip}
+            />
+          </div>
 
-          {/* Tasks Panel */}
-          <TaskList
-            tasks={tasks}
-            activeTaskId={activeTaskId}
-            onAddTask={handleAddTask}
-            onToggleComplete={handleToggleComplete}
-            onSelectActive={handleSelectActive}
-            onEditTask={handleEditTask}
-            onDeleteTask={handleDeleteTask}
-          />
+          {/* Right Column: Focus Tasks (Desktop Right) */}
+          <div className="order-3 md:order-3 xl:order-3 md:col-span-1 xl:col-span-1 w-full max-w-md xl:max-w-none mx-auto flex flex-col justify-center">
+            <TaskList
+              tasks={tasks}
+              activeTaskId={activeTaskId}
+              onAddTask={handleAddTask}
+              onToggleComplete={handleToggleComplete}
+              onSelectActive={handleSelectActive}
+              onEditTask={handleEditTask}
+              onDeleteTask={handleDeleteTask}
+            />
+          </div>
         </div>
       </main>
 

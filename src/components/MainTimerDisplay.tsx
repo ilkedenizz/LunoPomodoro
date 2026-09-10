@@ -43,26 +43,9 @@ export const MainTimerDisplay: React.FC<MainTimerDisplayProps> = ({
   const isPaused = state === 'paused';
 
   return (
-    <div className="relative flex flex-col items-center justify-center my-3 sm:my-5 select-none w-full">
-      {/* Active Task Floating Pill */}
-      <div className="h-8 flex items-center justify-center mb-2">
-        {activeTaskTitle ? (
-          <div className="px-4 py-1 rounded-full glass-pill border border-white/20 flex items-center space-x-2 text-xs font-medium max-w-[280px] sm:max-w-md transition-all duration-300">
-            <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse shrink-0" />
-            <span className="text-white/50 uppercase tracking-widest text-[9px] font-mono shrink-0">
-              FOCUSING ON:
-            </span>
-            <span className="text-white truncate font-semibold">{activeTaskTitle}</span>
-          </div>
-        ) : (
-          <div className="text-[11px] text-white/40 tracking-wider font-mono uppercase">
-            Luno Focus Space
-          </div>
-        )}
-      </div>
-
+    <div className="relative flex flex-col items-center justify-center my-2 sm:my-3 select-none w-full">
       {/* Main Outer Timer Circle Container with Radial Glow */}
-      <div className="relative flex items-center justify-center w-72 h-72 sm:w-84 sm:h-84 md:w-96 md:h-96">
+      <div className="relative flex items-center justify-center w-72 h-72 sm:w-80 sm:h-80 md:w-88 md:h-88 xl:w-96 xl:h-96">
         {/* Atmospheric Radial Light Glow behind Timer */}
         <div
           className={`absolute inset-0 rounded-full transition-all duration-1000 pointer-events-none ${
@@ -158,6 +141,17 @@ export const MainTimerDisplay: React.FC<MainTimerDisplayProps> = ({
           </span>
         </div>
       </div>
+
+      {/* Active Task Floating Pill below Timer */}
+      {activeTaskTitle && (
+        <div className="mt-3 px-4 py-1.5 rounded-full glass-pill border border-white/20 flex items-center space-x-2 text-xs font-medium max-w-[280px] sm:max-w-sm md:max-w-md transition-all duration-300 animate-fadeIn">
+          <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse shrink-0" />
+          <span className="text-white/50 uppercase tracking-widest text-[9px] font-mono shrink-0">
+            FOCUSING ON:
+          </span>
+          <span className="text-white truncate font-semibold">{activeTaskTitle}</span>
+        </div>
+      )}
     </div>
   );
 };

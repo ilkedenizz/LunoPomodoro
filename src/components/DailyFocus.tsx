@@ -35,7 +35,7 @@ export const DailyFocus: React.FC<DailyFocusProps> = ({
   };
 
   return (
-    <div className="w-full p-4 rounded-2xl glass-panel text-white transition-all duration-300 border border-white/10">
+    <div className="w-full p-5 rounded-3xl glass-panel text-white transition-all duration-300 border border-white/10 shadow-lg">
       {/* Top Header */}
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center space-x-2">
