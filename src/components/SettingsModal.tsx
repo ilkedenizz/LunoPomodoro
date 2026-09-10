@@ -1,7 +1,105 @@
-import React from 'react';
-import { X, Volume2, Bell, RefreshCw, Zap, Sliders, Moon, Sun, Palette, Check } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, Volume2, Bell, RefreshCw, Sparkles, Sliders, Moon, Sun, Palette, Check } from 'lucide-react';
 import type { TimerSettings, AppTheme, TimerColorId } from '../types';
 import { TIMER_COLORS } from '../utils/timerColors';
+
+interface DurationInputProps {
+  id: string;
+  label: string;
+  value: number;
+  onChange: (newValue: number) => void;
+  isLight: boolean;
+}
+
+const DurationInput: React.FC<DurationInputProps> = ({
+  id,
+  label,
+  value,
+  onChange,
+  isLight,
+}) => {
+  const [localText, setLocalText] = useState<string | null>(null);
+
+  const displayValue = localText !== null ? localText : value.toString();
+
+  const commitValue = () => {
+    if (localText === null) return;
+    const parsed = parseInt(localText.trim(), 10);
+    if (isNaN(parsed) || parsed < 1) {
+      const safeVal = Math.max(1, Math.min(180, isNaN(parsed) ? value : 1));
+      setLocalText(null);
+      onChange(safeVal);
+    } else {
+      const clamped = Math.max(1, Math.min(180, parsed));
+      setLocalText(null);
+      onChange(clamped);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      commitValue();
+      (e.target as HTMLInputElement).blur();
+    }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value;
+    if (raw === '' || /^\d+$/.test(raw)) {
+      setLocalText(raw);
+      const parsed = parseInt(raw, 10);
+      if (!isNaN(parsed) && parsed >= 1 && parsed <= 180) {
+        onChange(parsed);
+      }
+    }
+  };
+
+  return (
+    <div
+      className={`p-3.5 sm:p-4 rounded-2xl border flex flex-col items-center transition-all ${
+        isLight
+          ? 'bg-slate-50 border-slate-200'
+          : 'bg-white/5 border-white/10'
+      }`}
+    >
+      <label
+        htmlFor={id}
+        className={`text-xs font-semibold tracking-wide mb-2.5 text-center ${
+          isLight ? 'text-slate-700' : 'text-white/80'
+        }`}
+      >
+        {label}
+      </label>
+
+      <div className="flex items-center space-x-1.5 w-full justify-center">
+        <input
+          id={id}
+          type="text"
+          inputMode="numeric"
+          pattern="[0-9]*"
+          value={displayValue}
+          onFocus={() => setLocalText(value.toString())}
+          onChange={handleInputChange}
+          onBlur={commitValue}
+          onKeyDown={handleKeyDown}
+          aria-label={`${label} in minutes`}
+          className={`w-16 h-10 px-2 text-center font-timer font-bold text-lg sm:text-xl rounded-xl border transition-all focus:outline-none focus:ring-2 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
+            isLight
+              ? 'bg-white border-slate-300 text-slate-900 focus:border-indigo-600 focus:ring-indigo-500/20 shadow-sm'
+              : 'bg-white/10 border-white/20 text-white focus:border-white/60 focus:ring-white/20 shadow-inner'
+          }`}
+        />
+        <span
+          className={`text-xs font-mono font-medium ${
+            isLight ? 'text-slate-500' : 'text-white/50'
+          }`}
+        >
+          min
+        </span>
+      </div>
+    </div>
+  );
+};
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -22,15 +120,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   const handleChange = (key: keyof TimerSettings, value: unknown) => {
     onSaveSettings({ ...settings, [key]: value });
-  };
-
-  const handleStepper = (
-    key: 'pomodoroDuration' | 'shortBreakDuration' | 'longBreakDuration',
-    delta: number
-  ) => {
-    const current = settings[key];
-    const updated = Math.max(1, Math.min(120, current + delta));
-    handleChange(key, updated);
   };
 
   const isLight = settings.theme === 'light';
@@ -168,109 +257,37 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
           </div>
 
-          {/* Time Durations */}
+          {/* Time Durations (Manual Keyboard Input) */}
           <div>
             <h3 className={`text-[11px] font-mono font-semibold uppercase tracking-wider mb-3 ${
               isLight ? 'text-slate-500' : 'text-white/50'
             }`}>
-              Timer Durations (Minutes)
+              Timer Durations
             </h3>
             <div className="grid grid-cols-3 gap-2 sm:gap-3">
-              {/* Pomodoro */}
-              <div className={`p-3 rounded-2xl border flex flex-col items-center ${
-                isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'
-              }`}>
-                <span className={`text-xs font-medium mb-2 ${
-                  isLight ? 'text-slate-600' : 'text-white/70'
-                }`}>Pomodoro</span>
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={() => handleStepper('pomodoroDuration', -1)}
-                    className={`w-7 h-7 rounded-lg font-bold flex items-center justify-center transition ${
-                      isLight
-                        ? 'bg-slate-200 hover:bg-slate-300 text-slate-800'
-                        : 'bg-white/10 hover:bg-white/20 text-white'
-                    }`}
-                  >
-                    -
-                  </button>
-                  <span className="font-timer text-lg font-bold">{settings.pomodoroDuration}</span>
-                  <button
-                    onClick={() => handleStepper('pomodoroDuration', 1)}
-                    className={`w-7 h-7 rounded-lg font-bold flex items-center justify-center transition ${
-                      isLight
-                        ? 'bg-slate-200 hover:bg-slate-300 text-slate-800'
-                        : 'bg-white/10 hover:bg-white/20 text-white'
-                    }`}
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
+              <DurationInput
+                id="setting-duration-focus"
+                label="Focus"
+                value={settings.pomodoroDuration}
+                onChange={(val) => handleChange('pomodoroDuration', val)}
+                isLight={isLight}
+              />
 
-              {/* Short Break */}
-              <div className={`p-3 rounded-2xl border flex flex-col items-center ${
-                isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'
-              }`}>
-                <span className={`text-xs font-medium mb-2 ${
-                  isLight ? 'text-slate-600' : 'text-white/70'
-                }`}>Short Break</span>
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={() => handleStepper('shortBreakDuration', -1)}
-                    className={`w-7 h-7 rounded-lg font-bold flex items-center justify-center transition ${
-                      isLight
-                        ? 'bg-slate-200 hover:bg-slate-300 text-slate-800'
-                        : 'bg-white/10 hover:bg-white/20 text-white'
-                    }`}
-                  >
-                    -
-                  </button>
-                  <span className="font-timer text-lg font-bold">{settings.shortBreakDuration}</span>
-                  <button
-                    onClick={() => handleStepper('shortBreakDuration', 1)}
-                    className={`w-7 h-7 rounded-lg font-bold flex items-center justify-center transition ${
-                      isLight
-                        ? 'bg-slate-200 hover:bg-slate-300 text-slate-800'
-                        : 'bg-white/10 hover:bg-white/20 text-white'
-                    }`}
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
+              <DurationInput
+                id="setting-duration-short-break"
+                label="Short Break"
+                value={settings.shortBreakDuration}
+                onChange={(val) => handleChange('shortBreakDuration', val)}
+                isLight={isLight}
+              />
 
-              {/* Long Break */}
-              <div className={`p-3 rounded-2xl border flex flex-col items-center ${
-                isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'
-              }`}>
-                <span className={`text-xs font-medium mb-2 ${
-                  isLight ? 'text-slate-600' : 'text-white/70'
-                }`}>Long Break</span>
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={() => handleStepper('longBreakDuration', -1)}
-                    className={`w-7 h-7 rounded-lg font-bold flex items-center justify-center transition ${
-                      isLight
-                        ? 'bg-slate-200 hover:bg-slate-300 text-slate-800'
-                        : 'bg-white/10 hover:bg-white/20 text-white'
-                    }`}
-                  >
-                    -
-                  </button>
-                  <span className="font-timer text-lg font-bold">{settings.longBreakDuration}</span>
-                  <button
-                    onClick={() => handleStepper('longBreakDuration', 1)}
-                    className={`w-7 h-7 rounded-lg font-bold flex items-center justify-center transition ${
-                      isLight
-                        ? 'bg-slate-200 hover:bg-slate-300 text-slate-800'
-                        : 'bg-white/10 hover:bg-white/20 text-white'
-                    }`}
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
+              <DurationInput
+                id="setting-duration-long-break"
+                label="Long Break"
+                value={settings.longBreakDuration}
+                onChange={(val) => handleChange('longBreakDuration', val)}
+                isLight={isLight}
+              />
             </div>
           </div>
 
@@ -279,7 +296,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <h3 className={`text-[11px] font-mono font-semibold uppercase tracking-wider mb-3 flex items-center gap-1.5 ${
               isLight ? 'text-slate-500' : 'text-white/50'
             }`}>
-              <Zap className="w-3.5 h-3.5" /> Automation
+              <Sparkles className="w-3.5 h-3.5" /> Automation
             </h3>
             <div className="space-y-2.5">
               <label className={`flex items-center justify-between p-3 rounded-2xl border cursor-pointer transition-all ${
