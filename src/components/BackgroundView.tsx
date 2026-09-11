@@ -34,12 +34,13 @@ export const BackgroundView: React.FC<BackgroundViewProps> = React.memo(({
 
   const renderBackgroundLayer = (atmo: AtmosphereTheme) => {
     const bgStyle = atmo.cssBackground || atmo.fallbackGradient || '';
+    const hasImage = Boolean(atmo.imageUrl && (!isLight || atmo.id === 'custom'));
 
     return (
       <div
         className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-transform duration-1000 scale-[1.01]"
         style={{
-          background: !isLight && atmo.imageUrl
+          background: hasImage
             ? `url("${atmo.imageUrl}") center / cover no-repeat, ${bgStyle}`
             : bgStyle,
           backgroundSize: 'cover',
@@ -76,16 +77,18 @@ export const BackgroundView: React.FC<BackgroundViewProps> = React.memo(({
         {renderBackgroundLayer(currentBg)}
       </div>
 
-      {/* Cinematic Vignette Overlay */}
+      {/* Cinematic Contrast Overlay: Ensures timer digits and controls remain crisp and readable */}
       <div
         className="absolute inset-0 transition-opacity duration-700 pointer-events-none"
         style={{
           backgroundColor: isLight
-            ? 'transparent'
-            : `rgba(5, 5, 10, ${currentBg.overlayOpacity ?? 0.35})`,
+            ? (currentBg.id === 'custom' ? 'rgba(255, 255, 255, 0.45)' : 'transparent')
+            : `rgba(5, 5, 10, ${currentBg.overlayOpacity ?? 0.4})`,
           backgroundImage: isLight
-            ? 'radial-gradient(circle at center, transparent 75%, rgba(0, 0, 0, 0.03) 100%)'
-            : 'radial-gradient(circle at center, transparent 30%, rgba(0, 0, 0, 0.75) 100%)',
+            ? (currentBg.id === 'custom'
+                ? 'radial-gradient(circle at center, rgba(255, 255, 255, 0.6) 20%, rgba(240, 240, 245, 0.85) 100%)'
+                : 'radial-gradient(circle at center, transparent 75%, rgba(0, 0, 0, 0.03) 100%)')
+            : 'radial-gradient(circle at center, transparent 25%, rgba(0, 0, 0, 0.8) 100%)',
         }}
       />
 

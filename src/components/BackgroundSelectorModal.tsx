@@ -1,6 +1,29 @@
-import React, { useState } from 'react';
-import { X, Check, Heart, Sliders, Sparkles, Image as ImageIcon, Bookmark } from 'lucide-react';
-import { getAtmospheres, ATMOSPHERES } from '../utils/backgrounds';
+import React, { useState, useRef } from 'react';
+import {
+  X,
+  Check,
+  Heart,
+  Sliders,
+  Sparkles,
+  Image as ImageIcon,
+  Bookmark,
+  Upload,
+  Camera,
+  Trash2,
+  Loader2,
+  AlertCircle,
+} from 'lucide-react';
+import {
+  getAtmospheres,
+  ATMOSPHERES,
+  createCustomAtmosphere,
+  processBackgroundImage,
+} from '../utils/backgrounds';
+import {
+  loadCustomBackground,
+  saveCustomBackground,
+  removeCustomBackground,
+} from '../utils/storage';
 import type { AtmosphereTheme, SoundMixerState, AtmospherePreset, AppTheme } from '../types';
 import { SoundMixer } from './SoundMixer';
 import { PresetsManager } from './PresetsManager';
@@ -41,12 +64,48 @@ export const BackgroundSelectorModal: React.FC<BackgroundSelectorModalProps> = (
 }) => {
   const [activeTab, setActiveTab] = useState<TabType>('atmospheres');
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
+  const [customImage, setCustomImage] = useState<string | null>(() => loadCustomBackground());
+  const [isUploadingCustom, setIsUploadingCustom] = useState(false);
+  const [customUploadError, setCustomUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!isOpen) return null;
 
   const isLight = theme === 'light';
   const availableAtmospheres = getAtmospheres(theme);
   const currentAtmosphereObj = ATMOSPHERES.find((a) => a.id === activeId) || availableAtmospheres[0];
+
+  const handleCustomFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+
+    setIsUploadingCustom(true);
+    setCustomUploadError(null);
+
+    try {
+      const optimizedUrl = await processBackgroundImage(file);
+      saveCustomBackground(optimizedUrl);
+      setCustomImage(optimizedUrl);
+      const customAtmo = createCustomAtmosphere(optimizedUrl, theme);
+      onSelect(customAtmo);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to process image.';
+      setCustomUploadError(msg);
+    } finally {
+      setIsUploadingCustom(false);
+    }
+  };
+
+  const handleRemoveCustom = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    removeCustomBackground();
+    setCustomImage(null);
+    if (activeId === 'custom') {
+      const defaultAtmo = availableAtmospheres[0];
+      onSelect(defaultAtmo);
+    }
+  };
 
   const displayedAtmospheres = availableAtmospheres.filter((item) => {
     if (categoryFilter === 'favorites') return favoriteIds.includes(item.id);
@@ -162,6 +221,23 @@ export const BackgroundSelectorModal: React.FC<BackgroundSelectorModalProps> = (
         {/* Tab 1: Atmosphere Selection */}
         {activeTab === 'atmospheres' && (
           <div className="py-4 space-y-4 overflow-y-auto pr-1 flex-1">
+            {/* Custom Upload Error Alert */}
+            {customUploadError && (
+              <div className="p-3 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-400 text-xs flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{customUploadError}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCustomUploadError(null)}
+                  className="text-xs underline hover:text-white cursor-pointer"
+                >
+                  Dismiss
+                </button>
+              </div>
+            )}
+
             {/* Filter Pills */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -177,7 +253,7 @@ export const BackgroundSelectorModal: React.FC<BackgroundSelectorModalProps> = (
                       : 'text-white/60 hover:text-white hover:bg-white/10'
                   }`}
                 >
-                  All ({availableAtmospheres.length})
+                  All ({availableAtmospheres.length + (customImage ? 1 : 0)})
                 </button>
                 <button
                   onClick={() => setCategoryFilter('favorites')}
@@ -196,7 +272,7 @@ export const BackgroundSelectorModal: React.FC<BackgroundSelectorModalProps> = (
             </div>
 
             {/* Grid */}
-            {displayedAtmospheres.length === 0 ? (
+            {displayedAtmospheres.length === 0 && (categoryFilter === 'favorites' || !customImage) ? (
               <div className={`p-8 text-center rounded-2xl border ${
                 isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'
               }`}>
@@ -208,6 +284,159 @@ export const BackgroundSelectorModal: React.FC<BackgroundSelectorModalProps> = (
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                {/* 0. Custom Wallpaper Upload Card */}
+                {categoryFilter === 'all' && (
+                  <div
+                    className={`group relative h-44 rounded-2xl overflow-hidden text-left transition-all duration-300 border flex flex-col justify-between ${
+                      activeId === 'custom' && customImage
+                        ? isLight
+                          ? 'ring-2 ring-indigo-600 border-indigo-600 scale-[1.02] shadow-xl'
+                          : 'ring-2 ring-indigo-400 border-indigo-400 scale-[1.02] shadow-2xl'
+                        : customImage
+                        ? isLight
+                          ? 'border-slate-200 hover:border-slate-400 hover:scale-[1.01] shadow-sm'
+                          : 'border-white/15 hover:border-white/40 hover:scale-[1.01]'
+                        : isLight
+                        ? 'border-dashed border-2 border-indigo-300/80 bg-indigo-50/40 hover:bg-indigo-50/80 hover:border-indigo-500'
+                        : 'border-dashed border-2 border-indigo-400/40 bg-indigo-500/5 hover:bg-indigo-500/10 hover:border-indigo-400/80'
+                    }`}
+                  >
+                    {customImage ? (
+                      <>
+                        {/* Background Visual Layer */}
+                        <div
+                          className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-105"
+                          style={{
+                            backgroundImage: `url(${customImage})`,
+                          }}
+                        />
+
+                        {/* Vignette Overlay */}
+                        <div
+                          className={`absolute inset-0 ${
+                            isLight
+                              ? 'bg-gradient-to-t from-white/95 via-white/40 to-transparent'
+                              : 'bg-gradient-to-t from-black/85 via-black/40 to-black/20'
+                          }`}
+                        />
+
+                        {/* Top Header: Change / Delete / Active */}
+                        <div className="relative z-10 p-3 flex items-center justify-between">
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                fileInputRef.current?.click();
+                              }}
+                              disabled={isUploadingCustom}
+                              className={`p-1.5 px-2.5 rounded-xl text-xs font-semibold backdrop-blur-md transition-all flex items-center gap-1 cursor-pointer ${
+                                isLight
+                                  ? 'bg-white/90 text-slate-800 hover:bg-white border border-slate-200 shadow-xs'
+                                  : 'bg-black/50 text-white hover:bg-black/70 border border-white/15'
+                              }`}
+                              title="Change custom wallpaper"
+                            >
+                              <Camera className="w-3.5 h-3.5" />
+                              <span>Change</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={handleRemoveCustom}
+                              disabled={isUploadingCustom}
+                              className="p-1.5 rounded-xl text-rose-400 hover:text-rose-300 bg-black/40 hover:bg-black/60 border border-rose-500/30 backdrop-blur-md transition-all cursor-pointer"
+                              title="Remove custom wallpaper"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+
+                          {activeId === 'custom' && (
+                            <span
+                              className={`flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full shadow-md ${
+                                isLight ? 'bg-indigo-600 text-white' : 'bg-indigo-500 text-white shadow-lg'
+                              }`}
+                            >
+                              <Check className="w-3 h-3 stroke-[3]" /> Active
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Bottom Info & Clickable Select */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (customImage) {
+                              const customAtmo = createCustomAtmosphere(customImage, theme);
+                              onSelect(customAtmo);
+                            }
+                          }}
+                          className={`relative z-10 p-3.5 text-left w-full h-full flex flex-col justify-end transition cursor-pointer ${
+                            isLight ? 'group-hover:bg-black/[0.02]' : 'group-hover:bg-white/5'
+                          }`}
+                        >
+                          <span
+                            className={`font-semibold text-sm transition ${
+                              isLight
+                                ? 'text-slate-900 group-hover:text-indigo-600'
+                                : 'text-white drop-shadow-md group-hover:text-indigo-300'
+                            }`}
+                          >
+                            Custom Wallpaper
+                          </span>
+                          <span className={`text-[11px] line-clamp-1 mt-0.5 ${isLight ? 'text-slate-500' : 'text-white/70'}`}>
+                            Your uploaded photo
+                          </span>
+                        </button>
+                      </>
+                    ) : (
+                      /* Empty Upload Prompt */
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isUploadingCustom}
+                        className="relative z-10 w-full h-full p-4 flex flex-col items-center justify-center text-center gap-2 transition-all cursor-pointer"
+                      >
+                        <div
+                          className={`p-3 rounded-2xl transition-transform group-hover:scale-110 ${
+                            isLight ? 'bg-indigo-100 text-indigo-600' : 'bg-indigo-500/20 text-indigo-300'
+                          }`}
+                        >
+                          {isUploadingCustom ? (
+                            <Loader2 className="w-6 h-6 animate-spin" />
+                          ) : (
+                            <Upload className="w-6 h-6" />
+                          )}
+                        </div>
+                        <div>
+                          <span
+                            className={`text-xs font-bold block ${
+                              isLight ? 'text-indigo-950' : 'text-white'
+                            }`}
+                          >
+                            {isUploadingCustom ? 'Optimizing Image...' : 'Upload Wallpaper'}
+                          </span>
+                          <span
+                            className={`text-[10px] block mt-0.5 ${
+                              isLight ? 'text-slate-500' : 'text-white/60'
+                            }`}
+                          >
+                            JPG, PNG, WebP
+                          </span>
+                        </div>
+                      </button>
+                    )}
+
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp,image/jpg"
+                      onChange={handleCustomFileChange}
+                      className="hidden"
+                    />
+                  </div>
+                )}
                 {displayedAtmospheres.map((item) => {
                   const isActive = item.id === activeId;
                   const isFavorite = favoriteIds.includes(item.id);

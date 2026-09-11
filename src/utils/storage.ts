@@ -137,6 +137,7 @@ export const saveSession = (session: FocusSession): FocusSession[] => {
 
 const BACKGROUND_DARK_KEY = 'luno_background_dark_v1';
 const BACKGROUND_LIGHT_KEY = 'luno_background_light_v1';
+const CUSTOM_BACKGROUND_KEY = 'luno_custom_background_v1';
 
 export const loadSavedBackground = (theme: AppTheme = 'dark'): string => {
   try {
@@ -159,6 +160,30 @@ export const saveBackground = (id: string, theme: AppTheme = 'dark'): void => {
     }
   } catch (err) {
     console.error('Failed to save background choice', err);
+  }
+};
+
+export const loadCustomBackground = (): string | null => {
+  try {
+    return localStorage.getItem(CUSTOM_BACKGROUND_KEY) || null;
+  } catch {
+    return null;
+  }
+};
+
+export const saveCustomBackground = (dataUrl: string): void => {
+  try {
+    localStorage.setItem(CUSTOM_BACKGROUND_KEY, dataUrl);
+  } catch (err) {
+    console.error('Failed to save custom background', err);
+  }
+};
+
+export const removeCustomBackground = (): void => {
+  try {
+    localStorage.removeItem(CUSTOM_BACKGROUND_KEY);
+  } catch (err) {
+    console.error('Failed to remove custom background', err);
   }
 };
 

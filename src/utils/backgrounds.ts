@@ -1,4 +1,5 @@
 import type { AtmosphereTheme, AppTheme } from '../types';
+import { loadCustomBackground } from './storage';
 
 export const DARK_ATMOSPHERES: AtmosphereTheme[] = [
   {
@@ -180,6 +181,77 @@ export const LIGHT_ATMOSPHERES: AtmosphereTheme[] = [
 
 export const ATMOSPHERES: AtmosphereTheme[] = [...DARK_ATMOSPHERES, ...LIGHT_ATMOSPHERES];
 
+export const createCustomAtmosphere = (imageUrl: string, theme: AppTheme = 'dark'): AtmosphereTheme => ({
+  id: 'custom',
+  name: 'Custom Wallpaper',
+  tagline: 'Your personalized focus backdrop',
+  themeType: 'both',
+  imageUrl,
+  cssBackground: theme === 'light'
+    ? 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)'
+    : 'linear-gradient(135deg, #070914 0%, #0d1127 100%)',
+  overlayOpacity: theme === 'light' ? 0.05 : 0.45,
+  recommendedSounds: [
+    { track: 'rain', volume: 0.5 },
+    { track: 'lofi', volume: 0.3 },
+  ],
+});
+
+export const processBackgroundImage = async (file: File): Promise<string> => {
+  if (!file) throw new Error('No image file selected.');
+
+  const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
+  const isValidMime = file.type && validTypes.includes(file.type.toLowerCase());
+  const isValidExt = Boolean(file.name.match(/\.(jpe?g|png|webp)$/i));
+
+  if (!isValidMime && !isValidExt) {
+    throw new Error('Please select a valid image file (JPG, PNG, WebP).');
+  }
+
+  // Limit raw file to 15 MB
+  if (file.size > 15 * 1024 * 1024) {
+    throw new Error('Image file is too large (max 15 MB).');
+  }
+
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Failed to read image file.'));
+    reader.onload = (e) => {
+      const src = e.target?.result as string;
+      const img = new Image();
+      img.onerror = () => reject(new Error('Failed to load image.'));
+      img.onload = () => {
+        const maxWidth = 1920;
+        const maxHeight = 1080;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth || height > maxHeight) {
+          const ratio = Math.min(maxWidth / width, maxHeight / height);
+          width = Math.round(width * ratio);
+          height = Math.round(height * ratio);
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(src);
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+        // Export high-quality compressed JPEG (~200KB)
+        const optimized = canvas.toDataURL('image/jpeg', 0.85);
+        resolve(optimized);
+      };
+      img.src = src;
+    };
+    reader.readAsDataURL(file);
+  });
+};
+
 export const getAtmospheres = (theme: AppTheme = 'dark'): AtmosphereTheme[] => {
   return theme === 'light' ? LIGHT_ATMOSPHERES : DARK_ATMOSPHERES;
 };
@@ -189,6 +261,12 @@ export const getDefaultAtmosphere = (theme: AppTheme = 'dark'): AtmosphereTheme 
 };
 
 export const getAtmosphereById = (id: string, theme: AppTheme = 'dark'): AtmosphereTheme => {
+  if (id === 'custom') {
+    const customImg = loadCustomBackground();
+    if (customImg) {
+      return createCustomAtmosphere(customImg, theme);
+    }
+  }
   const found = ATMOSPHERES.find((item) => item.id === id);
   if (found) return found;
   return getDefaultAtmosphere(theme);
