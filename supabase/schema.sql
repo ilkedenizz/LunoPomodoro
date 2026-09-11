@@ -26,49 +26,43 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_profiles_nickname_lower ON public.profiles
 
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
-DO $$ BEGIN
-  CREATE POLICY "Users can view their own profile"
-    ON public.profiles
-    FOR SELECT
-    USING (auth.uid() = id);
-EXCEPTION WHEN duplicate_object THEN NULL;
-END $$;
+-- Clean up existing profile policies
+DROP POLICY IF EXISTS "Users can view their own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Public profiles are viewable by authenticated users" ON public.profiles;
+DROP POLICY IF EXISTS "Public profiles are viewable by everyone" ON public.profiles;
+DROP POLICY IF EXISTS "Profiles are viewable by everyone" ON public.profiles;
+DROP POLICY IF EXISTS "Users can insert their own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Users can update their own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Users can delete their own profile" ON public.profiles;
 
-DO $$ BEGIN
-  CREATE POLICY "Users can insert their own profile"
-    ON public.profiles
-    FOR INSERT
-    WITH CHECK (auth.uid() = id);
-EXCEPTION WHEN duplicate_object THEN NULL;
-END $$;
+-- Allow everyone (authenticated and anonymous) to view profiles for search and friends
+CREATE POLICY "Profiles are viewable by everyone"
+  ON public.profiles
+  FOR SELECT
+  USING (true);
 
-DO $$ BEGIN
-  CREATE POLICY "Users can update their own profile"
-    ON public.profiles
-    FOR UPDATE
-    USING (auth.uid() = id)
-    WITH CHECK (auth.uid() = id);
-EXCEPTION WHEN duplicate_object THEN NULL;
-END $$;
+-- Allow users to insert their own profile
+CREATE POLICY "Users can insert their own profile"
+  ON public.profiles
+  FOR INSERT
+  WITH CHECK (auth.uid() = id);
 
-DO $$ BEGIN
-  CREATE POLICY "Users can delete their own profile"
-    ON public.profiles
-    FOR DELETE
-    USING (auth.uid() = id);
-EXCEPTION WHEN duplicate_object THEN NULL;
-END $$;
+-- Allow users to update their own profile
+CREATE POLICY "Users can update their own profile"
+  ON public.profiles
+  FOR UPDATE
+  USING (auth.uid() = id)
+  WITH CHECK (auth.uid() = id);
+
+-- Allow users to delete their own profile
+CREATE POLICY "Users can delete their own profile"
+  ON public.profiles
+  FOR DELETE
+  USING (auth.uid() = id);
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.profiles TO authenticated;
 GRANT SELECT ON TABLE public.profiles TO anon;
 
-DO $$ BEGIN
-  CREATE POLICY "Public profiles are viewable by authenticated users"
-    ON public.profiles
-    FOR SELECT
-    USING (true);
-EXCEPTION WHEN duplicate_object THEN NULL;
-END $$;
 
 CREATE OR REPLACE FUNCTION public.check_nickname_available(username text, exclude_user_id uuid DEFAULT NULL)
 RETURNS boolean

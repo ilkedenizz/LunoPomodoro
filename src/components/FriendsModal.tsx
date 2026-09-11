@@ -62,7 +62,16 @@ const FriendAvatar: React.FC<{
           src={avatarUrl}
           alt={nickname}
           className="w-full h-full object-cover rounded-full"
-          onError={() => setFailedUrl(avatarUrl)}
+          onError={(e) => {
+            if (import.meta.env.DEV) {
+              console.warn('[Luno FriendAvatar Image Load Failed]:', {
+                nickname,
+                avatarUrl,
+                error: e,
+              });
+            }
+            setFailedUrl(avatarUrl);
+          }}
           loading="lazy"
         />
       ) : (

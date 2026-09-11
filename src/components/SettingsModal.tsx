@@ -236,6 +236,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [isRemovingAvatar, setIsRemovingAvatar] = useState(false);
   const [avatarError, setAvatarError] = useState<string | null>(null);
   const [avatarSuccess, setAvatarSuccess] = useState<string | null>(null);
+  const [failedAvatarUrl, setFailedAvatarUrl] = useState<string | null>(null);
+  const isAvatarFailed = Boolean(user?.avatarUrl && failedAvatarUrl === user?.avatarUrl);
 
   const handleAvatarFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -933,13 +935,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         {/* Avatar with Camera Trigger & Live Indicator */}
                         <div className="relative group shrink-0">
                           <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 text-white flex items-center justify-center font-bold text-2xl sm:text-3xl shadow-xl overflow-hidden ring-4 ring-white/15 relative">
-                            {user.avatarUrl ? (
+                            {user.avatarUrl && !isAvatarFailed ? (
                               <img
                                 src={user.avatarUrl}
                                 alt={user.displayName || user.nickname || 'Avatar'}
                                 className="w-full h-full object-cover rounded-full"
                                 onError={(e) => {
-                                  (e.target as HTMLImageElement).style.display = 'none';
+                                  if (import.meta.env.DEV) {
+                                    console.warn('[Luno Profile Avatar Load Failed]:', {
+                                      avatarUrl: user.avatarUrl,
+                                      error: e,
+                                    });
+                                  }
+                                  setFailedAvatarUrl(user.avatarUrl || null);
                                 }}
                               />
                             ) : (
@@ -1136,11 +1144,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       }`}>
                         <div className="flex items-center gap-3">
                           <div className="w-11 h-11 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center font-bold text-sm overflow-hidden shrink-0">
-                            {user.avatarUrl ? (
+                            {user.avatarUrl && !isAvatarFailed ? (
                               <img
                                 src={user.avatarUrl}
                                 alt="Avatar"
                                 className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  if (import.meta.env.DEV) {
+                                    console.warn('[Luno Edit Avatar Load Failed]:', {
+                                      avatarUrl: user.avatarUrl,
+                                      error: e,
+                                    });
+                                  }
+                                  setFailedAvatarUrl(user.avatarUrl || null);
+                                }}
                               />
                             ) : (
                               avatarInitials
