@@ -2,8 +2,82 @@
 -- LUNO (STUDYLUNO) — SUPABASE DATABASE SCHEMA & ROW-LEVEL SECURITY (RLS)
 -- ==============================================================================
 -- Run this script in your Supabase project's SQL Editor to set up all tables,
--- RLS policies, and indexes for multi-device synchronization.
+-- RLS policies, indexes, and profile/nickname support.
+-- 
+-- Non-destructive & completely idempotent (zero DROP statements, safe to re-run).
 -- ==============================================================================
+
+-- 0. USER PROFILES (UNIQUE NICKNAME / USERNAME)
+CREATE TABLE IF NOT EXISTS public.profiles (
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  nickname TEXT NOT NULL,
+  display_name TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  CONSTRAINT check_nickname_length CHECK (char_length(nickname) >= 3 AND char_length(nickname) <= 20),
+  CONSTRAINT check_nickname_format CHECK (nickname ~ '^[a-zA-Z0-9_]{3,20}$')
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_profiles_nickname_lower ON public.profiles(lower(nickname));
+
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+
+DO $$ BEGIN
+  CREATE POLICY "Users can view their own profile"
+    ON public.profiles
+    FOR SELECT
+    USING (auth.uid() = id);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE POLICY "Users can insert their own profile"
+    ON public.profiles
+    FOR INSERT
+    WITH CHECK (auth.uid() = id);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE POLICY "Users can update their own profile"
+    ON public.profiles
+    FOR UPDATE
+    USING (auth.uid() = id)
+    WITH CHECK (auth.uid() = id);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE POLICY "Users can delete their own profile"
+    ON public.profiles
+    FOR DELETE
+    USING (auth.uid() = id);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+CREATE OR REPLACE FUNCTION public.check_nickname_available(username text, exclude_user_id uuid DEFAULT NULL)
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF exclude_user_id IS NOT NULL THEN
+    RETURN NOT EXISTS (
+      SELECT 1 FROM public.profiles
+      WHERE lower(nickname) = lower(trim(username))
+        AND id != exclude_user_id
+    );
+  ELSE
+    RETURN NOT EXISTS (
+      SELECT 1 FROM public.profiles
+      WHERE lower(nickname) = lower(trim(username))
+    );
+  END IF;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.check_nickname_available(text, uuid) TO anon, authenticated;
 
 -- 1. USER SETTINGS
 CREATE TABLE IF NOT EXISTS public.user_settings (
@@ -24,11 +98,14 @@ CREATE TABLE IF NOT EXISTS public.user_settings (
 
 ALTER TABLE public.user_settings ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can manage their own settings"
-  ON public.user_settings
-  FOR ALL
-  USING (auth.uid() = user_id)
-  WITH CHECK (auth.uid() = user_id);
+DO $$ BEGIN
+  CREATE POLICY "Users can manage their own settings"
+    ON public.user_settings
+    FOR ALL
+    USING (auth.uid() = user_id)
+    WITH CHECK (auth.uid() = user_id);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 CREATE INDEX IF NOT EXISTS idx_user_settings_user ON public.user_settings(user_id);
 
@@ -42,11 +119,14 @@ CREATE TABLE IF NOT EXISTS public.daily_goals (
 
 ALTER TABLE public.daily_goals ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can manage their own daily goal"
-  ON public.daily_goals
-  FOR ALL
-  USING (auth.uid() = user_id)
-  WITH CHECK (auth.uid() = user_id);
+DO $$ BEGIN
+  CREATE POLICY "Users can manage their own daily goal"
+    ON public.daily_goals
+    FOR ALL
+    USING (auth.uid() = user_id)
+    WITH CHECK (auth.uid() = user_id);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 CREATE INDEX IF NOT EXISTS idx_daily_goals_user ON public.daily_goals(user_id);
 
@@ -65,11 +145,14 @@ CREATE TABLE IF NOT EXISTS public.tasks (
 
 ALTER TABLE public.tasks ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can manage their own tasks"
-  ON public.tasks
-  FOR ALL
-  USING (auth.uid() = user_id)
-  WITH CHECK (auth.uid() = user_id);
+DO $$ BEGIN
+  CREATE POLICY "Users can manage their own tasks"
+    ON public.tasks
+    FOR ALL
+    USING (auth.uid() = user_id)
+    WITH CHECK (auth.uid() = user_id);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 CREATE INDEX IF NOT EXISTS idx_tasks_user_id ON public.tasks(user_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_user_created ON public.tasks(user_id, created_at DESC);
@@ -88,11 +171,14 @@ CREATE TABLE IF NOT EXISTS public.focus_sessions (
 
 ALTER TABLE public.focus_sessions ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can manage their own focus sessions"
-  ON public.focus_sessions
-  FOR ALL
-  USING (auth.uid() = user_id)
-  WITH CHECK (auth.uid() = user_id);
+DO $$ BEGIN
+  CREATE POLICY "Users can manage their own focus sessions"
+    ON public.focus_sessions
+    FOR ALL
+    USING (auth.uid() = user_id)
+    WITH CHECK (auth.uid() = user_id);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 CREATE INDEX IF NOT EXISTS idx_focus_sessions_user_time ON public.focus_sessions(user_id, timestamp DESC);
 
@@ -109,10 +195,13 @@ CREATE TABLE IF NOT EXISTS public.atmosphere_presets (
 
 ALTER TABLE public.atmosphere_presets ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can manage their own presets"
-  ON public.atmosphere_presets
-  FOR ALL
-  USING (auth.uid() = user_id)
-  WITH CHECK (auth.uid() = user_id);
+DO $$ BEGIN
+  CREATE POLICY "Users can manage their own presets"
+    ON public.atmosphere_presets
+    FOR ALL
+    USING (auth.uid() = user_id)
+    WITH CHECK (auth.uid() = user_id);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 CREATE INDEX IF NOT EXISTS idx_atmosphere_presets_user ON public.atmosphere_presets(user_id);

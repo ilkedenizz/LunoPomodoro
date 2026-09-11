@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   X,
   Volume2,
@@ -26,6 +26,7 @@ import {
   TrendingUp,
   ShieldCheck,
   Send,
+  AtSign,
 } from 'lucide-react';
 import type {
   TimerSettings,
@@ -47,6 +48,8 @@ import {
   updateUserProfile,
   updateUserPassword,
   resendConfirmationEmail,
+  validateNickname,
+  checkNicknameAvailability,
 } from '../services/auth';
 
 interface DurationInputProps {
@@ -204,6 +207,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   // Profile Edit State
   const [displayNameInput, setDisplayNameInput] = useState(user?.displayName || '');
+  const [nicknameInput, setNicknameInput] = useState(user?.nickname || '');
+  const [nicknameStatus, setNicknameStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'invalid'>('idle');
+  const [nicknameMessage, setNicknameMessage] = useState<string>('');
+  const nicknameDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [profileSaveSuccess, setProfileSaveSuccess] = useState(false);
   const [profileSaveError, setProfileSaveError] = useState<string | null>(null);
@@ -231,12 +238,65 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     setActiveTab(initialTab);
   }
 
-  // Update local display name input when user prop changes
+  // Update local inputs when user prop changes
   const [prevUserDisplayName, setPrevUserDisplayName] = useState(user?.displayName);
   if (user?.displayName !== prevUserDisplayName) {
     setPrevUserDisplayName(user?.displayName);
     setDisplayNameInput(user?.displayName || '');
   }
+
+  const [prevUserNickname, setPrevUserNickname] = useState(user?.nickname);
+  if (user?.nickname !== prevUserNickname) {
+    setPrevUserNickname(user?.nickname);
+    setNicknameInput(user?.nickname || '');
+  }
+
+  const handleNicknameChange = (val: string) => {
+    const cleanVal = val.toLowerCase().replace(/\s+/g, '');
+    setNicknameInput(cleanVal);
+
+    if (nicknameDebounceRef.current) {
+      clearTimeout(nicknameDebounceRef.current);
+    }
+
+    if (!cleanVal) {
+      setNicknameStatus('invalid');
+      setNicknameMessage('Nickname is required.');
+      return;
+    }
+
+    if (cleanVal === (user?.nickname || '').toLowerCase()) {
+      setNicknameStatus('idle');
+      setNicknameMessage('');
+      return;
+    }
+
+    const valRes = validateNickname(cleanVal);
+    if (!valRes.valid) {
+      setNicknameStatus('invalid');
+      setNicknameMessage(valRes.error || 'Nickname must be 3-20 letters, numbers, or underscores.');
+      return;
+    }
+
+    setNicknameStatus('checking');
+    setNicknameMessage('Checking availability...');
+
+    nicknameDebounceRef.current = setTimeout(async () => {
+      try {
+        const avail = await checkNicknameAvailability(cleanVal, user?.id);
+        if (avail.available) {
+          setNicknameStatus('available');
+          setNicknameMessage('Nickname is available!');
+        } else {
+          setNicknameStatus('taken');
+          setNicknameMessage(avail.error || 'This nickname is already taken.');
+        }
+      } catch {
+        setNicknameStatus('idle');
+        setNicknameMessage('');
+      }
+    }, 350);
+  };
 
   if (!isOpen) return null;
 
@@ -254,25 +314,50 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     .reduce((acc, s) => acc + s.durationMinutes, 0);
   const currentStreakDays = getCurrentStreak(sessions);
 
-  // Handle Display Name Save
-  const handleSaveDisplayName = async (e: React.FormEvent) => {
+  // Handle Profile Save (Nickname & Display Name)
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
+
+    const cleanNickname = nicknameInput.trim().toLowerCase();
+    const isNicknameChanged = cleanNickname !== (user.nickname || '').toLowerCase();
+    const isDisplayNameChanged = displayNameInput.trim() !== (user.displayName || '');
+
+    if (!isNicknameChanged && !isDisplayNameChanged) return;
+
+    if (isNicknameChanged) {
+      const valRes = validateNickname(cleanNickname);
+      if (!valRes.valid) {
+        setProfileSaveError(valRes.error || 'Invalid nickname.');
+        return;
+      }
+      if (nicknameStatus === 'taken') {
+        setProfileSaveError('This nickname is already taken. Please choose another.');
+        return;
+      }
+    }
+
     setIsSavingProfile(true);
     setProfileSaveError(null);
     setProfileSaveSuccess(false);
 
     try {
-      const res = await updateUserProfile({ displayName: displayNameInput.trim() });
+      const res = await updateUserProfile({
+        displayName: displayNameInput.trim(),
+        ...(isNicknameChanged ? { nickname: cleanNickname } : {}),
+      });
+
       if (res.error) {
         setProfileSaveError(res.error);
       } else if (res.user) {
         setProfileSaveSuccess(true);
+        setNicknameStatus('idle');
+        setNicknameMessage('');
         onUserUpdate?.(res.user);
         setTimeout(() => setProfileSaveSuccess(false), 2500);
       }
     } catch {
-      setProfileSaveError('Failed to update profile name.');
+      setProfileSaveError('Failed to update profile.');
     } finally {
       setIsSavingProfile(false);
     }
@@ -350,6 +435,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   // Safe avatar initials
   const avatarInitials = user?.displayName
     ? user.displayName.trim().slice(0, 2).toUpperCase()
+    : user?.nickname
+    ? user.nickname.slice(0, 2).toUpperCase()
     : user?.email
     ? user.email.slice(0, 2).toUpperCase()
     : 'G';
@@ -682,10 +769,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           {avatarInitials}
                         </div>
                         <div className="min-w-0">
-                          <h3 className="text-base font-bold tracking-tight truncate">
-                            {user.displayName || user.email.split('@')[0]}
-                          </h3>
-                          <p className={`text-xs truncate ${isLight ? 'text-slate-600' : 'text-white/70'}`}>
+                          <div className="flex items-center gap-2">
+                            <h3 className="text-base font-bold tracking-tight truncate">
+                              {user.displayName || (user.nickname ? `@${user.nickname}` : user.email.split('@')[0])}
+                            </h3>
+                            {user.nickname && (
+                              <span className={`text-xs px-2 py-0.5 rounded-full font-mono font-medium ${
+                                isLight ? 'bg-slate-200/80 text-slate-700' : 'bg-white/10 text-white/80'
+                              }`}>
+                                @{user.nickname}
+                              </span>
+                            )}
+                          </div>
+                          <p className={`text-xs truncate mt-0.5 ${isLight ? 'text-slate-600' : 'text-white/70'}`}>
                             {user.email}
                           </p>
 
@@ -753,15 +849,77 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <div className={`p-4 rounded-2xl border space-y-3.5 ${
                       isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'
                     }`}>
-                      {/* Display Name Input */}
-                      <form onSubmit={handleSaveDisplayName} className="space-y-1.5">
-                        <label
-                          htmlFor="account-display-name"
-                          className={`block text-xs font-medium ${isLight ? 'text-slate-700' : 'text-white/80'}`}
-                        >
-                          Display Name
-                        </label>
-                        <div className="flex gap-2">
+                      <form onSubmit={handleSaveProfile} className="space-y-3">
+                        {/* Nickname Input */}
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <label
+                              htmlFor="account-nickname"
+                              className={`block text-xs font-medium ${isLight ? 'text-slate-700' : 'text-white/80'}`}
+                            >
+                              Nickname / Username
+                            </label>
+                            <span className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-white/50'}`}>3-20 chars, unique</span>
+                          </div>
+                          <div className="relative">
+                            <AtSign className={`w-4 h-4 absolute left-3.5 top-1/2 transform -translate-y-1/2 ${
+                              isLight ? 'text-slate-400' : 'text-white/40'
+                            }`} />
+                            <input
+                              id="account-nickname"
+                              type="text"
+                              autoComplete="username"
+                              value={nicknameInput}
+                              onChange={(e) => handleNicknameChange(e.target.value)}
+                              placeholder="zen_master"
+                              maxLength={20}
+                              className={`w-full pl-10 pr-10 py-2 rounded-xl text-xs sm:text-sm border transition-all focus:outline-none focus:ring-2 ${
+                                nicknameStatus === 'available'
+                                  ? isLight
+                                    ? 'bg-emerald-50/50 border-emerald-500 text-slate-900 focus:ring-emerald-500/20'
+                                    : 'bg-emerald-500/10 border-emerald-500/50 text-white focus:ring-emerald-500/20'
+                                  : nicknameStatus === 'taken' || nicknameStatus === 'invalid'
+                                  ? isLight
+                                    ? 'bg-rose-50/50 border-rose-500 text-slate-900 focus:ring-rose-500/20'
+                                    : 'bg-rose-500/10 border-rose-500/50 text-white focus:ring-rose-500/20'
+                                  : isLight
+                                  ? 'bg-white border-slate-300 text-slate-900 focus:border-indigo-600 focus:ring-indigo-500/20'
+                                  : 'bg-white/10 border-white/20 text-white focus:border-white/60 focus:ring-white/20'
+                              }`}
+                            />
+                            <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center">
+                              {nicknameStatus === 'checking' && (
+                                <Loader2 className="w-4 h-4 animate-spin text-indigo-400" />
+                              )}
+                              {nicknameStatus === 'available' && (
+                                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                              )}
+                              {(nicknameStatus === 'taken' || nicknameStatus === 'invalid') && (
+                                <AlertCircle className="w-4 h-4 text-rose-400" />
+                              )}
+                            </div>
+                          </div>
+                          {nicknameMessage && (
+                            <p className={`text-[11px] mt-1 pl-1 flex items-center space-x-1 ${
+                              nicknameStatus === 'available'
+                                ? 'text-emerald-400'
+                                : nicknameStatus === 'checking'
+                                ? isLight ? 'text-indigo-600' : 'text-indigo-400'
+                                : 'text-rose-400'
+                            }`}>
+                              <span>{nicknameMessage}</span>
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Display Name Input */}
+                        <div>
+                          <label
+                            htmlFor="account-display-name"
+                            className={`block text-xs font-medium mb-1 ${isLight ? 'text-slate-700' : 'text-white/80'}`}
+                          >
+                            Display Name (optional)
+                          </label>
                           <input
                             id="account-display-name"
                             type="text"
@@ -769,15 +927,31 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             onChange={(e) => setDisplayNameInput(e.target.value)}
                             placeholder="e.g. Alex, FocusMaster"
                             maxLength={40}
-                            className={`flex-1 px-3.5 py-2 rounded-xl text-xs sm:text-sm border transition-all focus:outline-none focus:ring-2 ${
+                            className={`w-full px-3.5 py-2 rounded-xl text-xs sm:text-sm border transition-all focus:outline-none focus:ring-2 ${
                               isLight
                                 ? 'bg-white border-slate-300 text-slate-900 focus:border-indigo-600 focus:ring-indigo-500/20'
                                 : 'bg-white/10 border-white/20 text-white focus:border-white/60 focus:ring-white/20'
                             }`}
                           />
+                        </div>
+
+                        <div className="flex items-center justify-between pt-1">
+                          {profileSaveError ? (
+                            <p className="text-[11px] text-rose-400 flex items-center gap-1">
+                              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                              <span>{profileSaveError}</span>
+                            </p>
+                          ) : <div />}
+
                           <button
                             type="submit"
-                            disabled={isSavingProfile || displayNameInput.trim() === (user.displayName || '')}
+                            disabled={
+                              isSavingProfile ||
+                              (displayNameInput.trim() === (user.displayName || '') &&
+                                nicknameInput.trim().toLowerCase() === (user.nickname || '').toLowerCase()) ||
+                              nicknameStatus === 'taken' ||
+                              nicknameStatus === 'invalid'
+                            }
                             className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1.5 shrink-0 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
                               profileSaveSuccess
                                 ? 'bg-emerald-600 text-white'
@@ -794,13 +968,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                 <span>Saved</span>
                               </>
                             ) : (
-                              <span>Save</span>
+                              <span>Save Changes</span>
                             )}
                           </button>
                         </div>
-                        {profileSaveError && (
-                          <p className="text-[11px] text-rose-400">{profileSaveError}</p>
-                        )}
                       </form>
 
                       {/* Email Row */}

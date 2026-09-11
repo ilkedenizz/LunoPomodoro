@@ -54,37 +54,151 @@ const formatAuthError = (message: string): string => {
   return message;
 };
 
-export const mapSupabaseUser = (user: {
-  id: string;
-  email?: string;
-  email_confirmed_at?: string | null;
-  confirmed_at?: string | null;
-  user_metadata?: { display_name?: string; full_name?: string; [key: string]: unknown };
-  created_at?: string;
-}): UserProfile => {
+export const validateNickname = (
+  nickname: string
+): { valid: boolean; error: string | null; normalized: string } => {
+  const trimmed = nickname.trim();
+  if (!trimmed) {
+    return { valid: false, error: 'Nickname is required.', normalized: '' };
+  }
+  if (trimmed.length < 3 || trimmed.length > 20) {
+    return {
+      valid: false,
+      error: 'Nickname must be between 3 and 20 characters.',
+      normalized: trimmed.toLowerCase(),
+    };
+  }
+  if (!/^[a-zA-Z0-9_]+$/.test(trimmed)) {
+    return {
+      valid: false,
+      error: 'Nickname can only contain letters, numbers, and underscores.',
+      normalized: trimmed.toLowerCase(),
+    };
+  }
+  return { valid: true, error: null, normalized: trimmed.toLowerCase() };
+};
+
+export const checkNicknameAvailability = async (
+  nickname: string,
+  currentUserId?: string
+): Promise<{ available: boolean; error: string | null }> => {
+  const validation = validateNickname(nickname);
+  if (!validation.valid) {
+    return { available: false, error: validation.error };
+  }
+
+  if (!isSupabaseConfigured()) {
+    return { available: true, error: null };
+  }
+
+  const client = getSupabaseClient();
+  if (!client) {
+    return { available: true, error: null };
+  }
+
+  try {
+    // 1. Primary: Call SECURITY DEFINER RPC function
+    const { data, error } = await client.rpc('check_nickname_available', {
+      username: validation.normalized,
+      exclude_user_id: currentUserId || null,
+    });
+
+    if (!error && typeof data === 'boolean') {
+      return {
+        available: data,
+        error: data ? null : 'This nickname is already taken.',
+      };
+    }
+
+    // 2. Fallback: Call RPC function without exclude_user_id
+    const fallback = await client.rpc('check_nickname_available', {
+      username: validation.normalized,
+    });
+    if (!fallback.error && typeof fallback.data === 'boolean') {
+      return {
+        available: fallback.data,
+        error: fallback.data ? null : 'This nickname is already taken.',
+      };
+    }
+
+    return { available: true, error: null };
+  } catch {
+    return { available: true, error: null };
+  }
+};
+
+export const mapSupabaseUser = (
+  user: {
+    id: string;
+    email?: string;
+    email_confirmed_at?: string | null;
+    confirmed_at?: string | null;
+    user_metadata?: {
+      nickname?: string;
+      display_name?: string;
+      full_name?: string;
+      [key: string]: unknown;
+    };
+    created_at?: string;
+  },
+  profileData?: { nickname?: string; display_name?: string } | null
+): UserProfile => {
   const isVerified = Boolean(user.email_confirmed_at || user.confirmed_at);
-  const displayName = typeof user.user_metadata?.display_name === 'string'
-    ? user.user_metadata.display_name
-    : typeof user.user_metadata?.full_name === 'string'
-    ? user.user_metadata.full_name
-    : undefined;
+  const nickname =
+    profileData?.nickname ||
+    (typeof user.user_metadata?.nickname === 'string' && user.user_metadata.nickname.trim()
+      ? user.user_metadata.nickname.trim()
+      : undefined) ||
+    (user.email ? user.email.split('@')[0] : undefined);
+
+  const displayName =
+    profileData?.display_name ||
+    (typeof user.user_metadata?.display_name === 'string'
+      ? user.user_metadata.display_name
+      : typeof user.user_metadata?.full_name === 'string'
+      ? user.user_metadata.full_name
+      : undefined);
 
   return {
     id: user.id,
     email: user.email || '',
+    nickname,
     displayName,
     emailVerified: isVerified,
     createdAt: user.created_at ? new Date(user.created_at).getTime() : Date.now(),
   };
 };
 
-export const signUp = async (email: string, password: string): Promise<AuthResponse> => {
+export const signUp = async (
+  email: string,
+  password: string,
+  nickname?: string
+): Promise<AuthResponse> => {
   const trimmedEmail = email.trim().toLowerCase();
   if (!trimmedEmail || !trimmedEmail.includes('@')) {
     return { user: null, error: 'Please provide a valid email address.' };
   }
   if (!password || password.length < 6) {
     return { user: null, error: 'Password must be at least 6 characters long.' };
+  }
+
+  // Validate nickname if provided
+  let cleanNickname = '';
+  if (nickname) {
+    const val = validateNickname(nickname);
+    if (!val.valid) {
+      return { user: null, error: val.error };
+    }
+    cleanNickname = val.normalized;
+
+    // Check availability against database
+    const avail = await checkNicknameAvailability(cleanNickname);
+    if (!avail.available) {
+      return { user: null, error: avail.error || 'This nickname is already taken.' };
+    }
+  } else {
+    cleanNickname = trimmedEmail.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '_').slice(0, 20);
+    if (cleanNickname.length < 3) cleanNickname = `user_${Math.random().toString(36).slice(2, 7)}`;
   }
 
   if (!isSupabaseConfigured()) {
@@ -102,12 +216,28 @@ export const signUp = async (email: string, password: string): Promise<AuthRespo
       email: trimmedEmail,
       password,
       options: {
+        data: {
+          nickname: cleanNickname,
+          display_name: cleanNickname,
+        },
         emailRedirectTo: redirectUrl,
       },
     });
 
     if (error) {
       return { user: null, error: formatAuthError(error.message) };
+    }
+
+    // Try to ensure public.profiles row exists if session was established
+    if (data.user) {
+      try {
+        await client.from('profiles').upsert({
+          id: data.user.id,
+          nickname: cleanNickname,
+          display_name: cleanNickname,
+          updated_at: new Date().toISOString(),
+        });
+      } catch {}
     }
 
     // Check if Supabase project requires email confirmation
@@ -121,7 +251,10 @@ export const signUp = async (email: string, password: string): Promise<AuthRespo
     }
 
     if (data.user) {
-      return { user: mapSupabaseUser(data.user), error: null };
+      return {
+        user: mapSupabaseUser(data.user, { nickname: cleanNickname, display_name: cleanNickname }),
+        error: null,
+      };
     }
 
     return { user: null, error: 'Unable to complete account registration.' };
@@ -160,7 +293,37 @@ export const signIn = async (email: string, password: string): Promise<AuthRespo
     }
 
     if (data.user) {
-      return { user: mapSupabaseUser(data.user), error: null };
+      // Fetch user profile from public.profiles
+      let profile: { nickname?: string; display_name?: string } | null = null;
+      try {
+        const { data: profileRow } = await client
+          .from('profiles')
+          .select('nickname, display_name')
+          .eq('id', data.user.id)
+          .maybeSingle();
+
+        if (profileRow) {
+          profile = profileRow;
+        } else {
+          // If no profile row yet, auto-create one
+          const defaultNick =
+            (typeof data.user.user_metadata?.nickname === 'string' && data.user.user_metadata.nickname) ||
+            trimmedEmail.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '_').slice(0, 20);
+          const defaultDisplay =
+            (typeof data.user.user_metadata?.display_name === 'string' && data.user.user_metadata.display_name) ||
+            defaultNick;
+
+          await client.from('profiles').upsert({
+            id: data.user.id,
+            nickname: defaultNick,
+            display_name: defaultDisplay,
+            updated_at: new Date().toISOString(),
+          });
+          profile = { nickname: defaultNick, display_name: defaultDisplay };
+        }
+      } catch {}
+
+      return { user: mapSupabaseUser(data.user, profile), error: null };
     }
 
     return { user: null, error: 'Unable to sign in.' };
@@ -282,7 +445,7 @@ export const signOut = async (): Promise<{ error: string | null }> => {
 };
 
 export const updateUserProfile = async (
-  updates: { displayName?: string }
+  updates: { displayName?: string; nickname?: string }
 ): Promise<{ user: UserProfile | null; error: string | null }> => {
   if (!isSupabaseConfigured()) {
     return { user: null, error: UNCONFIGURED_AUTH_ERROR };
@@ -293,18 +456,54 @@ export const updateUserProfile = async (
   }
 
   try {
+    const { data: { user: currentUser }, error: userError } = await client.auth.getUser();
+    if (userError || !currentUser) {
+      return { user: null, error: 'No active session found.' };
+    }
+
+    const authDataUpdates: Record<string, string> = {};
+    const profileUpdates: Record<string, string> = { id: currentUser.id, updated_at: new Date().toISOString() };
+
+    if (updates.displayName !== undefined) {
+      const trimmed = updates.displayName.trim();
+      authDataUpdates.display_name = trimmed;
+      profileUpdates.display_name = trimmed;
+    }
+
+    if (updates.nickname !== undefined) {
+      const val = validateNickname(updates.nickname);
+      if (!val.valid) {
+        return { user: null, error: val.error };
+      }
+      const cleanNickname = val.normalized;
+
+      // Check availability excluding current user
+      const avail = await checkNicknameAvailability(cleanNickname, currentUser.id);
+      if (!avail.available) {
+        return { user: null, error: avail.error || 'This nickname is already taken.' };
+      }
+
+      authDataUpdates.nickname = cleanNickname;
+      profileUpdates.nickname = cleanNickname;
+    }
+
     const { data, error } = await client.auth.updateUser({
-      data: {
-        display_name: updates.displayName?.trim() || '',
-      },
+      data: authDataUpdates,
     });
 
     if (error) {
       return { user: null, error: formatAuthError(error.message) };
     }
 
+    // Update public.profiles table
+    if (Object.keys(profileUpdates).length > 2) {
+      try {
+        await client.from('profiles').upsert(profileUpdates);
+      } catch {}
+    }
+
     if (data.user) {
-      return { user: mapSupabaseUser(data.user), error: null };
+      return { user: mapSupabaseUser(data.user, profileUpdates), error: null };
     }
 
     return { user: null, error: 'Failed to update profile.' };

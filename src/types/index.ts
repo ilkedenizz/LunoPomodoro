@@ -94,6 +94,7 @@ export interface AtmospherePreset {
 export interface UserProfile {
   id: string;
   email: string;
+  nickname?: string;
   displayName?: string;
   emailVerified?: boolean;
   createdAt: number;

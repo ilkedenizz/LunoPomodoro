@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   X,
   User,
@@ -15,6 +15,7 @@ import {
   Send,
   Check,
   RotateCw,
+  AtSign,
 } from 'lucide-react';
 import {
   signUp,
@@ -22,6 +23,8 @@ import {
   resetPasswordForEmail,
   updateUserPassword,
   resendConfirmationEmail,
+  validateNickname,
+  checkNicknameAvailability,
 } from '../services/auth';
 import { isSupabaseConfigured } from '../services/supabaseClient';
 import { SyncEngine } from '../services/syncEngine';
@@ -51,17 +54,63 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 }) => {
   const [mode, setMode] = useState<AuthModalMode>(initialMode);
   const [email, setEmail] = useState('');
+  const [nickname, setNickname] = useState('');
+  const [nicknameStatus, setNicknameStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'invalid'>('idle');
+  const [nicknameMessage, setNicknameMessage] = useState<string>('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
   const [pendingConfirmationEmailState, setPendingConfirmationEmailState] = useState<string>('');
 
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const [isLoading, setIsLoading] = useState(false);
   const [isResending, setIsResending] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  const handleNicknameChange = (val: string) => {
+    const cleanVal = val.toLowerCase().replace(/\s+/g, '');
+    setNickname(cleanVal);
+
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+
+    if (!cleanVal) {
+      setNicknameStatus('idle');
+      setNicknameMessage('');
+      return;
+    }
+
+    const valRes = validateNickname(cleanVal);
+    if (!valRes.valid) {
+      setNicknameStatus('invalid');
+      setNicknameMessage(valRes.error || 'Nickname must be 3-20 letters, numbers, or underscores.');
+      return;
+    }
+
+    setNicknameStatus('checking');
+    setNicknameMessage('Checking availability...');
+
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const avail = await checkNicknameAvailability(cleanVal);
+        if (avail.available) {
+          setNicknameStatus('available');
+          setNicknameMessage('Nickname is available!');
+        } else {
+          setNicknameStatus('taken');
+          setNicknameMessage(avail.error || 'This nickname is already taken.');
+        }
+      } catch {
+        setNicknameStatus('idle');
+        setNicknameMessage('');
+      }
+    }, 350);
+  };
 
   const [prevInitialMode, setPrevInitialMode] = useState<AuthModalMode>(initialMode);
   if (initialMode !== prevInitialMode) {
@@ -101,6 +150,21 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
     // 1. SIGN UP FLOW
     if (mode === 'signup') {
+      if (nickname.trim()) {
+        const valRes = validateNickname(nickname);
+        if (!valRes.valid) {
+          setErrorMessage(valRes.error || 'Invalid nickname.');
+          return;
+        }
+        if (nicknameStatus === 'taken') {
+          setErrorMessage('This nickname is already taken. Please choose another.');
+          return;
+        }
+      } else {
+        setErrorMessage('Please choose a nickname.');
+        return;
+      }
+
       if (password !== confirmPassword) {
         setErrorMessage('Passwords do not match. Please re-enter your password.');
         return;
@@ -114,7 +178,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setStatusMessage('Creating account & backing up your local data...');
 
       try {
-        const res = await signUp(email, password);
+        const res = await signUp(email, password, nickname);
 
         if (res.error) {
           setErrorMessage(res.error);
@@ -490,6 +554,71 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           ) : (
             /* 2. FORM VIEW (SIGN UP / SIGN IN / FORGOT PASSWORD / UPDATE PASSWORD) */
             <form onSubmit={handleSubmit} className="space-y-3.5">
+              {/* Nickname field (Sign Up only) */}
+              {mode === 'signup' && (
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label
+                      htmlFor="auth-nickname"
+                      className={`block text-xs font-medium ${isLight ? 'text-slate-700' : 'text-white/80'}`}
+                    >
+                      Username / Nickname
+                    </label>
+                    <span className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-white/50'}`}>3-20 chars, letters/nums/_</span>
+                  </div>
+                  <div className="relative">
+                    <AtSign className={`w-4 h-4 absolute left-3.5 top-1/2 transform -translate-y-1/2 ${
+                      isLight ? 'text-slate-400' : 'text-white/40'
+                    }`} />
+                    <input
+                      id="auth-nickname"
+                      type="text"
+                      autoComplete="username"
+                      required
+                      value={nickname}
+                      onChange={(e) => handleNicknameChange(e.target.value)}
+                      placeholder="zen_master"
+                      maxLength={20}
+                      className={`w-full pl-10 pr-10 py-2.5 rounded-xl text-sm border transition-all focus:outline-none focus:ring-2 min-h-[44px] ${
+                        nicknameStatus === 'available'
+                          ? isLight
+                            ? 'bg-emerald-50/50 border-emerald-500 text-slate-900 focus:ring-emerald-500/20'
+                            : 'bg-emerald-500/10 border-emerald-500/50 text-white focus:ring-emerald-500/20'
+                          : nicknameStatus === 'taken' || nicknameStatus === 'invalid'
+                          ? isLight
+                            ? 'bg-rose-50/50 border-rose-500 text-slate-900 focus:ring-rose-500/20'
+                            : 'bg-rose-500/10 border-rose-500/50 text-white focus:ring-rose-500/20'
+                          : isLight
+                          ? 'bg-white border-slate-300 text-slate-900 focus:border-indigo-600 focus:ring-indigo-500/20'
+                          : 'bg-white/10 border-white/20 text-white focus:border-white/60 focus:ring-white/20'
+                      }`}
+                    />
+                    <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center">
+                      {nicknameStatus === 'checking' && (
+                        <Loader2 className="w-4 h-4 animate-spin text-indigo-400" />
+                      )}
+                      {nicknameStatus === 'available' && (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                      )}
+                      {(nicknameStatus === 'taken' || nicknameStatus === 'invalid') && (
+                        <AlertCircle className="w-4 h-4 text-rose-400" />
+                      )}
+                    </div>
+                  </div>
+                  {nicknameMessage && (
+                    <p className={`text-[11px] mt-1 pl-1 flex items-center space-x-1 ${
+                      nicknameStatus === 'available'
+                        ? 'text-emerald-400'
+                        : nicknameStatus === 'checking'
+                        ? isLight ? 'text-indigo-600' : 'text-indigo-400'
+                        : 'text-rose-400'
+                    }`}>
+                      <span>{nicknameMessage}</span>
+                    </p>
+                  )}
+                </div>
+              )}
+
               {/* Email field (not needed in update-password) */}
               {mode !== 'update-password' && (
                 <div>

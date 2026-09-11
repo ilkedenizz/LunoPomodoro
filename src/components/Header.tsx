@@ -208,7 +208,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
         {/* Account / Sync Button */}
         <button
           onClick={onOpenAuth}
-          aria-label={user ? `Account (${user.email})` : 'Sign in or create account'}
+          aria-label={user ? `Account (${user.nickname ? `@${user.nickname}` : user.email})` : 'Sign in or create account'}
           className={`relative flex items-center space-x-1.5 px-2.5 py-2 sm:px-3 sm:py-2.5 rounded-xl glass-panel glass-panel-hover transition-all focus:outline-none focus-visible:ring-2 ${
             user
               ? isLight
@@ -221,22 +221,22 @@ export const Header: React.FC<HeaderProps> = React.memo(({
           title={
             user
               ? syncStatus?.state === 'syncing'
-                ? `Syncing: ${user.email}`
+                ? `Syncing: ${user.nickname ? `@${user.nickname}` : user.email}`
                 : syncStatus?.state === 'offline'
-                ? `Offline: ${user.email}`
+                ? `Offline: ${user.nickname ? `@${user.nickname}` : user.email}`
                 : (syncStatus?.pendingCount ?? 0) > 0
-                ? `Saved locally (sync will retry): ${user.email}`
-                : `Synced: ${user.email}`
+                ? `Saved locally (sync will retry): ${user.nickname ? `@${user.nickname}` : user.email}`
+                : `Synced: ${user.nickname ? `@${user.nickname}` : user.email}`
               : 'Sign in to sync your focus data'
           }
         >
           {user ? (
             <>
               <div className="w-4 h-4 rounded-full bg-indigo-500/30 flex items-center justify-center text-[9px] font-bold uppercase">
-                {user.email.slice(0, 1)}
+                {(user.nickname || user.displayName || user.email).slice(0, 1)}
               </div>
-              <span className="hidden lg:inline text-xs font-semibold max-w-[90px] truncate">
-                {user.email.split('@')[0]}
+              <span className="hidden lg:inline text-xs font-semibold max-w-[110px] truncate">
+                {user.nickname ? `@${user.nickname}` : user.displayName || user.email.split('@')[0]}
               </span>
               <span
                 className={`w-2 h-2 rounded-full shrink-0 ${
