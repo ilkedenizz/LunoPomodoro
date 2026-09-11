@@ -9,7 +9,6 @@ import {
   TrendingUp,
   Moon,
   Sun,
-  User,
   Cloud,
 } from 'lucide-react';
 import type { AtmosphereTheme, AppTheme, UserProfile, SyncStatus } from '../types';
@@ -209,12 +208,12 @@ export const Header: React.FC<HeaderProps> = React.memo(({
         {/* Account / Sync Button */}
         <button
           onClick={onOpenAuth}
-          aria-label={user ? `Account (${user.email})` : 'Account & Cloud Sync'}
-          className={`relative p-2.5 rounded-xl glass-panel glass-panel-hover transition-all focus:outline-none focus-visible:ring-2 ${
+          aria-label={user ? `Account (${user.email})` : 'Sign in or create account'}
+          className={`relative flex items-center space-x-1.5 px-2.5 py-2 sm:px-3 sm:py-2.5 rounded-xl glass-panel glass-panel-hover transition-all focus:outline-none focus-visible:ring-2 ${
             user
               ? isLight
-                ? 'text-indigo-600 bg-indigo-50/70 border-indigo-200'
-                : 'text-indigo-300 bg-indigo-500/20 border-indigo-400/30'
+                ? 'text-indigo-600 bg-indigo-50/80 border-indigo-200 hover:bg-indigo-100/70'
+                : 'text-indigo-300 bg-indigo-500/20 border-indigo-400/30 hover:bg-indigo-500/30'
               : isLight
               ? 'text-slate-700 hover:text-slate-900 focus-visible:ring-slate-400'
               : 'text-white/80 hover:text-white focus-visible:ring-white/50'
@@ -228,22 +227,34 @@ export const Header: React.FC<HeaderProps> = React.memo(({
                 : (syncStatus?.pendingCount ?? 0) > 0
                 ? `Saved locally (sync will retry): ${user.email}`
                 : `Synced: ${user.email}`
-              : 'Using Luno locally (Cloud Sync)'
+              : 'Sign in to sync your focus data'
           }
         >
-          {user ? <User className="w-4 h-4" /> : <Cloud className="w-4 h-4" />}
-          {user && (
-            <span
-              className={`absolute -top-1 -right-1 w-2 h-2 rounded-full ${
-                syncStatus?.state === 'syncing'
-                  ? 'bg-amber-400 animate-spin'
-                  : syncStatus?.state === 'offline'
-                  ? 'bg-slate-400'
-                  : (syncStatus?.pendingCount ?? 0) > 0
-                  ? 'bg-amber-300'
-                  : 'bg-emerald-400'
-              }`}
-            />
+          {user ? (
+            <>
+              <div className="w-4 h-4 rounded-full bg-indigo-500/30 flex items-center justify-center text-[9px] font-bold uppercase">
+                {user.email.slice(0, 1)}
+              </div>
+              <span className="hidden lg:inline text-xs font-semibold max-w-[90px] truncate">
+                {user.email.split('@')[0]}
+              </span>
+              <span
+                className={`w-2 h-2 rounded-full shrink-0 ${
+                  syncStatus?.state === 'syncing'
+                    ? 'bg-amber-400 animate-spin'
+                    : syncStatus?.state === 'offline'
+                    ? 'bg-slate-400'
+                    : (syncStatus?.pendingCount ?? 0) > 0
+                    ? 'bg-amber-300'
+                    : 'bg-emerald-400'
+                }`}
+              />
+            </>
+          ) : (
+            <>
+              <Cloud className="w-4 h-4 shrink-0" />
+              <span className="hidden sm:inline text-xs font-medium">Sign In</span>
+            </>
           )}
         </button>
 

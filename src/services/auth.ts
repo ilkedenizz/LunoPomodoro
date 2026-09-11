@@ -13,19 +13,39 @@ const UNCONFIGURED_AUTH_ERROR =
 
 const formatAuthError = (message: string): string => {
   const lower = message.toLowerCase();
-  if (lower.includes('invalid login credentials') || lower.includes('invalid_credentials')) {
+  if (
+    lower.includes('invalid login credentials') ||
+    lower.includes('invalid_credentials') ||
+    lower.includes('invalid_grant')
+  ) {
     return 'Incorrect email or password. Please check your credentials and try again.';
   }
-  if (lower.includes('email not confirmed')) {
+  if (
+    lower.includes('email not confirmed') ||
+    lower.includes('email_not_confirmed') ||
+    lower.includes('email address not confirmed')
+  ) {
     return 'Please confirm your email address before signing in. Check your inbox for the confirmation email.';
   }
-  if (lower.includes('user already registered') || lower.includes('already exists')) {
+  if (
+    lower.includes('user already registered') ||
+    lower.includes('already exists') ||
+    lower.includes('user_already_exists')
+  ) {
     return 'An account with this email address already exists. Please sign in instead.';
   }
-  if (lower.includes('password should be at least') || lower.includes('password is too short')) {
+  if (
+    lower.includes('password should be at least') ||
+    lower.includes('password is too short') ||
+    lower.includes('weak_password')
+  ) {
     return 'Password must be at least 6 characters long.';
   }
-  if (lower.includes('rate limit') || lower.includes('too many requests') || lower.includes('over_email_send_rate_limit')) {
+  if (
+    lower.includes('rate limit') ||
+    lower.includes('too many requests') ||
+    lower.includes('over_email_send_rate_limit')
+  ) {
     return 'Too many requests. Please wait a moment before trying again.';
   }
   if (lower.includes('failed to fetch') || lower.includes('network error')) {

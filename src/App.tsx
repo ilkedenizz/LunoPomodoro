@@ -66,7 +66,7 @@ import {
 import { getAtmosphereById } from './utils/backgrounds';
 import { playCompletionChime, ambientEngine } from './utils/sound';
 import { isToday } from './utils/dates';
-import { onAuthStateChange, signOut } from './services/auth';
+import { onAuthStateChange, signOut, getCurrentUser } from './services/auth';
 import {
   SyncEngine,
   markTaskPending,
@@ -135,6 +135,13 @@ export function App() {
 
   // Auth state listener and initial cloud sync
   useEffect(() => {
+    // Immediate check on mount for instant session recovery across page refreshes
+    getCurrentUser().then((initialUser) => {
+      if (initialUser) {
+        setUser(initialUser);
+      }
+    });
+
     const unsubAuth = onAuthStateChange((currentUser, event) => {
       setUser(currentUser);
 
@@ -736,7 +743,13 @@ export function App() {
         onToggleTheme={handleToggleTheme}
         user={user}
         syncStatus={syncStatus}
-        onOpenAuth={() => handleOpenAuth('signup')}
+        onOpenAuth={() => {
+          if (user) {
+            setIsSettingsOpen(true);
+          } else {
+            handleOpenAuth('signin');
+          }
+        }}
       />
 
       {/* 3. Main Center Focus Workspace (True 3-Column Desktop Layout) */}

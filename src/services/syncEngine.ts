@@ -689,6 +689,9 @@ export class SyncEngine {
           const mergedFavs = Array.from(new Set([...loadFavoriteAtmospheres(), ...remoteSettings.favorite_atmospheres]));
           saveFavoriteAtmospheres(mergedFavs);
         }
+      } else {
+        // Initial setup for freshly registered account or first cloud sync
+        await this.pushSettings(loadSettings(), loadFavoriteAtmospheres(), userId);
       }
 
       // 4. Merge Goal
@@ -698,6 +701,9 @@ export class SyncEngine {
           targetMinutes: typeof goalRes.data.target_minutes === 'number' ? goalRes.data.target_minutes : 100,
         };
         saveDailyGoal(mergedGoal);
+      } else {
+        // Initial setup for daily goal in cloud
+        await this.pushDailyGoal(loadDailyGoal(), userId);
       }
 
       // 5. Merge Presets

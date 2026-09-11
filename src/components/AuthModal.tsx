@@ -409,9 +409,23 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
           {/* Alerts */}
           {errorMessage && (
-            <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-400 text-xs flex items-start space-x-2 animate-in fade-in">
-              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-              <span className="leading-snug">{errorMessage}</span>
+            <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-400 text-xs flex flex-col space-y-2 animate-in fade-in">
+              <div className="flex items-start space-x-2">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span className="leading-snug">{errorMessage}</span>
+              </div>
+              {errorMessage.toLowerCase().includes('confirm your email') && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPendingConfirmationEmailState(email.trim().toLowerCase());
+                    handleModeChange('email-confirmation-pending');
+                  }}
+                  className="self-start text-[11px] font-semibold underline text-indigo-300 hover:text-indigo-200 mt-1 cursor-pointer"
+                >
+                  Go to email verification screen & resend
+                </button>
+              )}
             </div>
           )}
 
