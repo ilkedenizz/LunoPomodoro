@@ -314,26 +314,41 @@ export const signIn = async (email: string, password: string): Promise<AuthRespo
         if (profileRow) {
           profile = profileRow;
         } else {
-          // If no profile row yet, auto-create one
-          const defaultNick =
+          // If no profile row yet (e.g. legacy user before trigger), create safe profile
+          let defaultNick =
             (typeof data.user.user_metadata?.nickname === 'string' && data.user.user_metadata.nickname) ||
-            trimmedEmail.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '_').slice(0, 20);
+            trimmedEmail.split('@')[0];
+          defaultNick = defaultNick.replace(/[^a-zA-Z0-9_]/g, '').slice(0, 20);
+          if (defaultNick.length < 3) {
+            defaultNick = defaultNick.padEnd(3, '0');
+          }
+
           const defaultDisplay =
             (typeof data.user.user_metadata?.display_name === 'string' && data.user.user_metadata.display_name) ||
+            (typeof data.user.user_metadata?.full_name === 'string' && data.user.user_metadata.full_name) ||
             defaultNick;
           const defaultAvatar =
             typeof data.user.user_metadata?.avatar_url === 'string' && data.user.user_metadata.avatar_url
               ? data.user.user_metadata.avatar_url
               : null;
 
-          await client.from('profiles').upsert({
-            id: data.user.id,
-            nickname: defaultNick,
-            display_name: defaultDisplay,
-            avatar_url: defaultAvatar,
-            updated_at: new Date().toISOString(),
-          });
-          profile = { nickname: defaultNick, display_name: defaultDisplay, avatar_url: defaultAvatar };
+          try {
+            await client.from('profiles').insert({
+              id: data.user.id,
+              nickname: defaultNick,
+              display_name: defaultDisplay,
+              avatar_url: defaultAvatar,
+            });
+            profile = { nickname: defaultNick, display_name: defaultDisplay, avatar_url: defaultAvatar };
+          } catch {
+            // Profile may already exist or trigger populated it
+            const { data: retryRow } = await client
+              .from('profiles')
+              .select('nickname, display_name, avatar_url')
+              .eq('id', data.user.id)
+              .maybeSingle();
+            if (retryRow) profile = retryRow;
+          }
         }
       } catch {}
 
@@ -782,7 +797,18 @@ export const onAuthStateChange = (
   if (client) {
     const { data: { subscription } } = client.auth.onAuthStateChange((event, session) => {
       if (session?.user) {
-        callback(mapSupabaseUser(session.user), event);
+        void (async () => {
+          let profileRow = null;
+          try {
+            const { data } = await client
+              .from('profiles')
+              .select('nickname, display_name, avatar_url')
+              .eq('id', session.user.id)
+              .maybeSingle();
+            profileRow = data;
+          } catch {}
+          callback(mapSupabaseUser(session.user, profileRow), event);
+        })();
       } else {
         callback(null, event);
       }

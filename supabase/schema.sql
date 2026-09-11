@@ -83,6 +83,177 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.check_nickname_available(text, uuid) TO anon, authenticated;
 
+-- ==============================================================================
+-- AUTOMATIC PROFILE CREATION TRIGGER & BACKFILL FOR AUTH USERS
+-- ==============================================================================
+-- Automatically creates a public.profiles entry whenever a user is created in auth.users
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  extracted_nickname TEXT;
+  base_nickname TEXT;
+  final_nickname TEXT;
+  extracted_display_name TEXT;
+  extracted_avatar_url TEXT;
+  counter INT := 0;
+  suffix TEXT;
+BEGIN
+  -- 1. Extract nickname from metadata or fallback to email prefix
+  extracted_nickname := NULLIF(TRIM(NEW.raw_user_meta_data->>'nickname'), '');
+  extracted_display_name := NULLIF(TRIM(COALESCE(
+    NEW.raw_user_meta_data->>'display_name',
+    NEW.raw_user_meta_data->>'full_name',
+    NEW.raw_user_meta_data->>'name'
+  )), '');
+  extracted_avatar_url := NULLIF(TRIM(NEW.raw_user_meta_data->>'avatar_url'), '');
+
+  IF extracted_nickname IS NOT NULL THEN
+    base_nickname := regexp_replace(extracted_nickname, '[^a-zA-Z0-9_]', '', 'g');
+  ELSE
+    IF NEW.email IS NOT NULL AND NEW.email != '' THEN
+      base_nickname := regexp_replace(split_part(NEW.email, '@', 1), '[^a-zA-Z0-9_]', '', 'g');
+    ELSE
+      base_nickname := 'user';
+    END IF;
+  END IF;
+
+  -- Ensure minimum 3 characters
+  IF length(base_nickname) < 3 THEN
+    base_nickname := rpad(base_nickname, 3, '0');
+  END IF;
+
+  -- Trim to max 15 chars so we have room for suffix if collisions occur (max length is 20)
+  IF length(base_nickname) > 15 THEN
+    base_nickname := substring(base_nickname from 1 for 15);
+  END IF;
+
+  final_nickname := base_nickname;
+
+  -- Ensure nickname uniqueness against existing profiles (case-insensitive)
+  WHILE EXISTS (
+    SELECT 1 FROM public.profiles 
+    WHERE lower(nickname) = lower(final_nickname) 
+      AND id != NEW.id
+  ) LOOP
+    counter := counter + 1;
+    suffix := counter::text;
+    final_nickname := substring(base_nickname from 1 for (20 - length(suffix) - 1)) || '_' || suffix;
+  END LOOP;
+
+  -- Default display name if none provided
+  IF extracted_display_name IS NULL THEN
+    extracted_display_name := final_nickname;
+  END IF;
+
+  -- Insert profile if not exists
+  INSERT INTO public.profiles (id, nickname, display_name, avatar_url, created_at, updated_at)
+  VALUES (
+    NEW.id,
+    final_nickname,
+    extracted_display_name,
+    extracted_avatar_url,
+    COALESCE(NEW.created_at, timezone('utc'::text, now())),
+    timezone('utc'::text, now())
+  )
+  ON CONFLICT (id) DO NOTHING;
+
+  RETURN NEW;
+EXCEPTION WHEN OTHERS THEN
+  -- Do not block auth signup if an unexpected error occurs
+  RAISE WARNING 'handle_new_user error for user %: %', NEW.id, SQLERRM;
+  RETURN NEW;
+END;
+$$;
+
+-- Idempotent trigger binding on auth.users (zero DROP statements)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_trigger WHERE tgname = 'on_auth_user_created'
+  ) THEN
+    CREATE TRIGGER on_auth_user_created
+      AFTER INSERT ON auth.users
+      FOR EACH ROW
+      EXECUTE FUNCTION public.handle_new_user();
+  END IF;
+END $$;
+
+-- Safe backfill for all existing auth.users without a profiles entry
+DO $$
+DECLARE
+  u RECORD;
+  raw_nick TEXT;
+  base_nick TEXT;
+  candidate_nick TEXT;
+  disp_name TEXT;
+  avatar_val TEXT;
+  c INT;
+  sfx TEXT;
+BEGIN
+  FOR u IN 
+    SELECT * FROM auth.users 
+    WHERE id NOT IN (SELECT id FROM public.profiles)
+  LOOP
+    raw_nick := NULLIF(TRIM(u.raw_user_meta_data->>'nickname'), '');
+    disp_name := NULLIF(TRIM(COALESCE(
+      u.raw_user_meta_data->>'display_name',
+      u.raw_user_meta_data->>'full_name',
+      u.raw_user_meta_data->>'name'
+    )), '');
+    avatar_val := NULLIF(TRIM(u.raw_user_meta_data->>'avatar_url'), '');
+
+    IF raw_nick IS NOT NULL THEN
+      base_nick := regexp_replace(raw_nick, '[^a-zA-Z0-9_]', '', 'g');
+    ELSE
+      IF u.email IS NOT NULL AND u.email != '' THEN
+        base_nick := regexp_replace(split_part(u.email, '@', 1), '[^a-zA-Z0-9_]', '', 'g');
+      ELSE
+        base_nick := 'user';
+      END IF;
+    END IF;
+
+    IF length(base_nick) < 3 THEN
+      base_nick := rpad(base_nick, 3, '0');
+    END IF;
+
+    IF length(base_nick) > 15 THEN
+      base_nick := substring(base_nick from 1 for 15);
+    END IF;
+
+    candidate_nick := base_nick;
+    c := 0;
+
+    WHILE EXISTS (
+      SELECT 1 FROM public.profiles 
+      WHERE lower(nickname) = lower(candidate_nick) 
+        AND id != u.id
+    ) LOOP
+      c := c + 1;
+      sfx := c::text;
+      candidate_nick := substring(base_nick from 1 for (20 - length(sfx) - 1)) || '_' || sfx;
+    END LOOP;
+
+    IF disp_name IS NULL THEN
+      disp_name := candidate_nick;
+    END IF;
+
+    INSERT INTO public.profiles (id, nickname, display_name, avatar_url, created_at, updated_at)
+    VALUES (
+      u.id,
+      candidate_nick,
+      disp_name,
+      avatar_val,
+      COALESCE(u.created_at, timezone('utc'::text, now())),
+      timezone('utc'::text, now())
+    )
+    ON CONFLICT (id) DO NOTHING;
+  END LOOP;
+END $$;
+
 -- 1. USER SETTINGS
 CREATE TABLE IF NOT EXISTS public.user_settings (
   user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
