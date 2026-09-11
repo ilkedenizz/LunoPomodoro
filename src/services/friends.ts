@@ -275,7 +275,20 @@ export const sendFriendRequest = async (targetUserId: string): Promise<FriendSer
       return { error: 'You cannot send a friend request to yourself.' };
     }
 
-    // Check if an existing relationship already exists in either direction
+    // 1. Try atomic database RPC function first (handles duplicate checks, mutual accepts, and avoids RLS/permission issues)
+    const { data: rpcData, error: rpcError } = await client.rpc('send_friend_request', {
+      target_user_id: targetUserId,
+    });
+
+    if (!rpcError && rpcData && typeof rpcData === 'object') {
+      const response = rpcData as { success?: boolean; message?: string; error?: string };
+      if (response.success) {
+        return { message: response.message || 'Friend request sent!' };
+      }
+      return { error: response.error || 'Failed to send friend request.' };
+    }
+
+    // 2. Direct table fallback if RPC is not yet executed
     const { data: existing } = await client
       .from('friendships')
       .select('id, requester_id, addressee_id, status')
@@ -290,16 +303,21 @@ export const sendFriendRequest = async (targetUserId: string): Promise<FriendSer
         if (existing.requester_id === user.id) {
           return { message: 'Friend request already sent.' };
         } else {
-          // If the other user already sent a request to us, automatically accept it!
-          await client
+          // If the other user already sent a request to us, automatically accept it
+          const { error: acceptErr } = await client
             .from('friendships')
             .update({ status: 'accepted', updated_at: new Date().toISOString() })
             .eq('id', existing.id);
+
+          if (acceptErr) {
+            return { error: acceptErr.message || 'Failed to accept friend request.' };
+          }
           return { message: 'Friend request accepted!' };
         }
       }
+
       // If rejected, allow re-requesting by updating to pending
-      await client
+      const { error: updateErr } = await client
         .from('friendships')
         .update({
           requester_id: user.id,
@@ -308,6 +326,10 @@ export const sendFriendRequest = async (targetUserId: string): Promise<FriendSer
           updated_at: new Date().toISOString(),
         })
         .eq('id', existing.id);
+
+      if (updateErr) {
+        return { error: updateErr.message || 'Failed to send friend request.' };
+      }
 
       return { message: 'Friend request sent!' };
     }

@@ -664,8 +664,76 @@ BEGIN
 END;
 $$;
 
+-- Table privileges on friendships for authenticated users
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.friendships TO authenticated;
+
+-- Atomic send friend request function (avoids permission issues and ensures idempotency)
+CREATE OR REPLACE FUNCTION public.send_friend_request(target_user_id UUID)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  current_user_id UUID;
+  existing_record RECORD;
+BEGIN
+  current_user_id := auth.uid();
+  
+  IF current_user_id IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'error', 'You must be signed in to add friends.');
+  END IF;
+
+  IF current_user_id = target_user_id THEN
+    RETURN jsonb_build_object('success', false, 'error', 'You cannot send a friend request to yourself.');
+  END IF;
+
+  -- Check existing friendship record between these two users
+  SELECT * INTO existing_record
+  FROM public.friendships
+  WHERE (requester_id = current_user_id AND addressee_id = target_user_id)
+     OR (requester_id = target_user_id AND addressee_id = current_user_id)
+  LIMIT 1;
+
+  IF FOUND THEN
+    IF existing_record.status = 'accepted' THEN
+      RETURN jsonb_build_object('success', true, 'message', 'You are already friends!', 'status', 'already_friends');
+    ELSIF existing_record.status = 'pending' THEN
+      IF existing_record.requester_id = current_user_id THEN
+        RETURN jsonb_build_object('success', true, 'message', 'Friend request already sent.', 'status', 'already_requested');
+      ELSE
+        -- Mutual request: Automatically accept the incoming pending request
+        UPDATE public.friendships
+        SET status = 'accepted', updated_at = timezone('utc'::text, now())
+        WHERE id = existing_record.id;
+        RETURN jsonb_build_object('success', true, 'message', 'Friend request accepted!', 'status', 'accepted');
+      END IF;
+    ELSE
+      -- Previously rejected: re-open as pending
+      UPDATE public.friendships
+      SET requester_id = current_user_id,
+          addressee_id = target_user_id,
+          status = 'pending',
+          updated_at = timezone('utc'::text, now())
+      WHERE id = existing_record.id;
+      RETURN jsonb_build_object('success', true, 'message', 'Friend request sent!', 'status', 'sent');
+    END IF;
+  END IF;
+
+  -- Insert new friendship
+  INSERT INTO public.friendships (requester_id, addressee_id, status, created_at, updated_at)
+  VALUES (current_user_id, target_user_id, 'pending', timezone('utc'::text, now()), timezone('utc'::text, now()));
+
+  RETURN jsonb_build_object('success', true, 'message', 'Friend request sent!', 'status', 'sent');
+EXCEPTION WHEN OTHERS THEN
+  RETURN jsonb_build_object('success', false, 'error', SQLERRM);
+END;
+$$;
+
 GRANT EXECUTE ON FUNCTION public.search_profiles_by_nickname(TEXT, INT) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.get_my_friends() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_incoming_friend_requests() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_outgoing_friend_requests() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.send_friend_request(UUID) TO authenticated;
+
 
