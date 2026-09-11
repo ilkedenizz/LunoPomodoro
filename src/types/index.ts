@@ -96,6 +96,7 @@ export interface UserProfile {
   email: string;
   nickname?: string;
   displayName?: string;
+  avatarUrl?: string;
   emailVerified?: boolean;
   createdAt: number;
 }

@@ -7,16 +7,20 @@
 -- Non-destructive & completely idempotent (zero DROP statements, safe to re-run).
 -- ==============================================================================
 
--- 0. USER PROFILES (UNIQUE NICKNAME / USERNAME)
+-- 0. USER PROFILES (UNIQUE NICKNAME / USERNAME & AVATAR)
 CREATE TABLE IF NOT EXISTS public.profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   nickname TEXT NOT NULL,
   display_name TEXT,
+  avatar_url TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
   CONSTRAINT check_nickname_length CHECK (char_length(nickname) >= 3 AND char_length(nickname) <= 20),
   CONSTRAINT check_nickname_format CHECK (nickname ~ '^[a-zA-Z0-9_]{3,20}$')
 );
+
+-- Ensure avatar_url column exists for existing tables
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS avatar_url TEXT;
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_profiles_nickname_lower ON public.profiles(lower(nickname));
 
@@ -205,3 +209,65 @@ EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
 CREATE INDEX IF NOT EXISTS idx_atmosphere_presets_user ON public.atmosphere_presets(user_id);
+
+-- 6. SUPABASE STORAGE: AVATARS BUCKET & RLS POLICIES
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'avatars',
+  'avatars',
+  true,
+  5242880,
+  ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/jpg']
+)
+ON CONFLICT (id) DO UPDATE SET
+  public = EXCLUDED.public,
+  file_size_limit = EXCLUDED.file_size_limit,
+  allowed_mime_types = EXCLUDED.allowed_mime_types;
+
+DO $$ BEGIN
+  CREATE POLICY "Avatar images are publicly accessible"
+    ON storage.objects
+    FOR SELECT
+    USING (bucket_id = 'avatars');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE POLICY "Users can upload their own avatar"
+    ON storage.objects
+    FOR INSERT
+    TO authenticated
+    WITH CHECK (
+      bucket_id = 'avatars'
+      AND (storage.foldername(name))[1] = auth.uid()::text
+    );
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE POLICY "Users can update their own avatar"
+    ON storage.objects
+    FOR UPDATE
+    TO authenticated
+    USING (
+      bucket_id = 'avatars'
+      AND (storage.foldername(name))[1] = auth.uid()::text
+    )
+    WITH CHECK (
+      bucket_id = 'avatars'
+      AND (storage.foldername(name))[1] = auth.uid()::text
+    );
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE POLICY "Users can delete their own avatar"
+    ON storage.objects
+    FOR DELETE
+    TO authenticated
+    USING (
+      bucket_id = 'avatars'
+      AND (storage.foldername(name))[1] = auth.uid()::text
+    );
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;

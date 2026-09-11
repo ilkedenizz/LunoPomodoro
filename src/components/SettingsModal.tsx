@@ -27,6 +27,7 @@ import {
   ShieldCheck,
   Send,
   AtSign,
+  Camera,
 } from 'lucide-react';
 import type {
   TimerSettings,
@@ -50,6 +51,9 @@ import {
   resendConfirmationEmail,
   validateNickname,
   checkNicknameAvailability,
+  uploadAvatar,
+  removeAvatar,
+  validateAvatarFile,
 } from '../services/auth';
 
 interface DurationInputProps {
@@ -214,6 +218,68 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [profileSaveSuccess, setProfileSaveSuccess] = useState(false);
   const [profileSaveError, setProfileSaveError] = useState<string | null>(null);
+
+  // Avatar Upload State
+  const avatarFileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [isRemovingAvatar, setIsRemovingAvatar] = useState(false);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+  const [avatarSuccess, setAvatarSuccess] = useState<string | null>(null);
+
+  const handleAvatarFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    e.target.value = ''; // allow re-selecting same file
+    const validation = validateAvatarFile(file);
+    if (!validation.valid) {
+      setAvatarError(validation.error);
+      setAvatarSuccess(null);
+      return;
+    }
+
+    setIsUploadingAvatar(true);
+    setAvatarError(null);
+    setAvatarSuccess(null);
+
+    try {
+      const res = await uploadAvatar(file);
+      if (res.error) {
+        setAvatarError(res.error);
+      } else if (res.user) {
+        setAvatarSuccess('Profile photo updated successfully!');
+        onUserUpdate?.(res.user);
+        setTimeout(() => setAvatarSuccess(null), 3000);
+      }
+    } catch {
+      setAvatarError('Failed to upload profile photo.');
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
+
+  const handleRemoveAvatar = async () => {
+    if (!user?.avatarUrl) return;
+
+    setIsRemovingAvatar(true);
+    setAvatarError(null);
+    setAvatarSuccess(null);
+
+    try {
+      const res = await removeAvatar();
+      if (res.error) {
+        setAvatarError(res.error);
+      } else if (res.user) {
+        setAvatarSuccess('Profile photo removed.');
+        onUserUpdate?.(res.user);
+        setTimeout(() => setAvatarSuccess(null), 3000);
+      }
+    } catch {
+      setAvatarError('Failed to remove profile photo.');
+    } finally {
+      setIsRemovingAvatar(false);
+    }
+  };
 
   // Password Change State
   const [isChangingPassword, setIsChangingPassword] = useState(false);
@@ -765,9 +831,53 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   }`}>
                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                       <div className="flex items-center space-x-3.5">
-                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center font-bold text-xl shadow-md shrink-0 border border-white/20">
-                          {avatarInitials}
+                        {/* Avatar Image / Initials with Hover Camera Action */}
+                        <div className="relative group shrink-0">
+                          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center font-bold text-xl shadow-md overflow-hidden border border-white/20 relative">
+                            {user.avatarUrl ? (
+                              <img
+                                src={user.avatarUrl}
+                                alt={user.displayName || user.nickname || 'Avatar'}
+                                className="w-full h-full object-cover rounded-2xl"
+                                onError={(e) => {
+                                  // Fallback to initials if image fails to load
+                                  (e.target as HTMLImageElement).style.display = 'none';
+                                }}
+                              />
+                            ) : (
+                              <span>{avatarInitials}</span>
+                            )}
+
+                            {/* Loading State Overlay */}
+                            {(isUploadingAvatar || isRemovingAvatar) && (
+                              <div className="absolute inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center text-white z-10">
+                                <Loader2 className="w-5 h-5 animate-spin" />
+                              </div>
+                            )}
+
+                            {/* Hover Camera Overlay Button */}
+                            {!isUploadingAvatar && !isRemovingAvatar && (
+                              <button
+                                type="button"
+                                onClick={() => avatarFileInputRef.current?.click()}
+                                aria-label="Upload profile photo"
+                                className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white text-[10px] font-medium cursor-pointer z-10"
+                              >
+                                <Camera className="w-4 h-4 mb-0.5" />
+                                <span>{user.avatarUrl ? 'Change' : 'Upload'}</span>
+                              </button>
+                            )}
+                          </div>
+
+                          <input
+                            ref={avatarFileInputRef}
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp,image/jpg"
+                            onChange={handleAvatarFileChange}
+                            className="hidden"
+                          />
                         </div>
+
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
                             <h3 className="text-base font-bold tracking-tight truncate">
@@ -784,6 +894,33 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           <p className={`text-xs truncate mt-0.5 ${isLight ? 'text-slate-600' : 'text-white/70'}`}>
                             {user.email}
                           </p>
+
+                          {/* Quick Photo Actions */}
+                          <div className="flex items-center gap-2 mt-1">
+                            <button
+                              type="button"
+                              onClick={() => avatarFileInputRef.current?.click()}
+                              disabled={isUploadingAvatar || isRemovingAvatar}
+                              className={`text-[11px] font-medium underline transition-colors cursor-pointer disabled:opacity-50 ${
+                                isLight ? 'text-indigo-600 hover:text-indigo-700' : 'text-indigo-300 hover:text-indigo-200'
+                              }`}
+                            >
+                              {isUploadingAvatar ? 'Uploading...' : user.avatarUrl ? 'Change photo' : 'Upload photo'}
+                            </button>
+                            {user.avatarUrl && (
+                              <>
+                                <span className={`text-[10px] ${isLight ? 'text-slate-300' : 'text-white/20'}`}>•</span>
+                                <button
+                                  type="button"
+                                  onClick={handleRemoveAvatar}
+                                  disabled={isUploadingAvatar || isRemovingAvatar}
+                                  className="text-[11px] font-medium text-rose-400 hover:text-rose-300 underline transition-colors cursor-pointer disabled:opacity-50"
+                                >
+                                  {isRemovingAvatar ? 'Removing...' : 'Remove'}
+                                </button>
+                              </>
+                            )}
+                          </div>
 
                           {/* Verification & Sync Badges */}
                           <div className="flex flex-wrap items-center gap-1.5 mt-2">
@@ -836,6 +973,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         <span>Sign Out</span>
                       </button>
                     </div>
+
+                    {/* Avatar Upload Feedback Alerts */}
+                    {avatarError && (
+                      <div className="mt-3 p-2.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-400 text-xs flex items-center gap-1.5 animate-in fade-in">
+                        <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                        <span>{avatarError}</span>
+                      </div>
+                    )}
+                    {avatarSuccess && (
+                      <div className="mt-3 p-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs flex items-center gap-1.5 animate-in fade-in">
+                        <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                        <span>{avatarSuccess}</span>
+                      </div>
+                    )}
                   </div>
 
                   {/* 2. Personal Information Section */}

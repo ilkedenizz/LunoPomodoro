@@ -232,9 +232,20 @@ export const Header: React.FC<HeaderProps> = React.memo(({
         >
           {user ? (
             <>
-              <div className="w-4 h-4 rounded-full bg-indigo-500/30 flex items-center justify-center text-[9px] font-bold uppercase">
-                {(user.nickname || user.displayName || user.email).slice(0, 1)}
-              </div>
+              {user.avatarUrl ? (
+                <img
+                  src={user.avatarUrl}
+                  alt="Profile"
+                  className="w-4 h-4 rounded-full object-cover shrink-0 border border-white/20"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = 'none';
+                  }}
+                />
+              ) : (
+                <div className="w-4 h-4 rounded-full bg-indigo-500/30 flex items-center justify-center text-[9px] font-bold uppercase shrink-0">
+                  {(user.nickname || user.displayName || user.email).slice(0, 1)}
+                </div>
+              )}
               <span className="hidden lg:inline text-xs font-semibold max-w-[110px] truncate">
                 {user.nickname ? `@${user.nickname}` : user.displayName || user.email.split('@')[0]}
               </span>
