@@ -25,6 +25,26 @@ import {
 } from '../utils/storage';
 
 const PENDING_QUEUE_KEY_V2 = 'luno_pending_sync_queue_v2';
+const LAST_SYNCED_KEY_V2 = 'luno_last_synced_at_v2';
+
+export const getLastSyncedAt = (): number | null => {
+  try {
+    const raw = localStorage.getItem(LAST_SYNCED_KEY_V2);
+    return raw ? parseInt(raw, 10) : null;
+  } catch {
+    return null;
+  }
+};
+
+export const setLastSyncedAt = (timestamp: number | null): void => {
+  try {
+    if (timestamp) {
+      localStorage.setItem(LAST_SYNCED_KEY_V2, String(timestamp));
+    } else {
+      localStorage.removeItem(LAST_SYNCED_KEY_V2);
+    }
+  } catch {}
+};
 
 export interface PendingSyncQueueV2 {
   pendingTaskIds: string[];
@@ -212,7 +232,7 @@ const sanitizeTimerMode = (val: unknown): TimerMode => {
 // ==========================================
 export class SyncEngine {
   private static isSyncing = false;
-  private static lastSyncedAt: number | null = null;
+  private static lastSyncedAt: number | null = getLastSyncedAt();
   private static listeners: ((status: SyncStatus) => void)[] = [];
 
   public static subscribe(listener: (status: SyncStatus) => void): () => void {
@@ -225,6 +245,14 @@ export class SyncEngine {
 
   private static notify(status: SyncStatus): void {
     this.listeners.forEach((l) => l(status));
+  }
+
+  public static reset(): void {
+    this.isSyncing = false;
+    this.lastSyncedAt = null;
+    setLastSyncedAt(null);
+    clearPendingQueue();
+    this.notify(this.getStatus());
   }
 
   public static getStatus(): SyncStatus {
@@ -281,6 +309,7 @@ export class SyncEngine {
         queue.pendingTaskIds = queue.pendingTaskIds.filter((id) => id !== task.id);
         savePendingQueue(queue);
         this.lastSyncedAt = Date.now();
+        setLastSyncedAt(this.lastSyncedAt);
         return true;
       }
       return false;
@@ -306,6 +335,7 @@ export class SyncEngine {
         queue.pendingTaskIds = queue.pendingTaskIds.filter((id) => id !== taskId);
         savePendingQueue(queue);
         this.lastSyncedAt = Date.now();
+        setLastSyncedAt(this.lastSyncedAt);
         return true;
       }
       return false;
@@ -338,6 +368,7 @@ export class SyncEngine {
         queue.pendingSessionIds = queue.pendingSessionIds.filter((id) => id !== session.id);
         savePendingQueue(queue);
         this.lastSyncedAt = Date.now();
+        setLastSyncedAt(this.lastSyncedAt);
         return true;
       }
       return false;
@@ -380,6 +411,7 @@ export class SyncEngine {
         queue.pendingSettings = false;
         savePendingQueue(queue);
         this.lastSyncedAt = Date.now();
+        setLastSyncedAt(this.lastSyncedAt);
         return true;
       }
       return false;
@@ -413,6 +445,7 @@ export class SyncEngine {
         queue.pendingDailyGoal = false;
         savePendingQueue(queue);
         this.lastSyncedAt = Date.now();
+        setLastSyncedAt(this.lastSyncedAt);
         return true;
       }
       return false;
@@ -445,6 +478,7 @@ export class SyncEngine {
         queue.pendingPresetIds = queue.pendingPresetIds.filter((id) => id !== preset.id);
         savePendingQueue(queue);
         this.lastSyncedAt = Date.now();
+        setLastSyncedAt(this.lastSyncedAt);
         return true;
       }
       return false;
@@ -467,6 +501,7 @@ export class SyncEngine {
         queue.pendingPresetIds = queue.pendingPresetIds.filter((id) => id !== presetId);
         savePendingQueue(queue);
         this.lastSyncedAt = Date.now();
+        setLastSyncedAt(this.lastSyncedAt);
         return true;
       }
       return false;
@@ -481,18 +516,30 @@ export class SyncEngine {
     const queue = getPendingSyncQueue();
 
     const tasks = loadTasks();
-    for (const taskId of queue.pendingTaskIds) {
+    for (const taskId of [...queue.pendingTaskIds]) {
       const task = tasks.find((t) => t.id === taskId);
-      if (task) await this.pushTask(task, userId);
+      if (task) {
+        await this.pushTask(task, userId);
+      } else {
+        const q = getPendingSyncQueue();
+        q.pendingTaskIds = q.pendingTaskIds.filter((id) => id !== taskId);
+        savePendingQueue(q);
+      }
     }
-    for (const taskId of queue.pendingDeletedTaskIds) {
+    for (const taskId of [...queue.pendingDeletedTaskIds]) {
       await this.pushDeletedTask(taskId, userId);
     }
 
     const sessions = loadSessions();
-    for (const sessionId of queue.pendingSessionIds) {
+    for (const sessionId of [...queue.pendingSessionIds]) {
       const session = sessions.find((s) => s.id === sessionId);
-      if (session) await this.pushSession(session, userId);
+      if (session) {
+        await this.pushSession(session, userId);
+      } else {
+        const q = getPendingSyncQueue();
+        q.pendingSessionIds = q.pendingSessionIds.filter((id) => id !== sessionId);
+        savePendingQueue(q);
+      }
     }
 
     if (queue.pendingSettings) {
@@ -504,11 +551,17 @@ export class SyncEngine {
     }
 
     const presets = loadAtmospherePresets();
-    for (const presetId of queue.pendingPresetIds) {
+    for (const presetId of [...queue.pendingPresetIds]) {
       const preset = presets.find((p) => p.id === presetId);
-      if (preset) await this.pushPreset(preset, userId);
+      if (preset) {
+        await this.pushPreset(preset, userId);
+      } else {
+        const q = getPendingSyncQueue();
+        q.pendingPresetIds = q.pendingPresetIds.filter((id) => id !== presetId);
+        savePendingQueue(q);
+      }
     }
-    for (const presetId of queue.pendingDeletedPresetIds) {
+    for (const presetId of [...queue.pendingDeletedPresetIds]) {
       await this.pushDeletedPreset(presetId, userId);
     }
   }
@@ -602,6 +655,7 @@ export class SyncEngine {
       }
 
       this.lastSyncedAt = Date.now();
+      setLastSyncedAt(this.lastSyncedAt);
       clearPendingQueue();
       return { success: true };
     } catch (err: unknown) {
@@ -722,6 +776,7 @@ export class SyncEngine {
       }
 
       this.lastSyncedAt = Date.now();
+      setLastSyncedAt(this.lastSyncedAt);
       return { success: true };
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Sync failed.';

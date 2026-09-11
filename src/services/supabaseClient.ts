@@ -1,27 +1,54 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-const sanitizeUrl = (url: string): string => {
-  return url.trim().replace(/\/rest\/v1\/?$/, '').replace(/\/+$/, '');
+const sanitizeUrl = (raw: string): string => {
+  if (!raw) return '';
+  return raw
+    .trim()
+    .replace(/^["']|["']$/g, '') // strip accidental wrapping quotes from Vercel env input
+    .replace(/\/rest\/v1\/?$/, '')
+    .replace(/\/+$/, '')
+    .trim();
 };
 
-const supabaseUrl: string = sanitizeUrl(import.meta.env.VITE_SUPABASE_URL || '');
-const supabaseAnonKey: string = (import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim();
+const sanitizeKey = (raw: string): string => {
+  if (!raw) return '';
+  return raw
+    .trim()
+    .replace(/^["']|["']$/g, '') // strip accidental wrapping quotes from Vercel env input
+    .trim();
+};
+
+export const getSupabaseConfig = () => {
+  const rawUrl = typeof import.meta.env.VITE_SUPABASE_URL === 'string' ? import.meta.env.VITE_SUPABASE_URL : '';
+  const rawKey = typeof import.meta.env.VITE_SUPABASE_ANON_KEY === 'string' ? import.meta.env.VITE_SUPABASE_ANON_KEY : '';
+
+  const url = sanitizeUrl(rawUrl);
+  const key = sanitizeKey(rawKey);
+
+  const isConfigured = Boolean(
+    url &&
+    key &&
+    (url.startsWith('http://') || url.startsWith('https://')) &&
+    !url.includes('your-project') &&
+    !key.includes('your-anon-public-key')
+  );
+
+  return { url, key, isConfigured };
+};
 
 export const isSupabaseConfigured = (): boolean => {
-  if (!supabaseUrl || !supabaseAnonKey) return false;
-  if (!supabaseUrl.startsWith('http://') && !supabaseUrl.startsWith('https://')) return false;
-  if (supabaseUrl.includes('your-project') || supabaseAnonKey.includes('your-anon-public-key')) return false;
-  return true;
+  return getSupabaseConfig().isConfigured;
 };
 
 let clientInstance: SupabaseClient | null = null;
 
 export const getSupabaseClient = (): SupabaseClient | null => {
-  if (!isSupabaseConfigured()) {
+  const { url, key, isConfigured } = getSupabaseConfig();
+  if (!isConfigured) {
     return null;
   }
   if (!clientInstance) {
-    clientInstance = createClient(supabaseUrl, supabaseAnonKey, {
+    clientInstance = createClient(url, key, {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
@@ -31,3 +58,4 @@ export const getSupabaseClient = (): SupabaseClient | null => {
   }
   return clientInstance;
 };
+

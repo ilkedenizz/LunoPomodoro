@@ -136,14 +136,26 @@ export function App() {
 
   // Auth state listener and initial cloud sync
   useEffect(() => {
+    let isMounted = true;
+
     // Immediate check on mount for instant session recovery across page refreshes
     getCurrentUser().then((initialUser) => {
-      if (initialUser) {
+      if (initialUser && isMounted) {
         setUser(initialUser);
+        SyncEngine.pullAndMerge(initialUser.id).then(() => {
+          if (!isMounted) return;
+          setSettings(loadSettings());
+          setTasks(loadTasks());
+          setSessions(loadSessions());
+          setDailyGoal(loadDailyGoal());
+          setAtmospherePresets(loadAtmospherePresets());
+          setFavoriteAtmospheres(loadFavoriteAtmospheres());
+        });
       }
     });
 
     const unsubAuth = onAuthStateChange((currentUser, event) => {
+      if (!isMounted) return;
       setUser(currentUser);
 
       // Handle password recovery link from Supabase email
@@ -152,8 +164,9 @@ export function App() {
         setIsAuthOpen(true);
       }
 
-      if (currentUser) {
+      if (currentUser && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED')) {
         SyncEngine.pullAndMerge(currentUser.id).then(() => {
+          if (!isMounted) return;
           // Re-hydrate local states with latest merged cloud data
           setSettings(loadSettings());
           setTasks(loadTasks());
@@ -166,10 +179,13 @@ export function App() {
     });
 
     const unsubSync = SyncEngine.subscribe((status) => {
-      setSyncStatus(status);
+      if (isMounted) {
+        setSyncStatus(status);
+      }
     });
 
     return () => {
+      isMounted = false;
       unsubAuth();
       unsubSync();
     };
@@ -686,6 +702,7 @@ export function App() {
   const handleSignOut = useCallback(async () => {
     await signOut();
     setUser(null);
+    SyncEngine.reset();
   }, []);
 
   const handleSyncNow = useCallback(async () => {
@@ -707,12 +724,14 @@ export function App() {
 
   const handleAuthSuccess = useCallback((authedUser: UserProfile) => {
     setUser(authedUser);
-    setSettings(loadSettings());
-    setTasks(loadTasks());
-    setSessions(loadSessions());
-    setDailyGoal(loadDailyGoal());
-    setAtmospherePresets(loadAtmospherePresets());
-    setFavoriteAtmospheres(loadFavoriteAtmospheres());
+    SyncEngine.pullAndMerge(authedUser.id).then(() => {
+      setSettings(loadSettings());
+      setTasks(loadTasks());
+      setSessions(loadSessions());
+      setDailyGoal(loadDailyGoal());
+      setAtmospherePresets(loadAtmospherePresets());
+      setFavoriteAtmospheres(loadFavoriteAtmospheres());
+    });
   }, []);
 
   const isLight = settings.theme === 'light';
