@@ -476,9 +476,15 @@ VALUES (
   ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/jpg', 'image/pjpeg', 'image/x-png']
 )
 ON CONFLICT (id) DO UPDATE SET
-  public = EXCLUDED.public,
+  public = true,
   file_size_limit = EXCLUDED.file_size_limit,
   allowed_mime_types = EXCLUDED.allowed_mime_types;
+
+UPDATE storage.buckets SET public = true WHERE id = 'avatars';
+
+GRANT SELECT ON TABLE storage.objects TO anon, authenticated;
+GRANT ALL ON TABLE storage.objects TO authenticated;
+GRANT SELECT ON TABLE storage.buckets TO anon, authenticated;
 
 DO $$ BEGIN
   CREATE POLICY "Avatar images are publicly accessible"

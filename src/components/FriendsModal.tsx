@@ -39,6 +39,37 @@ interface FriendsModalProps {
 
 type FriendsTab = 'friends' | 'requests' | 'search';
 
+const FriendAvatar: React.FC<{
+  avatarUrl?: string | null;
+  nickname: string;
+  displayName?: string | null;
+  size?: 'sm' | 'md';
+}> = ({ avatarUrl, nickname, displayName, size = 'md' }) => {
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  const initials = (displayName || nickname || 'U').slice(0, 2).toUpperCase();
+
+  const isFailed = Boolean(avatarUrl && failedUrl === avatarUrl);
+  const sizeClass = size === 'sm' ? 'w-9 h-9 text-xs' : 'w-10 h-10 text-sm';
+
+  return (
+    <div
+      className={`${sizeClass} rounded-full bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 text-white flex items-center justify-center font-bold shadow-md overflow-hidden shrink-0 border border-white/15`}
+    >
+      {avatarUrl && !isFailed ? (
+        <img
+          src={avatarUrl}
+          alt={nickname}
+          className="w-full h-full object-cover rounded-full"
+          onError={() => setFailedUrl(avatarUrl)}
+          loading="lazy"
+        />
+      ) : (
+        <span>{initials}</span>
+      )}
+    </div>
+  );
+};
+
 export const FriendsModal: React.FC<FriendsModalProps> = ({
   isOpen,
   onClose,
@@ -444,21 +475,12 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                         }`}
                       >
                         <div className="flex items-center space-x-3 min-w-0">
-                          {/* Avatar */}
-                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center font-bold text-sm shadow-md overflow-hidden shrink-0 border border-white/15">
-                            {friend.avatarUrl ? (
-                              <img
-                                src={friend.avatarUrl}
-                                alt={friend.nickname}
-                                className="w-full h-full object-cover rounded-full"
-                                onError={(e) => {
-                                  (e.target as HTMLImageElement).style.display = 'none';
-                                }}
-                              />
-                            ) : (
-                              <span>{(friend.displayName || friend.nickname).slice(0, 2).toUpperCase()}</span>
-                            )}
-                          </div>
+                          <FriendAvatar
+                            avatarUrl={friend.avatarUrl}
+                            nickname={friend.nickname}
+                            displayName={friend.displayName}
+                            size="md"
+                          />
 
                           <div className="min-w-0">
                             <div className="flex items-center gap-1.5">
@@ -530,20 +552,12 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                           }`}
                         >
                           <div className="flex items-center space-x-3 min-w-0">
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center font-bold text-sm shadow-md overflow-hidden shrink-0 border border-white/15">
-                              {req.user.avatarUrl ? (
-                                <img
-                                  src={req.user.avatarUrl}
-                                  alt={req.user.nickname}
-                                  className="w-full h-full object-cover rounded-full"
-                                  onError={(e) => {
-                                    (e.target as HTMLImageElement).style.display = 'none';
-                                  }}
-                                />
-                              ) : (
-                                <span>{(req.user.displayName || req.user.nickname).slice(0, 2).toUpperCase()}</span>
-                              )}
-                            </div>
+                            <FriendAvatar
+                              avatarUrl={req.user.avatarUrl}
+                              nickname={req.user.nickname}
+                              displayName={req.user.displayName}
+                              size="md"
+                            />
 
                             <div className="min-w-0">
                               <span className="text-xs sm:text-sm font-bold truncate block">
@@ -614,20 +628,12 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                           }`}
                         >
                           <div className="flex items-center space-x-3 min-w-0">
-                            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center font-bold text-xs shadow-md overflow-hidden shrink-0 border border-white/15">
-                              {req.user.avatarUrl ? (
-                                <img
-                                  src={req.user.avatarUrl}
-                                  alt={req.user.nickname}
-                                  className="w-full h-full object-cover rounded-full"
-                                  onError={(e) => {
-                                    (e.target as HTMLImageElement).style.display = 'none';
-                                  }}
-                                />
-                              ) : (
-                                <span>{(req.user.displayName || req.user.nickname).slice(0, 2).toUpperCase()}</span>
-                              )}
-                            </div>
+                            <FriendAvatar
+                              avatarUrl={req.user.avatarUrl}
+                              nickname={req.user.nickname}
+                              displayName={req.user.displayName}
+                              size="sm"
+                            />
 
                             <div className="min-w-0">
                               <span className="text-xs font-bold truncate block">
@@ -713,20 +719,12 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                           }`}
                         >
                           <div className="flex items-center space-x-3 min-w-0">
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 text-white flex items-center justify-center font-bold text-sm shadow-md overflow-hidden shrink-0 border border-white/15">
-                              {foundUser.avatarUrl ? (
-                                <img
-                                  src={foundUser.avatarUrl}
-                                  alt={foundUser.nickname}
-                                  className="w-full h-full object-cover rounded-full"
-                                  onError={(e) => {
-                                    (e.target as HTMLImageElement).style.display = 'none';
-                                  }}
-                                />
-                              ) : (
-                                <span>{(foundUser.displayName || foundUser.nickname).slice(0, 2).toUpperCase()}</span>
-                              )}
-                            </div>
+                            <FriendAvatar
+                              avatarUrl={foundUser.avatarUrl}
+                              nickname={foundUser.nickname}
+                              displayName={foundUser.displayName}
+                              size="md"
+                            />
 
                             <div className="min-w-0">
                               <span className="text-xs sm:text-sm font-bold truncate block">
