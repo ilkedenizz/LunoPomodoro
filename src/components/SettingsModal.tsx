@@ -835,32 +835,32 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               {user ? (
                 <>
                   {/* 1. Profile Header Card */}
-                  <div className={`p-4 sm:p-5 rounded-3xl border relative overflow-hidden ${
+                  <div className={`p-5 sm:p-6 rounded-3xl border relative overflow-hidden ${
                     isLight ? 'bg-slate-50/90 border-slate-200 shadow-sm' : 'bg-white/5 border-white/10 shadow-lg'
                   }`}>
                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                      <div className="flex items-center space-x-3.5">
+                      <div className="flex items-center space-x-4">
                         {/* Avatar Image / Initials with Hover Camera Action */}
                         <div className="relative group shrink-0">
-                          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center font-bold text-xl shadow-md overflow-hidden border border-white/20 relative">
+                          <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 text-white flex items-center justify-center font-bold text-2xl sm:text-3xl shadow-xl overflow-hidden ring-4 ring-white/10 relative">
                             {user.avatarUrl ? (
                               <img
                                 src={user.avatarUrl}
                                 alt={user.displayName || user.nickname || 'Avatar'}
-                                className="w-full h-full object-cover rounded-2xl"
+                                className="w-full h-full object-cover rounded-full"
                                 onError={(e) => {
                                   // Fallback to initials if image fails to load
                                   (e.target as HTMLImageElement).style.display = 'none';
                                 }}
                               />
                             ) : (
-                              <span>{avatarInitials}</span>
+                              <span className="font-timer tracking-wide">{avatarInitials}</span>
                             )}
 
                             {/* Loading State Overlay */}
                             {(isUploadingAvatar || isRemovingAvatar) && (
-                              <div className="absolute inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center text-white z-10">
-                                <Loader2 className="w-5 h-5 animate-spin" />
+                              <div className="absolute inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center text-white z-10 rounded-full">
+                                <Loader2 className="w-6 h-6 animate-spin" />
                               </div>
                             )}
 
@@ -869,10 +869,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                               <button
                                 type="button"
                                 onClick={() => avatarFileInputRef.current?.click()}
-                                aria-label="Upload profile photo"
-                                className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white text-[10px] font-medium cursor-pointer z-10"
+                                aria-label="Upload or change profile photo"
+                                className="absolute inset-0 bg-black/55 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity flex flex-col items-center justify-center text-white text-[11px] font-medium cursor-pointer z-10 rounded-full"
                               >
-                                <Camera className="w-4 h-4 mb-0.5" />
+                                <Camera className="w-5 h-5 mb-0.5" />
                                 <span>{user.avatarUrl ? 'Change' : 'Upload'}</span>
                               </button>
                             )}
@@ -887,63 +887,79 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           />
                         </div>
 
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <h3 className="text-base font-bold tracking-tight truncate">
-                              {user.displayName || (user.nickname ? `@${user.nickname}` : user.email.split('@')[0])}
-                            </h3>
-                            {user.nickname && (
-                              <span className={`text-xs px-2 py-0.5 rounded-full font-mono font-medium ${
-                                isLight ? 'bg-slate-200/80 text-slate-700' : 'bg-white/10 text-white/80'
+                        <div className="min-w-0 flex-1">
+                          {/* Nickname & Display Name */}
+                          <div className="flex flex-wrap items-center gap-2">
+                            {user.nickname ? (
+                              <h3 className={`text-lg sm:text-xl font-bold tracking-tight truncate ${
+                                isLight ? 'text-slate-900' : 'text-white'
                               }`}>
                                 @{user.nickname}
+                              </h3>
+                            ) : (
+                              <h3 className={`text-lg sm:text-xl font-bold tracking-tight truncate ${
+                                isLight ? 'text-slate-900' : 'text-white'
+                              }`}>
+                                {user.displayName || user.email.split('@')[0]}
+                              </h3>
+                            )}
+                            {user.displayName && user.nickname && (
+                              <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium ${
+                                isLight ? 'bg-slate-200/80 text-slate-700' : 'bg-white/10 text-white/80'
+                              }`}>
+                                {user.displayName}
                               </span>
                             )}
                           </div>
-                          <p className={`text-xs truncate mt-0.5 ${isLight ? 'text-slate-600' : 'text-white/70'}`}>
-                            {user.email}
-                          </p>
 
-                          {/* Quick Photo Actions */}
-                          <div className="flex items-center gap-2 mt-1">
-                            <button
-                              type="button"
-                              onClick={() => avatarFileInputRef.current?.click()}
-                              disabled={isUploadingAvatar || isRemovingAvatar}
-                              className={`text-[11px] font-medium underline transition-colors cursor-pointer disabled:opacity-50 ${
-                                isLight ? 'text-indigo-600 hover:text-indigo-700' : 'text-indigo-300 hover:text-indigo-200'
-                              }`}
-                            >
-                              {isUploadingAvatar ? 'Uploading...' : user.avatarUrl ? 'Change photo' : 'Upload photo'}
-                            </button>
-                            {user.avatarUrl && (
-                              <>
-                                <span className={`text-[10px] ${isLight ? 'text-slate-300' : 'text-white/20'}`}>•</span>
-                                <button
-                                  type="button"
-                                  onClick={handleRemoveAvatar}
-                                  disabled={isUploadingAvatar || isRemovingAvatar}
-                                  className="text-[11px] font-medium text-rose-400 hover:text-rose-300 underline transition-colors cursor-pointer disabled:opacity-50"
-                                >
-                                  {isRemovingAvatar ? 'Removing...' : 'Remove'}
-                                </button>
-                              </>
-                            )}
-                          </div>
-
-                          {/* Verification & Sync Badges */}
-                          <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                          {/* Email & Verified Badge */}
+                          <div className="flex flex-wrap items-center gap-2 mt-1">
+                            <div className="flex items-center space-x-1.5">
+                              <Mail className={`w-3.5 h-3.5 shrink-0 ${isLight ? 'text-slate-400' : 'text-white/40'}`} />
+                              <p className={`text-xs truncate ${isLight ? 'text-slate-600' : 'text-white/60'}`}>
+                                {user.email}
+                              </p>
+                            </div>
                             {user.emailVerified ? (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                                <CheckCircle2 className="w-3 h-3" />
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                                <ShieldCheck className="w-3 h-3" />
                                 <span>Verified</span>
                               </span>
                             ) : (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/15 text-amber-400 border border-amber-500/30">
                                 <AlertCircle className="w-3 h-3" />
                                 <span>Email not verified</span>
                               </span>
                             )}
+                          </div>
+
+                          {/* Quick Photo Actions & Sync Badge */}
+                          <div className="flex flex-wrap items-center gap-3 mt-2.5">
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => avatarFileInputRef.current?.click()}
+                                disabled={isUploadingAvatar || isRemovingAvatar}
+                                className={`text-xs font-medium underline transition-colors cursor-pointer disabled:opacity-50 ${
+                                  isLight ? 'text-indigo-600 hover:text-indigo-700' : 'text-indigo-300 hover:text-indigo-200'
+                                }`}
+                              >
+                                {isUploadingAvatar ? 'Uploading...' : user.avatarUrl ? 'Change photo' : 'Upload photo'}
+                              </button>
+                              {user.avatarUrl && (
+                                <>
+                                  <span className={`text-xs ${isLight ? 'text-slate-300' : 'text-white/20'}`}>•</span>
+                                  <button
+                                    type="button"
+                                    onClick={handleRemoveAvatar}
+                                    disabled={isUploadingAvatar || isRemovingAvatar}
+                                    className="text-xs font-medium text-rose-400 hover:text-rose-300 underline transition-colors cursor-pointer disabled:opacity-50"
+                                  >
+                                    {isRemovingAvatar ? 'Removing...' : 'Remove'}
+                                  </button>
+                                </>
+                              )}
+                            </div>
 
                             <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${
                               syncStatus?.state === 'syncing'
@@ -969,6 +985,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         </div>
                       </div>
 
+                      {/* Sign Out Button */}
                       <button
                         type="button"
                         onClick={onSignOut}
@@ -998,7 +1015,86 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     )}
                   </div>
 
-                  {/* 2. Personal Information Section */}
+                  {/* 2. Live Focus Statistics */}
+                  <div className="space-y-3">
+                    <h3 className={`text-[11px] font-mono font-semibold uppercase tracking-wider flex items-center gap-1.5 ${
+                      isLight ? 'text-slate-500' : 'text-white/50'
+                    }`}>
+                      <TrendingUp className="w-3.5 h-3.5" /> Focus Statistics
+                    </h3>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                      {/* Total Focus Time */}
+                      <div className={`p-3 rounded-2xl border flex flex-col justify-between ${
+                        isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'
+                      }`}>
+                        <div className="flex items-center justify-between text-indigo-400 mb-1">
+                          <Clock className="w-4 h-4" />
+                          <span className={`text-[10px] font-mono font-medium ${isLight ? 'text-slate-500' : 'text-white/50'}`}>TOTAL</span>
+                        </div>
+                        <div>
+                          <div className="text-base sm:text-lg font-bold font-timer">
+                            {formatFocusMinutes(totalFocusMinutes)}
+                          </div>
+                          <div className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-white/60'}`}>Focus Time</div>
+                        </div>
+                      </div>
+
+                      {/* Completed Pomodoros */}
+                      <div className={`p-3 rounded-2xl border flex flex-col justify-between ${
+                        isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'
+                      }`}>
+                        <div className="flex items-center justify-between text-purple-400 mb-1">
+                          <Award className="w-4 h-4" />
+                          <span className={`text-[10px] font-mono font-medium ${isLight ? 'text-slate-500' : 'text-white/50'}`}>POMOS</span>
+                        </div>
+                        <div>
+                          <div className="text-base sm:text-lg font-bold font-timer">{completedPomodoros}</div>
+                          <div className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-white/60'}`}>Completed</div>
+                        </div>
+                      </div>
+
+                      {/* Today's Focus */}
+                      <div className={`p-3 rounded-2xl border flex flex-col justify-between ${
+                        isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'
+                      }`}>
+                        <div className="flex items-center justify-between text-emerald-400 mb-1">
+                          <TrendingUp className="w-4 h-4" />
+                          <span className={`text-[10px] font-mono font-medium ${isLight ? 'text-slate-500' : 'text-white/50'}`}>TODAY</span>
+                        </div>
+                        <div>
+                          <div className="text-base sm:text-lg font-bold font-timer">
+                            {formatFocusMinutes(todayFocusMinutes)}
+                          </div>
+                          <div className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-white/60'}`}>Today Focus</div>
+                        </div>
+                      </div>
+
+                      {/* Current Streak */}
+                      <div className={`p-3 rounded-2xl border flex flex-col justify-between ${
+                        isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'
+                      }`}>
+                        <div className="flex items-center justify-between text-amber-400 mb-1">
+                          <Flame className="w-4 h-4" />
+                          <span className={`text-[10px] font-mono font-medium ${isLight ? 'text-slate-500' : 'text-white/50'}`}>STREAK</span>
+                        </div>
+                        <div>
+                          <div className="text-base sm:text-lg font-bold font-timer">
+                            {currentStreakDays} {currentStreakDays === 1 ? 'day' : 'days'}
+                          </div>
+                          <div className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-white/60'}`}>Active Streak</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {sessions.length === 0 && (
+                      <p className={`text-[11px] text-center italic ${isLight ? 'text-slate-500' : 'text-white/50'}`}>
+                        Start your first focus session to build your streak and analytics.
+                      </p>
+                    )}
+                  </div>
+
+                  {/* 3. Personal Information Section */}
                   <div className="space-y-3">
                     <h3 className={`text-[11px] font-mono font-semibold uppercase tracking-wider flex items-center gap-1.5 ${
                       isLight ? 'text-slate-500' : 'text-white/50'
@@ -1133,145 +1229,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           </button>
                         </div>
                       </form>
-
-                      {/* Email Row */}
-                      <div className="pt-2 border-t border-dashed border-white/10 flex items-center justify-between text-xs">
-                        <div className="flex items-center space-x-2">
-                          <Mail className={`w-3.5 h-3.5 ${isLight ? 'text-slate-400' : 'text-white/40'}`} />
-                          <span className={`font-medium ${isLight ? 'text-slate-600' : 'text-white/70'}`}>Email:</span>
-                          <span className="font-semibold truncate max-w-[170px] sm:max-w-[240px]">{user.email}</span>
-                        </div>
-                        {user.emailVerified ? (
-                          <span className="text-emerald-400 flex items-center gap-1 text-[11px] font-medium shrink-0">
-                            <ShieldCheck className="w-3.5 h-3.5" /> Verified
-                          </span>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={handleResendEmail}
-                            disabled={isResendingEmail}
-                            className="text-indigo-400 hover:text-indigo-300 text-[11px] font-medium underline flex items-center gap-1 shrink-0 cursor-pointer disabled:opacity-50"
-                          >
-                            {isResendingEmail ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
-                            <span>Resend Verification</span>
-                          </button>
-                        )}
-                      </div>
-
-                      {/* Verification Alert Messages */}
-                      {resendSuccess && (
-                        <div className="p-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs flex items-center gap-1.5">
-                          <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-                          <span>{resendSuccess}</span>
-                        </div>
-                      )}
-                      {resendError && (
-                        <div className="p-2.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-400 text-xs flex items-center gap-1.5">
-                          <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                          <span>{resendError}</span>
-                        </div>
-                      )}
-
-                      {/* Account Created Date */}
-                      <div className="pt-2 border-t border-dashed border-white/10 flex items-center space-x-2 text-xs">
-                        <Calendar className={`w-3.5 h-3.5 ${isLight ? 'text-slate-400' : 'text-white/40'}`} />
-                        <span className={isLight ? 'text-slate-500' : 'text-white/60'}>Member since:</span>
-                        <span className="font-medium">
-                          {new Date(user.createdAt).toLocaleDateString(undefined, {
-                            month: 'long',
-                            day: 'numeric',
-                            year: 'numeric',
-                          })}
-                        </span>
-                      </div>
                     </div>
                   </div>
 
-                  {/* 3. Live Focus Statistics */}
+                  {/* 4. Cloud Sync & Member Info */}
                   <div className="space-y-3">
                     <h3 className={`text-[11px] font-mono font-semibold uppercase tracking-wider flex items-center gap-1.5 ${
                       isLight ? 'text-slate-500' : 'text-white/50'
                     }`}>
-                      <TrendingUp className="w-3.5 h-3.5" /> Focus Statistics
-                    </h3>
-
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                      {/* Total Focus Time */}
-                      <div className={`p-3 rounded-2xl border flex flex-col justify-between ${
-                        isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'
-                      }`}>
-                        <div className="flex items-center justify-between text-indigo-400 mb-1">
-                          <Clock className="w-4 h-4" />
-                          <span className={`text-[10px] font-mono font-medium ${isLight ? 'text-slate-500' : 'text-white/50'}`}>TOTAL</span>
-                        </div>
-                        <div>
-                          <div className="text-base sm:text-lg font-bold font-timer">
-                            {formatFocusMinutes(totalFocusMinutes)}
-                          </div>
-                          <div className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-white/60'}`}>Focus Time</div>
-                        </div>
-                      </div>
-
-                      {/* Completed Pomodoros */}
-                      <div className={`p-3 rounded-2xl border flex flex-col justify-between ${
-                        isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'
-                      }`}>
-                        <div className="flex items-center justify-between text-purple-400 mb-1">
-                          <Award className="w-4 h-4" />
-                          <span className={`text-[10px] font-mono font-medium ${isLight ? 'text-slate-500' : 'text-white/50'}`}>POMOS</span>
-                        </div>
-                        <div>
-                          <div className="text-base sm:text-lg font-bold font-timer">{completedPomodoros}</div>
-                          <div className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-white/60'}`}>Completed</div>
-                        </div>
-                      </div>
-
-                      {/* Today's Focus */}
-                      <div className={`p-3 rounded-2xl border flex flex-col justify-between ${
-                        isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'
-                      }`}>
-                        <div className="flex items-center justify-between text-emerald-400 mb-1">
-                          <TrendingUp className="w-4 h-4" />
-                          <span className={`text-[10px] font-mono font-medium ${isLight ? 'text-slate-500' : 'text-white/50'}`}>TODAY</span>
-                        </div>
-                        <div>
-                          <div className="text-base sm:text-lg font-bold font-timer">
-                            {formatFocusMinutes(todayFocusMinutes)}
-                          </div>
-                          <div className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-white/60'}`}>Today Focus</div>
-                        </div>
-                      </div>
-
-                      {/* Current Streak */}
-                      <div className={`p-3 rounded-2xl border flex flex-col justify-between ${
-                        isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'
-                      }`}>
-                        <div className="flex items-center justify-between text-amber-400 mb-1">
-                          <Flame className="w-4 h-4" />
-                          <span className={`text-[10px] font-mono font-medium ${isLight ? 'text-slate-500' : 'text-white/50'}`}>STREAK</span>
-                        </div>
-                        <div>
-                          <div className="text-base sm:text-lg font-bold font-timer">
-                            {currentStreakDays} {currentStreakDays === 1 ? 'day' : 'days'}
-                          </div>
-                          <div className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-white/60'}`}>Active Streak</div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {sessions.length === 0 && (
-                      <p className={`text-[11px] text-center italic ${isLight ? 'text-slate-500' : 'text-white/50'}`}>
-                        Start your first focus session to build your streak and analytics.
-                      </p>
-                    )}
-                  </div>
-
-                  {/* 4. Cloud Sync & Data Management */}
-                  <div className="space-y-3">
-                    <h3 className={`text-[11px] font-mono font-semibold uppercase tracking-wider flex items-center gap-1.5 ${
-                      isLight ? 'text-slate-500' : 'text-white/50'
-                    }`}>
-                      <Cloud className="w-3.5 h-3.5" /> Cloud Sync & Data
+                      <Cloud className="w-3.5 h-3.5" /> Cloud Sync & Membership
                     </h3>
 
                     <div className={`p-4 rounded-2xl border space-y-3 ${
@@ -1281,6 +1247,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         <span className={isLight ? 'text-slate-600' : 'text-white/70'}>Last cloud sync:</span>
                         <span className="font-semibold font-mono text-[11px]">
                           {formatLastSynced(syncStatus?.lastSyncedAt ?? null)}
+                        </span>
+                      </div>
+
+                      {/* Account Created Date */}
+                      <div className="pt-2 border-t border-dashed border-white/10 flex items-center justify-between text-xs">
+                        <div className="flex items-center space-x-2">
+                          <Calendar className={`w-3.5 h-3.5 ${isLight ? 'text-slate-400' : 'text-white/40'}`} />
+                          <span className={isLight ? 'text-slate-600' : 'text-white/70'}>Member since:</span>
+                        </div>
+                        <span className="font-medium">
+                          {new Date(user.createdAt).toLocaleDateString(undefined, {
+                            month: 'long',
+                            day: 'numeric',
+                            year: 'numeric',
+                          })}
                         </span>
                       </div>
 
@@ -1307,17 +1288,49 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     </div>
                   </div>
 
-                  {/* 5. Account Security & Actions */}
+                  {/* 5. Account Security & Verification */}
                   <div className="space-y-3">
                     <h3 className={`text-[11px] font-mono font-semibold uppercase tracking-wider flex items-center gap-1.5 ${
                       isLight ? 'text-slate-500' : 'text-white/50'
                     }`}>
-                      <KeyRound className="w-3.5 h-3.5" /> Security & Password
+                      <KeyRound className="w-3.5 h-3.5" /> Security & Verification
                     </h3>
 
                     <div className={`p-4 rounded-2xl border space-y-3 ${
                       isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'
                     }`}>
+                      {/* Email Verification Row (if unverified) */}
+                      {!user.emailVerified && (
+                        <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 space-y-2">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-medium text-amber-300 flex items-center gap-1.5">
+                              <AlertCircle className="w-3.5 h-3.5 shrink-0" /> Email not verified
+                            </span>
+                            <button
+                              type="button"
+                              onClick={handleResendEmail}
+                              disabled={isResendingEmail}
+                              className="text-amber-300 hover:text-amber-200 text-xs font-semibold underline flex items-center gap-1 shrink-0 cursor-pointer disabled:opacity-50"
+                            >
+                              {isResendingEmail ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
+                              <span>Resend Verification</span>
+                            </button>
+                          </div>
+                          {resendSuccess && (
+                            <p className="text-[11px] text-emerald-400 flex items-center gap-1">
+                              <CheckCircle2 className="w-3 h-3 shrink-0" />
+                              <span>{resendSuccess}</span>
+                            </p>
+                          )}
+                          {resendError && (
+                            <p className="text-[11px] text-rose-400 flex items-center gap-1">
+                              <AlertCircle className="w-3 h-3 shrink-0" />
+                              <span>{resendError}</span>
+                            </p>
+                          )}
+                        </div>
+                      )}
+
                       {!isChangingPassword ? (
                         <button
                           type="button"
