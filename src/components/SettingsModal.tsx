@@ -20,7 +20,6 @@ import {
   Flame,
   Clock,
   Award,
-  KeyRound,
   Calendar,
   Loader2,
   TrendingUp,
@@ -28,6 +27,11 @@ import {
   Send,
   AtSign,
   Camera,
+  Edit3,
+  Users,
+  ChevronRight,
+  Trash2,
+  Upload,
 } from 'lucide-react';
 import type {
   TimerSettings,
@@ -166,6 +170,8 @@ interface SettingsModalProps {
   onSignOut?: () => void;
   onSyncNow?: () => void;
   onUserUpdate?: (updatedUser: UserProfile) => void;
+  onOpenFriends?: () => void;
+  incomingRequestsCount?: number;
 }
 
 const formatLastSynced = (timestamp: number | null): string => {
@@ -200,10 +206,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onSignOut,
   onSyncNow,
   onUserUpdate,
+  onOpenFriends,
+  incomingRequestsCount = 0,
 }) => {
   const [activeTab, setActiveTab] = useState<SettingsModalTab>(initialTab);
 
-  // Profile Edit State
+  // Profile Edit Mode Toggle & Form State
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [displayNameInput, setDisplayNameInput] = useState(user?.displayName || '');
   const [nicknameInput, setNicknameInput] = useState(user?.nickname || '');
   const [nicknameStatus, setNicknameStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'invalid'>('idle');
@@ -423,13 +432,30 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         setNicknameStatus('idle');
         setNicknameMessage('');
         onUserUpdate?.(res.user);
-        setTimeout(() => setProfileSaveSuccess(false), 2500);
+        setTimeout(() => {
+          setProfileSaveSuccess(false);
+          setIsEditingProfile(false);
+        }, 1200);
       }
     } catch {
       setProfileSaveError('Failed to update profile.');
     } finally {
       setIsSavingProfile(false);
     }
+  };
+
+  const handleCancelEdit = () => {
+    setDisplayNameInput(user?.displayName || '');
+    setNicknameInput(user?.nickname || '');
+    setNicknameStatus('idle');
+    setNicknameMessage('');
+    setProfileSaveError(null);
+    setIsChangingPassword(false);
+    setNewPassword('');
+    setConfirmPassword('');
+    setPasswordError(null);
+    setPasswordSuccess(null);
+    setIsEditingProfile(false);
   };
 
   // Handle Password Change
@@ -538,7 +564,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <h2 id="settings-title" className={`text-lg sm:text-xl font-bold tracking-tight ${
                 isLight ? 'text-slate-900' : 'text-white'
               }`}>
-                {activeTab === 'preferences' ? 'Settings & Preferences' : 'Account & Profile'}
+                {activeTab === 'preferences' ? 'Settings & Preferences' : 'Profile Hub'}
               </h2>
             </div>
 
@@ -590,7 +616,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               }`}
             >
               <User className="w-3.5 h-3.5" />
-              <span>Account & Profile</span>
+              <span>Profile Hub</span>
               {user && (
                 <span className={`w-2 h-2 rounded-full ${
                   syncStatus?.state === 'syncing'
@@ -823,27 +849,28 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </>
           ) : (
             /* ==========================================================
-               TAB 2: ACCOUNT & PROFILE EXPERIENCE
+               TAB 2: PROFILE HUB & ACCOUNT EXPERIENCE
                ========================================================== */
             <>
               {user ? (
-                <>
-                  {/* 1. Profile Header Card */}
-                  <div className={`p-5 sm:p-6 rounded-3xl border relative overflow-hidden ${
-                    isLight ? 'bg-slate-50/90 border-slate-200 shadow-sm' : 'bg-white/5 border-white/10 shadow-lg'
+                <div className="space-y-4">
+                  {/* 1. Hero Profile Card */}
+                  <div className={`p-5 sm:p-6 rounded-3xl border relative overflow-hidden transition-all ${
+                    isLight
+                      ? 'bg-gradient-to-br from-slate-50 via-white to-indigo-50/30 border-slate-200 shadow-sm'
+                      : 'bg-gradient-to-br from-white/10 via-white/5 to-indigo-950/20 border-white/15 shadow-xl'
                   }`}>
                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                       <div className="flex items-center space-x-4">
-                        {/* Avatar Image / Initials with Hover Camera Action */}
+                        {/* Avatar with Camera Trigger & Live Indicator */}
                         <div className="relative group shrink-0">
-                          <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 text-white flex items-center justify-center font-bold text-2xl sm:text-3xl shadow-xl overflow-hidden ring-4 ring-white/10 relative">
+                          <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 text-white flex items-center justify-center font-bold text-2xl sm:text-3xl shadow-xl overflow-hidden ring-4 ring-white/15 relative">
                             {user.avatarUrl ? (
                               <img
                                 src={user.avatarUrl}
                                 alt={user.displayName || user.nickname || 'Avatar'}
                                 className="w-full h-full object-cover rounded-full"
                                 onError={(e) => {
-                                  // Fallback to initials if image fails to load
                                   (e.target as HTMLImageElement).style.display = 'none';
                                 }}
                               />
@@ -851,14 +878,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                               <span className="font-timer tracking-wide">{avatarInitials}</span>
                             )}
 
-                            {/* Loading State Overlay */}
+                            {/* Upload / Remove Loader Overlay */}
                             {(isUploadingAvatar || isRemovingAvatar) && (
                               <div className="absolute inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center text-white z-10 rounded-full">
                                 <Loader2 className="w-6 h-6 animate-spin" />
                               </div>
                             )}
 
-                            {/* Hover Camera Overlay Button */}
+                            {/* Hover Camera Action */}
                             {!isUploadingAvatar && !isRemovingAvatar && (
                               <button
                                 type="button"
@@ -897,7 +924,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                 {user.displayName || user.email.split('@')[0]}
                               </h3>
                             )}
-                            {user.displayName && user.nickname && (
+                            {user.displayName && (
                               <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium ${
                                 isLight ? 'bg-slate-200/80 text-slate-700' : 'bg-white/10 text-white/80'
                               }`}>
@@ -910,7 +937,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           <div className="flex flex-wrap items-center gap-2 mt-1">
                             <div className="flex items-center space-x-1.5">
                               <Mail className={`w-3.5 h-3.5 shrink-0 ${isLight ? 'text-slate-400' : 'text-white/40'}`} />
-                              <p className={`text-xs truncate ${isLight ? 'text-slate-600' : 'text-white/60'}`}>
+                              <p className={`text-xs truncate max-w-[170px] sm:max-w-[220px] ${isLight ? 'text-slate-600' : 'text-white/60'}`}>
                                 {user.email}
                               </p>
                             </div>
@@ -922,39 +949,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             ) : (
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/15 text-amber-400 border border-amber-500/30">
                                 <AlertCircle className="w-3 h-3" />
-                                <span>Email not verified</span>
+                                <span>Unverified</span>
                               </span>
                             )}
                           </div>
 
-                          {/* Quick Photo Actions & Sync Badge */}
-                          <div className="flex flex-wrap items-center gap-3 mt-2.5">
-                            <div className="flex items-center gap-2">
-                              <button
-                                type="button"
-                                onClick={() => avatarFileInputRef.current?.click()}
-                                disabled={isUploadingAvatar || isRemovingAvatar}
-                                className={`text-xs font-medium underline transition-colors cursor-pointer disabled:opacity-50 ${
-                                  isLight ? 'text-indigo-600 hover:text-indigo-700' : 'text-indigo-300 hover:text-indigo-200'
-                                }`}
-                              >
-                                {isUploadingAvatar ? 'Uploading...' : user.avatarUrl ? 'Change photo' : 'Upload photo'}
-                              </button>
-                              {user.avatarUrl && (
-                                <>
-                                  <span className={`text-xs ${isLight ? 'text-slate-300' : 'text-white/20'}`}>•</span>
-                                  <button
-                                    type="button"
-                                    onClick={handleRemoveAvatar}
-                                    disabled={isUploadingAvatar || isRemovingAvatar}
-                                    className="text-xs font-medium text-rose-400 hover:text-rose-300 underline transition-colors cursor-pointer disabled:opacity-50"
-                                  >
-                                    {isRemovingAvatar ? 'Removing...' : 'Remove'}
-                                  </button>
-                                </>
-                              )}
-                            </div>
-
+                          {/* Badges: Sync State & Total Focus Time */}
+                          <div className="flex flex-wrap items-center gap-2 mt-2.5">
                             <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${
                               syncStatus?.state === 'syncing'
                                 ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
@@ -972,11 +973,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                   ? 'Offline'
                                   : (syncStatus?.pendingCount ?? 0) > 0
                                   ? 'Saved Locally'
-                                  : 'Synced'}
+                                  : 'Cloud Synced'}
                               </span>
                             </span>
 
-                            {/* Prominent Total Focus Time Badge */}
                             <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${
                               isLight
                                 ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
@@ -990,22 +990,41 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         </div>
                       </div>
 
-                      {/* Sign Out Button */}
-                      <button
-                        type="button"
-                        onClick={onSignOut}
-                        className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
-                          isLight
-                            ? 'bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200'
-                            : 'bg-rose-500/20 text-rose-300 hover:bg-rose-500/30 border border-rose-500/30'
-                        }`}
-                      >
-                        <LogOut className="w-3.5 h-3.5" />
-                        <span>Sign Out</span>
-                      </button>
+                      {/* Header Actions: Edit Profile & Sign Out */}
+                      <div className="flex sm:flex-col items-center gap-2 w-full sm:w-auto">
+                        <button
+                          type="button"
+                          onClick={() => setIsEditingProfile((prev) => !prev)}
+                          className={`flex-1 sm:flex-none px-3.5 py-2 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-sm ${
+                            isEditingProfile
+                              ? isLight
+                                ? 'bg-indigo-600 text-white shadow-indigo-500/20'
+                                : 'bg-indigo-500 text-white shadow-indigo-500/30'
+                              : isLight
+                              ? 'bg-slate-100 text-slate-800 hover:bg-slate-200 border border-slate-200'
+                              : 'bg-white/10 text-white hover:bg-white/15 border border-white/15'
+                          }`}
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                          <span>{isEditingProfile ? 'Close Edit' : 'Edit Profile'}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={onSignOut}
+                          className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                            isLight
+                              ? 'bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200'
+                              : 'bg-rose-500/15 text-rose-300 hover:bg-rose-500/25 border border-rose-500/25'
+                          }`}
+                        >
+                          <LogOut className="w-3.5 h-3.5" />
+                          <span>Sign Out</span>
+                        </button>
+                      </div>
                     </div>
 
-                    {/* Avatar Upload Feedback Alerts */}
+                    {/* Quick Avatar Feedback Alerts */}
                     {avatarError && (
                       <div className="mt-3 p-2.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-400 text-xs flex items-center gap-1.5 animate-in fade-in">
                         <AlertCircle className="w-3.5 h-3.5 shrink-0" />
@@ -1020,116 +1039,103 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     )}
                   </div>
 
-                  {/* 2. Live Focus Statistics */}
-                  <div className="space-y-3">
-                    <h3 className={`text-[11px] font-mono font-semibold uppercase tracking-wider flex items-center gap-1.5 ${
-                      isLight ? 'text-slate-500' : 'text-white/50'
+                  {/* 2. "Profili Düzenle" (Edit Profile Panel) */}
+                  {isEditingProfile && (
+                    <div className={`p-4 sm:p-5 rounded-3xl border space-y-4 animate-in fade-in zoom-in-95 duration-200 ${
+                      isLight
+                        ? 'bg-white border-indigo-200 shadow-md ring-1 ring-indigo-500/10'
+                        : 'bg-slate-900/80 border-indigo-500/40 shadow-xl ring-1 ring-indigo-500/20'
                     }`}>
-                      <TrendingUp className="w-3.5 h-3.5" /> Focus Statistics
-                    </h3>
-
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                      {/* Total Focus Time */}
-                      <div className={`p-3 rounded-2xl border flex flex-col justify-between transition-all ${
-                        isLight
-                          ? 'bg-indigo-50/70 border-indigo-200/80 shadow-xs'
-                          : 'bg-gradient-to-br from-indigo-500/15 via-white/5 to-white/5 border-indigo-500/30 shadow-sm'
-                      }`}>
-                        <div className="flex items-center justify-between text-indigo-400 mb-1">
-                          <Clock className="w-4 h-4" />
-                          <span className={`text-[10px] font-mono font-semibold ${isLight ? 'text-indigo-600' : 'text-indigo-300'}`}>TOTAL</span>
+                      <div className="flex items-center justify-between border-b pb-2.5 border-dashed border-white/10">
+                        <div className="flex items-center gap-2">
+                          <Edit3 className="w-4 h-4 text-indigo-400" />
+                          <h3 className="text-xs sm:text-sm font-bold">Edit Profile Details</h3>
                         </div>
-                        <div>
-                          <div className={`text-base sm:text-lg font-bold font-timer tracking-tight ${isLight ? 'text-indigo-800' : 'text-indigo-200'}`}>
-                            {formatTotalFocusTime(totalFocusMinutes)}
-                          </div>
-                          <div className={`text-[10px] font-medium ${isLight ? 'text-slate-600' : 'text-white/70'}`}>Total Focus Time</div>
-                        </div>
+                        <button
+                          type="button"
+                          onClick={handleCancelEdit}
+                          className={`text-xs px-2 py-1 rounded-lg cursor-pointer ${
+                            isLight ? 'text-slate-500 hover:bg-slate-100' : 'text-white/60 hover:bg-white/10'
+                          }`}
+                        >
+                          Cancel
+                        </button>
                       </div>
 
-                      {/* Completed Pomodoros */}
-                      <div className={`p-3 rounded-2xl border flex flex-col justify-between ${
+                      {/* Photo Actions Row */}
+                      <div className={`p-3 rounded-2xl border flex flex-col sm:flex-row items-center justify-between gap-3 ${
                         isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'
                       }`}>
-                        <div className="flex items-center justify-between text-purple-400 mb-1">
-                          <Award className="w-4 h-4" />
-                          <span className={`text-[10px] font-mono font-medium ${isLight ? 'text-slate-500' : 'text-white/50'}`}>POMOS</span>
-                        </div>
-                        <div>
-                          <div className="text-base sm:text-lg font-bold font-timer">{completedPomodoros}</div>
-                          <div className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-white/60'}`}>Completed</div>
-                        </div>
-                      </div>
-
-                      {/* Today's Focus */}
-                      <div className={`p-3 rounded-2xl border flex flex-col justify-between ${
-                        isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'
-                      }`}>
-                        <div className="flex items-center justify-between text-emerald-400 mb-1">
-                          <TrendingUp className="w-4 h-4" />
-                          <span className={`text-[10px] font-mono font-medium ${isLight ? 'text-slate-500' : 'text-white/50'}`}>TODAY</span>
-                        </div>
-                        <div>
-                          <div className="text-base sm:text-lg font-bold font-timer">
-                            {formatTotalFocusTime(todayFocusMinutes)}
+                        <div className="flex items-center gap-3">
+                          <div className="w-11 h-11 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center font-bold text-sm overflow-hidden shrink-0">
+                            {user.avatarUrl ? (
+                              <img
+                                src={user.avatarUrl}
+                                alt="Avatar"
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              avatarInitials
+                            )}
                           </div>
-                          <div className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-white/60'}`}>Today Focus</div>
-                        </div>
-                      </div>
-
-                      {/* Current Streak */}
-                      <div className={`p-3 rounded-2xl border flex flex-col justify-between ${
-                        isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'
-                      }`}>
-                        <div className="flex items-center justify-between text-amber-400 mb-1">
-                          <Flame className="w-4 h-4" />
-                          <span className={`text-[10px] font-mono font-medium ${isLight ? 'text-slate-500' : 'text-white/50'}`}>STREAK</span>
-                        </div>
-                        <div>
-                          <div className="text-base sm:text-lg font-bold font-timer">
-                            {currentStreakDays} {currentStreakDays === 1 ? 'day' : 'days'}
+                          <div>
+                            <p className="text-xs font-semibold">Profile Photo</p>
+                            <p className={`text-[11px] ${isLight ? 'text-slate-500' : 'text-white/60'}`}>
+                              JPG, PNG or WEBP (max 3MB)
+                            </p>
                           </div>
-                          <div className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-white/60'}`}>Active Streak</div>
+                        </div>
+
+                        <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                          <button
+                            type="button"
+                            onClick={() => avatarFileInputRef.current?.click()}
+                            disabled={isUploadingAvatar || isRemovingAvatar}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-semibold border flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50 ${
+                              isLight
+                                ? 'bg-white text-slate-800 border-slate-300 hover:bg-slate-100'
+                                : 'bg-white/10 text-white border-white/20 hover:bg-white/15'
+                            }`}
+                          >
+                            <Upload className="w-3.5 h-3.5" />
+                            <span>{isUploadingAvatar ? 'Uploading...' : 'Upload'}</span>
+                          </button>
+
+                          {user.avatarUrl && (
+                            <button
+                              type="button"
+                              onClick={handleRemoveAvatar}
+                              disabled={isUploadingAvatar || isRemovingAvatar}
+                              className="px-3 py-1.5 rounded-xl text-xs font-semibold text-rose-400 hover:text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 transition-all cursor-pointer disabled:opacity-50 flex items-center gap-1"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span>{isRemovingAvatar ? 'Removing...' : 'Remove'}</span>
+                            </button>
+                          )}
                         </div>
                       </div>
-                    </div>
 
-                    {sessions.length === 0 && (
-                      <p className={`text-[11px] text-center italic ${isLight ? 'text-slate-500' : 'text-white/50'}`}>
-                        Start your first focus session to build your streak and analytics.
-                      </p>
-                    )}
-                  </div>
-
-                  {/* 3. Personal Information Section */}
-                  <div className="space-y-3">
-                    <h3 className={`text-[11px] font-mono font-semibold uppercase tracking-wider flex items-center gap-1.5 ${
-                      isLight ? 'text-slate-500' : 'text-white/50'
-                    }`}>
-                      <User className="w-3.5 h-3.5" /> Personal Information
-                    </h3>
-
-                    <div className={`p-4 rounded-2xl border space-y-3.5 ${
-                      isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'
-                    }`}>
-                      <form onSubmit={handleSaveProfile} className="space-y-3">
+                      {/* Nickname & Display Name Form */}
+                      <form onSubmit={handleSaveProfile} className="space-y-3.5">
                         {/* Nickname Input */}
                         <div>
                           <div className="flex items-center justify-between mb-1">
                             <label
-                              htmlFor="account-nickname"
+                              htmlFor="edit-account-nickname"
                               className={`block text-xs font-medium ${isLight ? 'text-slate-700' : 'text-white/80'}`}
                             >
                               Nickname / Username
                             </label>
-                            <span className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-white/50'}`}>3-20 chars, unique</span>
+                            <span className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-white/50'}`}>
+                              3-20 chars, unique
+                            </span>
                           </div>
                           <div className="relative">
                             <AtSign className={`w-4 h-4 absolute left-3.5 top-1/2 transform -translate-y-1/2 ${
                               isLight ? 'text-slate-400' : 'text-white/40'
                             }`} />
                             <input
-                              id="account-nickname"
+                              id="edit-account-nickname"
                               type="text"
                               autoComplete="username"
                               value={nicknameInput}
@@ -1178,13 +1184,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         {/* Display Name Input */}
                         <div>
                           <label
-                            htmlFor="account-display-name"
+                            htmlFor="edit-account-display-name"
                             className={`block text-xs font-medium mb-1 ${isLight ? 'text-slate-700' : 'text-white/80'}`}
                           >
                             Display Name (optional)
                           </label>
                           <input
-                            id="account-display-name"
+                            id="edit-account-display-name"
                             type="text"
                             value={displayNameInput}
                             onChange={(e) => setDisplayNameInput(e.target.value)}
@@ -1198,7 +1204,83 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           />
                         </div>
 
-                        <div className="flex items-center justify-between pt-1">
+                        {/* Password Section Toggle inside Edit Panel */}
+                        <div className="pt-2 border-t border-dashed border-white/10">
+                          {!isChangingPassword ? (
+                            <button
+                              type="button"
+                              onClick={() => setIsChangingPassword(true)}
+                              className={`text-xs font-medium flex items-center gap-1.5 underline transition-colors cursor-pointer ${
+                                isLight ? 'text-indigo-600 hover:text-indigo-700' : 'text-indigo-300 hover:text-indigo-200'
+                              }`}
+                            >
+                              <Lock className="w-3.5 h-3.5" />
+                              <span>Change account password...</span>
+                            </button>
+                          ) : (
+                            <div className="space-y-2.5 p-3 rounded-2xl border border-indigo-500/30 bg-indigo-500/5">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-semibold flex items-center gap-1.5">
+                                  <Lock className="w-3.5 h-3.5 text-indigo-400" /> New Password
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setIsChangingPassword(false);
+                                    setPasswordError(null);
+                                    setPasswordSuccess(null);
+                                  }}
+                                  className="text-[11px] opacity-60 hover:opacity-100 underline cursor-pointer"
+                                >
+                                  Hide
+                                </button>
+                              </div>
+                              <input
+                                type="password"
+                                placeholder="New password (min. 6 chars)"
+                                value={newPassword}
+                                onChange={(e) => setNewPassword(e.target.value)}
+                                className={`w-full px-3 py-1.5 rounded-xl text-xs border ${
+                                  isLight ? 'bg-white border-slate-300 text-slate-900' : 'bg-white/10 border-white/20 text-white'
+                                }`}
+                              />
+                              <input
+                                type="password"
+                                placeholder="Confirm new password"
+                                value={confirmPassword}
+                                onChange={(e) => setConfirmPassword(e.target.value)}
+                                className={`w-full px-3 py-1.5 rounded-xl text-xs border ${
+                                  isLight ? 'bg-white border-slate-300 text-slate-900' : 'bg-white/10 border-white/20 text-white'
+                                }`}
+                              />
+                              {passwordError && (
+                                <p className="text-[11px] text-rose-400 flex items-center gap-1">
+                                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                                  <span>{passwordError}</span>
+                                </p>
+                              )}
+                              {passwordSuccess && (
+                                <p className="text-[11px] text-emerald-400 flex items-center gap-1">
+                                  <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                                  <span>{passwordSuccess}</span>
+                                </p>
+                              )}
+                              <button
+                                type="button"
+                                onClick={handleSavePassword}
+                                disabled={isSavingPassword || !newPassword}
+                                className={`w-full py-2 rounded-xl text-xs font-semibold cursor-pointer disabled:opacity-50 ${
+                                  isLight ? 'bg-indigo-600 text-white' : 'bg-indigo-500 text-white'
+                                }`}
+                              >
+                                {isSavingPassword ? 'Updating Password...' : 'Update Password'}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Error and Form Action Buttons */}
+                        <div className="flex items-center justify-between pt-2">
                           {profileSaveError ? (
                             <p className="text-[11px] text-rose-400 flex items-center gap-1">
                               <AlertCircle className="w-3.5 h-3.5 shrink-0" />
@@ -1206,240 +1288,277 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             </p>
                           ) : <div />}
 
-                          <button
-                            type="submit"
-                            disabled={
-                              isSavingProfile ||
-                              (displayNameInput.trim() === (user.displayName || '') &&
-                                nicknameInput.trim().toLowerCase() === (user.nickname || '').toLowerCase()) ||
-                              nicknameStatus === 'taken' ||
-                              nicknameStatus === 'invalid'
-                            }
-                            className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1.5 shrink-0 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
-                              profileSaveSuccess
-                                ? 'bg-emerald-600 text-white'
-                                : isLight
-                                ? 'bg-slate-900 text-white hover:bg-slate-800'
-                                : 'bg-white text-black hover:bg-white/90'
-                            }`}
-                          >
-                            {isSavingProfile ? (
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            ) : profileSaveSuccess ? (
-                              <>
-                                <Check className="w-3.5 h-3.5" />
-                                <span>Saved</span>
-                              </>
-                            ) : (
-                              <span>Save Changes</span>
-                            )}
-                          </button>
-                        </div>
-                      </form>
-                    </div>
-                  </div>
-
-                  {/* 4. Cloud Sync & Member Info */}
-                  <div className="space-y-3">
-                    <h3 className={`text-[11px] font-mono font-semibold uppercase tracking-wider flex items-center gap-1.5 ${
-                      isLight ? 'text-slate-500' : 'text-white/50'
-                    }`}>
-                      <Cloud className="w-3.5 h-3.5" /> Cloud Sync & Membership
-                    </h3>
-
-                    <div className={`p-4 rounded-2xl border space-y-3 ${
-                      isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'
-                    }`}>
-                      <div className="flex items-center justify-between text-xs">
-                        <span className={isLight ? 'text-slate-600' : 'text-white/70'}>Last cloud sync:</span>
-                        <span className="font-semibold font-mono text-[11px]">
-                          {formatLastSynced(syncStatus?.lastSyncedAt ?? null)}
-                        </span>
-                      </div>
-
-                      {/* Account Created Date */}
-                      <div className="pt-2 border-t border-dashed border-white/10 flex items-center justify-between text-xs">
-                        <div className="flex items-center space-x-2">
-                          <Calendar className={`w-3.5 h-3.5 ${isLight ? 'text-slate-400' : 'text-white/40'}`} />
-                          <span className={isLight ? 'text-slate-600' : 'text-white/70'}>Member since:</span>
-                        </div>
-                        <span className="font-medium">
-                          {new Date(user.createdAt).toLocaleDateString(undefined, {
-                            month: 'long',
-                            day: 'numeric',
-                            year: 'numeric',
-                          })}
-                        </span>
-                      </div>
-
-                      {(syncStatus?.pendingCount ?? 0) > 0 && (
-                        <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs flex items-center justify-between">
-                          <span>{syncStatus?.pendingCount} unsynced change(s) saved locally</span>
-                          <span className="text-[10px] opacity-80">Auto-retrying</span>
-                        </div>
-                      )}
-
-                      <button
-                        type="button"
-                        onClick={handleTriggerSync}
-                        disabled={isManualSyncing || syncStatus?.state === 'syncing'}
-                        className={`w-full py-2.5 rounded-xl text-xs font-semibold border flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 ${
-                          isLight
-                            ? 'bg-white hover:bg-slate-100 border-slate-300 text-slate-800 shadow-sm'
-                            : 'bg-white/10 hover:bg-white/15 border-white/15 text-white shadow-md'
-                        }`}
-                      >
-                        <RefreshCw className={`w-3.5 h-3.5 ${isManualSyncing || syncStatus?.state === 'syncing' ? 'animate-spin' : ''}`} />
-                        <span>{isManualSyncing || syncStatus?.state === 'syncing' ? 'Synchronizing records...' : 'Sync Now'}</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* 5. Account Security & Verification */}
-                  <div className="space-y-3">
-                    <h3 className={`text-[11px] font-mono font-semibold uppercase tracking-wider flex items-center gap-1.5 ${
-                      isLight ? 'text-slate-500' : 'text-white/50'
-                    }`}>
-                      <KeyRound className="w-3.5 h-3.5" /> Security & Verification
-                    </h3>
-
-                    <div className={`p-4 rounded-2xl border space-y-3 ${
-                      isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'
-                    }`}>
-                      {/* Email Verification Row (if unverified) */}
-                      {!user.emailVerified && (
-                        <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 space-y-2">
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="font-medium text-amber-300 flex items-center gap-1.5">
-                              <AlertCircle className="w-3.5 h-3.5 shrink-0" /> Email not verified
-                            </span>
+                          <div className="flex items-center gap-2">
                             <button
                               type="button"
-                              onClick={handleResendEmail}
-                              disabled={isResendingEmail}
-                              className="text-amber-300 hover:text-amber-200 text-xs font-semibold underline flex items-center gap-1 shrink-0 cursor-pointer disabled:opacity-50"
-                            >
-                              {isResendingEmail ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
-                              <span>Resend Verification</span>
-                            </button>
-                          </div>
-                          {resendSuccess && (
-                            <p className="text-[11px] text-emerald-400 flex items-center gap-1">
-                              <CheckCircle2 className="w-3 h-3 shrink-0" />
-                              <span>{resendSuccess}</span>
-                            </p>
-                          )}
-                          {resendError && (
-                            <p className="text-[11px] text-rose-400 flex items-center gap-1">
-                              <AlertCircle className="w-3 h-3 shrink-0" />
-                              <span>{resendError}</span>
-                            </p>
-                          )}
-                        </div>
-                      )}
-
-                      {!isChangingPassword ? (
-                        <button
-                          type="button"
-                          onClick={() => setIsChangingPassword(true)}
-                          className={`w-full py-2.5 rounded-xl text-xs font-semibold border flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                            isLight
-                              ? 'bg-white hover:bg-slate-100 border-slate-200 text-slate-700'
-                              : 'bg-white/5 hover:bg-white/10 border-white/10 text-white/90'
-                          }`}
-                        >
-                          <Lock className="w-3.5 h-3.5" />
-                          <span>Change Password</span>
-                        </button>
-                      ) : (
-                        <form onSubmit={handleSavePassword} className="space-y-3">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-xs font-semibold">Change Account Password</span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setIsChangingPassword(false);
-                                setPasswordError(null);
-                                setPasswordSuccess(null);
-                              }}
-                              className="text-[11px] opacity-60 hover:opacity-100 underline cursor-pointer"
+                              onClick={handleCancelEdit}
+                              className={`px-3.5 py-2 rounded-xl text-xs font-medium cursor-pointer ${
+                                isLight ? 'text-slate-600 hover:bg-slate-100' : 'text-white/60 hover:bg-white/10'
+                              }`}
                             >
                               Cancel
                             </button>
-                          </div>
 
-                          <div>
-                            <input
-                              type="password"
-                              placeholder="New password (min. 6 chars)"
-                              value={newPassword}
-                              onChange={(e) => setNewPassword(e.target.value)}
-                              required
-                              minLength={6}
-                              className={`w-full px-3.5 py-2 rounded-xl text-xs border transition-all focus:outline-none focus:ring-2 ${
-                                isLight
-                                  ? 'bg-white border-slate-300 text-slate-900 focus:border-indigo-600 focus:ring-indigo-500/20'
-                                  : 'bg-white/10 border-white/20 text-white focus:border-white/60 focus:ring-white/20'
+                            <button
+                              type="submit"
+                              disabled={
+                                isSavingProfile ||
+                                (displayNameInput.trim() === (user.displayName || '') &&
+                                  nicknameInput.trim().toLowerCase() === (user.nickname || '').toLowerCase()) ||
+                                nicknameStatus === 'taken' ||
+                                nicknameStatus === 'invalid'
+                              }
+                              className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shadow-md ${
+                                profileSaveSuccess
+                                  ? 'bg-emerald-600 text-white'
+                                  : isLight
+                                  ? 'bg-slate-900 text-white hover:bg-slate-800'
+                                  : 'bg-white text-black hover:bg-white/90'
                               }`}
-                            />
+                            >
+                              {isSavingProfile ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              ) : profileSaveSuccess ? (
+                                <>
+                                  <Check className="w-3.5 h-3.5" />
+                                  <span>Saved</span>
+                                </>
+                              ) : (
+                                <span>Save Changes</span>
+                              )}
+                            </button>
                           </div>
+                        </div>
+                      </form>
+                    </div>
+                  )}
 
-                          <div>
-                            <input
-                              type="password"
-                              placeholder="Confirm new password"
-                              value={confirmPassword}
-                              onChange={(e) => setConfirmPassword(e.target.value)}
-                              required
-                              minLength={6}
-                              className={`w-full px-3.5 py-2 rounded-xl text-xs border transition-all focus:outline-none focus:ring-2 ${
-                                isLight
-                                  ? 'bg-white border-slate-300 text-slate-900 focus:border-indigo-600 focus:ring-indigo-500/20'
-                                  : 'bg-white/10 border-white/20 text-white focus:border-white/60 focus:ring-white/20'
-                              }`}
-                            />
+                  {/* 3. Live Focus Analytics Grid */}
+                  <div className="space-y-3">
+                    <h3 className={`text-[11px] font-mono font-semibold uppercase tracking-wider flex items-center gap-1.5 ${
+                      isLight ? 'text-slate-500' : 'text-white/50'
+                    }`}>
+                      <TrendingUp className="w-3.5 h-3.5" /> Focus Statistics
+                    </h3>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                      {/* Total Focus Time */}
+                      <div className={`p-3.5 rounded-2xl border flex flex-col justify-between transition-all ${
+                        isLight
+                          ? 'bg-indigo-50/70 border-indigo-200/80 shadow-xs'
+                          : 'bg-gradient-to-br from-indigo-500/15 via-white/5 to-white/5 border-indigo-500/30 shadow-sm'
+                      }`}>
+                        <div className="flex items-center justify-between text-indigo-400 mb-1.5">
+                          <Clock className="w-4 h-4" />
+                          <span className={`text-[10px] font-mono font-semibold ${isLight ? 'text-indigo-600' : 'text-indigo-300'}`}>
+                            TOTAL
+                          </span>
+                        </div>
+                        <div>
+                          <div className={`text-base sm:text-lg font-bold font-timer tracking-tight ${
+                            isLight ? 'text-indigo-800' : 'text-indigo-200'
+                          }`}>
+                            {formatTotalFocusTime(totalFocusMinutes)}
                           </div>
+                          <div className={`text-[10px] font-medium ${isLight ? 'text-slate-600' : 'text-white/70'}`}>
+                            Total Focus Time
+                          </div>
+                        </div>
+                      </div>
 
-                          {passwordError && (
-                            <p className="text-[11px] text-rose-400 flex items-center gap-1">
-                              <AlertCircle className="w-3 h-3 shrink-0" />
-                              <span>{passwordError}</span>
-                            </p>
-                          )}
-                          {passwordSuccess && (
-                            <p className="text-[11px] text-emerald-400 flex items-center gap-1">
-                              <CheckCircle2 className="w-3 h-3 shrink-0" />
-                              <span>{passwordSuccess}</span>
-                            </p>
-                          )}
+                      {/* Completed Pomodoros */}
+                      <div className={`p-3.5 rounded-2xl border flex flex-col justify-between ${
+                        isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'
+                      }`}>
+                        <div className="flex items-center justify-between text-purple-400 mb-1.5">
+                          <Award className="w-4 h-4" />
+                          <span className={`text-[10px] font-mono font-medium ${isLight ? 'text-slate-500' : 'text-white/50'}`}>
+                            POMOS
+                          </span>
+                        </div>
+                        <div>
+                          <div className="text-base sm:text-lg font-bold font-timer">{completedPomodoros}</div>
+                          <div className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-white/60'}`}>
+                            Completed
+                          </div>
+                        </div>
+                      </div>
 
-                          <button
-                            type="submit"
-                            disabled={isSavingPassword}
-                            className={`w-full py-2.5 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 ${
-                              isLight
-                                ? 'bg-slate-900 text-white hover:bg-slate-800'
-                                : 'bg-white text-black hover:bg-white/90'
-                            }`}
-                          >
-                            {isSavingPassword ? (
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            ) : (
-                              <span>Update Password</span>
-                            )}
-                          </button>
-                        </form>
-                      )}
+                      {/* Today's Focus */}
+                      <div className={`p-3.5 rounded-2xl border flex flex-col justify-between ${
+                        isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'
+                      }`}>
+                        <div className="flex items-center justify-between text-emerald-400 mb-1.5">
+                          <TrendingUp className="w-4 h-4" />
+                          <span className={`text-[10px] font-mono font-medium ${isLight ? 'text-slate-500' : 'text-white/50'}`}>
+                            TODAY
+                          </span>
+                        </div>
+                        <div>
+                          <div className="text-base sm:text-lg font-bold font-timer">
+                            {formatTotalFocusTime(todayFocusMinutes)}
+                          </div>
+                          <div className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-white/60'}`}>
+                            Today Focus
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Current Streak */}
+                      <div className={`p-3.5 rounded-2xl border flex flex-col justify-between ${
+                        isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'
+                      }`}>
+                        <div className="flex items-center justify-between text-amber-400 mb-1.5">
+                          <Flame className="w-4 h-4" />
+                          <span className={`text-[10px] font-mono font-medium ${isLight ? 'text-slate-500' : 'text-white/50'}`}>
+                            STREAK
+                          </span>
+                        </div>
+                        <div>
+                          <div className="text-base sm:text-lg font-bold font-timer">
+                            {currentStreakDays} {currentStreakDays === 1 ? 'day' : 'days'}
+                          </div>
+                          <div className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-white/60'}`}>
+                            Active Streak
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </>
+
+                  {/* 4. Friends & Community Hub Card */}
+                  {onOpenFriends && (
+                    <div className={`p-4 rounded-2xl border flex items-center justify-between gap-3 transition-all ${
+                      isLight
+                        ? 'bg-gradient-to-r from-indigo-50/70 to-purple-50/70 border-indigo-200/80 hover:border-indigo-300'
+                        : 'bg-gradient-to-r from-indigo-500/10 to-purple-500/10 border-indigo-500/25 hover:border-indigo-500/40'
+                    }`}>
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="p-2.5 rounded-xl bg-indigo-500/20 text-indigo-400 shrink-0">
+                          <Users className="w-5 h-5" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-xs sm:text-sm font-bold truncate">Friends & Community</h4>
+                            {incomingRequestsCount > 0 && (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500 text-white animate-pulse">
+                                {incomingRequestsCount} new request!
+                              </span>
+                            )}
+                          </div>
+                          <p className={`text-[11px] truncate ${isLight ? 'text-slate-600' : 'text-white/70'}`}>
+                            Find study partners, compare streaks, and share focus sessions.
+                          </p>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onClose();
+                          onOpenFriends();
+                        }}
+                        className={`px-3 py-2 rounded-xl text-xs font-semibold shrink-0 flex items-center gap-1 cursor-pointer transition-all ${
+                          isLight
+                            ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm'
+                            : 'bg-indigo-500 text-white hover:bg-indigo-600 shadow-md'
+                        }`}
+                      >
+                        <span>Open Friends</span>
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
+
+                  {/* 5. Cloud Sync & Security Details */}
+                  <div className={`p-4 rounded-2xl border space-y-3 ${
+                    isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'
+                  }`}>
+                    <div className="flex items-center justify-between text-xs">
+                      <div className="flex items-center space-x-2">
+                        <Cloud className={`w-3.5 h-3.5 ${isLight ? 'text-slate-400' : 'text-white/40'}`} />
+                        <span className={isLight ? 'text-slate-600' : 'text-white/70'}>Last cloud sync:</span>
+                      </div>
+                      <span className="font-semibold font-mono text-[11px]">
+                        {formatLastSynced(syncStatus?.lastSyncedAt ?? null)}
+                      </span>
+                    </div>
+
+                    <div className="pt-2 border-t border-dashed border-white/10 flex items-center justify-between text-xs">
+                      <div className="flex items-center space-x-2">
+                        <Calendar className={`w-3.5 h-3.5 ${isLight ? 'text-slate-400' : 'text-white/40'}`} />
+                        <span className={isLight ? 'text-slate-600' : 'text-white/70'}>Member since:</span>
+                      </div>
+                      <span className="font-medium">
+                        {new Date(user.createdAt).toLocaleDateString(undefined, {
+                          month: 'long',
+                          day: 'numeric',
+                          year: 'numeric',
+                        })}
+                      </span>
+                    </div>
+
+                    {/* Email Verification Row (if unverified) */}
+                    {!user.emailVerified && (
+                      <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 space-y-1.5">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-medium text-amber-300 flex items-center gap-1.5">
+                            <AlertCircle className="w-3.5 h-3.5 shrink-0" /> Email unverified
+                          </span>
+                          <button
+                            type="button"
+                            onClick={handleResendEmail}
+                            disabled={isResendingEmail}
+                            className="text-amber-300 hover:text-amber-200 text-xs font-semibold underline flex items-center gap-1 shrink-0 cursor-pointer disabled:opacity-50"
+                          >
+                            {isResendingEmail ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
+                            <span>Resend Email</span>
+                          </button>
+                        </div>
+                        {resendSuccess && (
+                          <p className="text-[11px] text-emerald-400 flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3 shrink-0" />
+                            <span>{resendSuccess}</span>
+                          </p>
+                        )}
+                        {resendError && (
+                          <p className="text-[11px] text-rose-400 flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3 shrink-0" />
+                            <span>{resendError}</span>
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {(syncStatus?.pendingCount ?? 0) > 0 && (
+                      <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs flex items-center justify-between">
+                        <span>{syncStatus?.pendingCount} unsynced change(s) saved locally</span>
+                        <span className="text-[10px] opacity-80">Auto-retrying</span>
+                      </div>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={handleTriggerSync}
+                      disabled={isManualSyncing || syncStatus?.state === 'syncing'}
+                      className={`w-full py-2.5 rounded-xl text-xs font-semibold border flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 ${
+                        isLight
+                          ? 'bg-white hover:bg-slate-100 border-slate-300 text-slate-800 shadow-sm'
+                          : 'bg-white/10 hover:bg-white/15 border-white/15 text-white shadow-md'
+                      }`}
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${isManualSyncing || syncStatus?.state === 'syncing' ? 'animate-spin' : ''}`} />
+                      <span>{isManualSyncing || syncStatus?.state === 'syncing' ? 'Synchronizing records...' : 'Sync Now'}</span>
+                    </button>
+                  </div>
+                </div>
               ) : (
                 /* GUEST / LOCAL MODE VIEW */
                 <div className="space-y-4 py-2">
-                  <div className={`p-5 rounded-3xl border text-center space-y-3 ${
-                    isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'
+                  <div className={`p-6 rounded-3xl border text-center space-y-3.5 ${
+                    isLight ? 'bg-slate-50 border-slate-200 shadow-sm' : 'bg-white/5 border-white/10 shadow-lg'
                   }`}>
-                    <div className="w-14 h-14 mx-auto rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
+                    <div className="w-14 h-14 mx-auto rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center shadow-inner">
                       <User className="w-7 h-7" />
                     </div>
                     <div>
@@ -1447,7 +1566,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       <p className={`text-xs max-w-xs mx-auto mt-1 leading-relaxed ${
                         isLight ? 'text-slate-600' : 'text-white/70'
                       }`}>
-                        All your tasks, settings, and focus sessions are safely saved locally on this browser. Create or sign in to an account anytime to back up and sync across all your devices.
+                        All your tasks, preferences, and focus sessions are saved locally on this browser. Create or sign in to an account anytime to back up, sync across all your devices, and connect with study friends.
                       </p>
                     </div>
 
@@ -1479,25 +1598,25 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     </h3>
 
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                      <div className={`p-3 rounded-2xl border ${
+                      <div className={`p-3.5 rounded-2xl border ${
                         isLight ? 'bg-indigo-50/70 border-indigo-200/80' : 'bg-indigo-500/15 border-indigo-500/30'
                       }`}>
                         <div className="text-xs font-bold font-timer text-indigo-400">{formatTotalFocusTime(totalFocusMinutes)}</div>
                         <div className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-white/60'}`}>Total Focus</div>
                       </div>
-                      <div className={`p-3 rounded-2xl border ${
+                      <div className={`p-3.5 rounded-2xl border ${
                         isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'
                       }`}>
                         <div className="text-xs font-bold font-timer">{completedPomodoros}</div>
                         <div className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-white/60'}`}>Pomodoros</div>
                       </div>
-                      <div className={`p-3 rounded-2xl border ${
+                      <div className={`p-3.5 rounded-2xl border ${
                         isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'
                       }`}>
                         <div className="text-xs font-bold font-timer">{formatTotalFocusTime(todayFocusMinutes)}</div>
                         <div className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-white/60'}`}>Today</div>
                       </div>
-                      <div className={`p-3 rounded-2xl border ${
+                      <div className={`p-3.5 rounded-2xl border ${
                         isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'
                       }`}>
                         <div className="text-xs font-bold font-timer">{currentStreakDays}d</div>

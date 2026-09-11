@@ -983,6 +983,11 @@ export function App() {
             onSignOut={handleSignOut}
             onSyncNow={handleSyncNow}
             onUserUpdate={(updatedUser) => setUser(updatedUser)}
+            onOpenFriends={() => {
+              setIsSettingsOpen(false);
+              setIsFriendsOpen(true);
+            }}
+            incomingRequestsCount={incomingRequestsCount}
           />
         )}
 
