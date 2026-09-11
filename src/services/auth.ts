@@ -127,6 +127,133 @@ export const checkNicknameAvailability = async (
   }
 };
 
+export const getAuthRedirectUrl = (): string => {
+  // 1. Explicitly configured App / Site URL from env (production or dev override)
+  const envUrl = (
+    (typeof import.meta.env.VITE_APP_URL === 'string' && import.meta.env.VITE_APP_URL) ||
+    (typeof import.meta.env.VITE_SITE_URL === 'string' && import.meta.env.VITE_SITE_URL) ||
+    ''
+  ).trim().replace(/\/+$/, '');
+
+  if (envUrl && (envUrl.startsWith('http://') || envUrl.startsWith('https://'))) {
+    return envUrl;
+  }
+
+  // 2. Active browser window origin (e.g. http://localhost:5173 or https://your-project.vercel.app)
+  if (typeof window !== 'undefined' && window.location && window.location.origin) {
+    const origin = window.location.origin.trim().replace(/\/+$/, '');
+    if (origin && !origin.includes('localhost:5000')) {
+      return origin;
+    }
+  }
+
+  // 3. Default fallback to standard Vite dev server port 5173
+  return 'http://localhost:5173';
+};
+
+export const handleAuthUrlCallback = (): {
+  hasAuthParams: boolean;
+  type?: string | null;
+  error?: string | null;
+} => {
+  if (typeof window === 'undefined') return { hasAuthParams: false };
+
+  try {
+    const hash = window.location.hash.startsWith('#') ? window.location.hash.substring(1) : window.location.hash;
+    const hashParams = new URLSearchParams(hash);
+    const searchParams = new URLSearchParams(window.location.search);
+
+    const rawError =
+      hashParams.get('error_description') ||
+      searchParams.get('error_description') ||
+      hashParams.get('error') ||
+      searchParams.get('error');
+
+    const type = hashParams.get('type') || searchParams.get('type');
+    const hasAccessToken = hashParams.has('access_token');
+    const hasCode = searchParams.has('code');
+
+    const hasAuthParams = Boolean(rawError || hasAccessToken || hasCode || type);
+
+    // Clean up tokens and error hashes from address bar without reloading the page
+    if (hasAccessToken || hasCode || rawError) {
+      const cleanUrl = window.location.pathname;
+      window.history.replaceState({}, document.title, cleanUrl);
+    }
+
+    return {
+      hasAuthParams,
+      type,
+      error: rawError ? formatAuthError(decodeURIComponent(rawError.replace(/\+/g, ' '))) : null,
+    };
+  } catch {
+    return { hasAuthParams: false };
+  }
+};
+
+export const fetchOrCreateProfile = async (
+  client: any,
+  user: {
+    id: string;
+    email?: string;
+    user_metadata?: {
+      nickname?: string;
+      display_name?: string;
+      full_name?: string;
+      avatar_url?: string;
+      [key: string]: unknown;
+    };
+  }
+): Promise<{ nickname?: string; display_name?: string; avatar_url?: string | null } | null> => {
+  try {
+    const { data: profileRow } = await client
+      .from('profiles')
+      .select('nickname, display_name, avatar_url')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if (profileRow) {
+      return profileRow;
+    }
+
+    let defaultNick =
+      (typeof user.user_metadata?.nickname === 'string' && user.user_metadata.nickname.trim()) ||
+      (user.email ? user.email.split('@')[0] : 'user');
+    defaultNick = defaultNick.replace(/[^a-zA-Z0-9_]/g, '').slice(0, 20);
+    if (defaultNick.length < 3) defaultNick = defaultNick.padEnd(3, '0');
+
+    const defaultDisplay =
+      (typeof user.user_metadata?.display_name === 'string' && user.user_metadata.display_name.trim()) ||
+      (typeof user.user_metadata?.full_name === 'string' && user.user_metadata.full_name.trim()) ||
+      defaultNick;
+
+    const defaultAvatar =
+      typeof user.user_metadata?.avatar_url === 'string' && user.user_metadata.avatar_url.trim()
+        ? user.user_metadata.avatar_url.trim()
+        : null;
+
+    try {
+      await client.from('profiles').upsert({
+        id: user.id,
+        nickname: defaultNick,
+        display_name: defaultDisplay,
+        avatar_url: defaultAvatar,
+        updated_at: new Date().toISOString(),
+      });
+      return { nickname: defaultNick, display_name: defaultDisplay, avatar_url: defaultAvatar };
+    } catch {
+      const { data: retryRow } = await client
+        .from('profiles')
+        .select('nickname, display_name, avatar_url')
+        .eq('id', user.id)
+        .maybeSingle();
+      return retryRow || { nickname: defaultNick, display_name: defaultDisplay, avatar_url: defaultAvatar };
+    }
+  } catch {
+    return null;
+  }
+};
+
 export const mapSupabaseUser = (
   user: {
     id: string;
@@ -220,7 +347,7 @@ export const signUp = async (
   }
 
   try {
-    const redirectUrl = typeof window !== 'undefined' ? `${window.location.origin}` : undefined;
+    const redirectUrl = getAuthRedirectUrl();
     const { data, error } = await client.auth.signUp({
       email: trimmedEmail,
       password,
@@ -302,56 +429,7 @@ export const signIn = async (email: string, password: string): Promise<AuthRespo
     }
 
     if (data.user) {
-      // Fetch user profile from public.profiles
-      let profile: { nickname?: string; display_name?: string; avatar_url?: string | null } | null = null;
-      try {
-        const { data: profileRow } = await client
-          .from('profiles')
-          .select('nickname, display_name, avatar_url')
-          .eq('id', data.user.id)
-          .maybeSingle();
-
-        if (profileRow) {
-          profile = profileRow;
-        } else {
-          // If no profile row yet (e.g. legacy user before trigger), create safe profile
-          let defaultNick =
-            (typeof data.user.user_metadata?.nickname === 'string' && data.user.user_metadata.nickname) ||
-            trimmedEmail.split('@')[0];
-          defaultNick = defaultNick.replace(/[^a-zA-Z0-9_]/g, '').slice(0, 20);
-          if (defaultNick.length < 3) {
-            defaultNick = defaultNick.padEnd(3, '0');
-          }
-
-          const defaultDisplay =
-            (typeof data.user.user_metadata?.display_name === 'string' && data.user.user_metadata.display_name) ||
-            (typeof data.user.user_metadata?.full_name === 'string' && data.user.user_metadata.full_name) ||
-            defaultNick;
-          const defaultAvatar =
-            typeof data.user.user_metadata?.avatar_url === 'string' && data.user.user_metadata.avatar_url
-              ? data.user.user_metadata.avatar_url
-              : null;
-
-          try {
-            await client.from('profiles').insert({
-              id: data.user.id,
-              nickname: defaultNick,
-              display_name: defaultDisplay,
-              avatar_url: defaultAvatar,
-            });
-            profile = { nickname: defaultNick, display_name: defaultDisplay, avatar_url: defaultAvatar };
-          } catch {
-            // Profile may already exist or trigger populated it
-            const { data: retryRow } = await client
-              .from('profiles')
-              .select('nickname, display_name, avatar_url')
-              .eq('id', data.user.id)
-              .maybeSingle();
-            if (retryRow) profile = retryRow;
-          }
-        }
-      } catch {}
-
+      const profile = await fetchOrCreateProfile(client, data.user);
       return { user: mapSupabaseUser(data.user, profile), error: null };
     }
 
@@ -378,7 +456,7 @@ export const resetPasswordForEmail = async (email: string): Promise<{ success: b
   }
 
   try {
-    const redirectUrl = typeof window !== 'undefined' ? `${window.location.origin}` : undefined;
+    const redirectUrl = getAuthRedirectUrl();
     const { error } = await client.auth.resetPasswordForEmail(trimmedEmail, {
       redirectTo: redirectUrl,
     });
@@ -440,7 +518,7 @@ export const resendConfirmationEmail = async (email: string): Promise<{ success:
   }
 
   try {
-    const redirectUrl = typeof window !== 'undefined' ? `${window.location.origin}` : undefined;
+    const redirectUrl = getAuthRedirectUrl();
     const { error } = await client.auth.resend({
       type: 'signup',
       email: trimmedEmail,
@@ -775,15 +853,7 @@ export const getCurrentUser = async (): Promise<UserProfile | null> => {
   try {
     const { data: { session } } = await client.auth.getSession();
     if (session?.user) {
-      let profile: { nickname?: string; display_name?: string; avatar_url?: string | null } | null = null;
-      try {
-        const { data: profileRow } = await client
-          .from('profiles')
-          .select('nickname, display_name, avatar_url')
-          .eq('id', session.user.id)
-          .maybeSingle();
-        if (profileRow) profile = profileRow;
-      } catch {}
+      const profile = await fetchOrCreateProfile(client, session.user);
       return mapSupabaseUser(session.user, profile);
     }
   } catch {}
@@ -798,16 +868,8 @@ export const onAuthStateChange = (
     const { data: { subscription } } = client.auth.onAuthStateChange((event, session) => {
       if (session?.user) {
         void (async () => {
-          let profileRow = null;
-          try {
-            const { data } = await client
-              .from('profiles')
-              .select('nickname, display_name, avatar_url')
-              .eq('id', session.user.id)
-              .maybeSingle();
-            profileRow = data;
-          } catch {}
-          callback(mapSupabaseUser(session.user, profileRow), event);
+          const profile = await fetchOrCreateProfile(client, session.user);
+          callback(mapSupabaseUser(session.user, profile), event);
         })();
       } else {
         callback(null, event);

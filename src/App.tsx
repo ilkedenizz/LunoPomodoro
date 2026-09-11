@@ -72,7 +72,7 @@ import {
 import { getAtmosphereById } from './utils/backgrounds';
 import { playCompletionChime, ambientEngine } from './utils/sound';
 import { isToday } from './utils/dates';
-import { onAuthStateChange, signOut, getCurrentUser } from './services/auth';
+import { onAuthStateChange, signOut, getCurrentUser, handleAuthUrlCallback } from './services/auth';
 import { getIncomingFriendRequests } from './services/friends';
 import {
   SyncEngine,
@@ -140,6 +140,7 @@ export function App() {
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [authModalError, setAuthModalError] = useState<string | null>(null);
 
   // High precision timer reference & idempotency flag
   const expectedEndRef = useRef<number | null>(null);
@@ -148,6 +149,24 @@ export function App() {
   // Auth state listener and initial cloud sync
   useEffect(() => {
     let isMounted = true;
+
+    // Process potential auth callback from email confirmation / password recovery links
+    const callbackResult = handleAuthUrlCallback();
+    if (callbackResult.error) {
+      setTimeout(() => {
+        if (!isMounted) return;
+        setAuthModalError(callbackResult.error || null);
+        setAuthModalMode('signin');
+        setIsAuthOpen(true);
+      }, 0);
+    } else if (callbackResult.type === 'recovery') {
+      setTimeout(() => {
+        if (!isMounted) return;
+        setAuthModalError(null);
+        setAuthModalMode('update-password');
+        setIsAuthOpen(true);
+      }, 0);
+    }
 
     // Immediate check on mount for instant session recovery across page refreshes
     getCurrentUser().then((initialUser) => {
@@ -750,8 +769,9 @@ export function App() {
     }
   }, [user]);
 
-  const handleOpenAuth = useCallback((initialMode: AuthModalMode = 'signup') => {
+  const handleOpenAuth = useCallback((initialMode: AuthModalMode = 'signup', errorMsg?: string | null) => {
     setAuthModalMode(initialMode);
+    setAuthModalError(errorMsg || null);
     setIsAuthOpen(true);
   }, []);
 
@@ -1025,9 +1045,13 @@ export function App() {
         {isAuthOpen && (
           <AuthModal
             isOpen={isAuthOpen}
-            onClose={() => setIsAuthOpen(false)}
+            onClose={() => {
+              setIsAuthOpen(false);
+              setAuthModalError(null);
+            }}
             theme={settings.theme}
             initialMode={authModalMode}
+            initialError={authModalError}
             onAuthSuccess={handleAuthSuccess}
           />
         )}

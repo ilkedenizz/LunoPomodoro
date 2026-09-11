@@ -43,6 +43,8 @@ interface AuthModalProps {
   onClose: () => void;
   theme?: AppTheme;
   initialMode?: AuthModalMode;
+  initialError?: string | null;
+  initialSuccess?: string | null;
   onAuthSuccess: (user: UserProfile) => void;
 }
 
@@ -51,6 +53,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onClose,
   theme = 'dark',
   initialMode = 'signup',
+  initialError = null,
+  initialSuccess = null,
   onAuthSuccess,
 }) => {
   const [mode, setMode] = useState<AuthModalMode>(initialMode);
@@ -69,8 +73,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [isResending, setIsResending] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(initialError || null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(initialSuccess || null);
 
   const handleNicknameChange = (val: string) => {
     const cleanVal = val.toLowerCase().replace(/\s+/g, '');
@@ -117,8 +121,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   if (initialMode !== prevInitialMode) {
     setPrevInitialMode(initialMode);
     setMode(initialMode);
-    setErrorMessage(null);
-    setSuccessMessage(null);
+    setErrorMessage(initialError || null);
+    setSuccessMessage(initialSuccess || null);
     setStatusMessage(null);
   }
 
