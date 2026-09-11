@@ -217,7 +217,7 @@ VALUES (
   'avatars',
   true,
   5242880,
-  ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/jpg']
+  ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/jpg', 'image/pjpeg', 'image/x-png']
 )
 ON CONFLICT (id) DO UPDATE SET
   public = EXCLUDED.public,
@@ -239,7 +239,10 @@ DO $$ BEGIN
     TO authenticated
     WITH CHECK (
       bucket_id = 'avatars'
-      AND (storage.foldername(name))[1] = auth.uid()::text
+      AND (
+        auth.uid()::text = split_part(name, '/', 1)
+        OR (storage.foldername(name))[1] = auth.uid()::text
+      )
     );
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
@@ -251,11 +254,17 @@ DO $$ BEGIN
     TO authenticated
     USING (
       bucket_id = 'avatars'
-      AND (storage.foldername(name))[1] = auth.uid()::text
+      AND (
+        auth.uid()::text = split_part(name, '/', 1)
+        OR (storage.foldername(name))[1] = auth.uid()::text
+      )
     )
     WITH CHECK (
       bucket_id = 'avatars'
-      AND (storage.foldername(name))[1] = auth.uid()::text
+      AND (
+        auth.uid()::text = split_part(name, '/', 1)
+        OR (storage.foldername(name))[1] = auth.uid()::text
+      )
     );
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
@@ -267,7 +276,10 @@ DO $$ BEGIN
     TO authenticated
     USING (
       bucket_id = 'avatars'
-      AND (storage.foldername(name))[1] = auth.uid()::text
+      AND (
+        auth.uid()::text = split_part(name, '/', 1)
+        OR (storage.foldername(name))[1] = auth.uid()::text
+      )
     );
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;

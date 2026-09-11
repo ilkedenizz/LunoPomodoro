@@ -532,20 +532,73 @@ export const updateUserProfile = async (
   }
 };
 
-const ALLOWED_AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
+const ALLOWED_AVATAR_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp'];
+const ALLOWED_AVATAR_TYPES = [
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/jpg',
+  'image/pjpeg',
+  'image/x-png',
+];
 const MAX_AVATAR_SIZE = 5 * 1024 * 1024; // 5 MB
+
+export const formatAvatarError = (rawError: string): string => {
+  const lower = rawError.toLowerCase();
+  if (
+    lower.includes('bucket not found') ||
+    lower.includes('the resource was not found') ||
+    (lower.includes('bucket') && lower.includes('not found'))
+  ) {
+    return 'Storage bucket "avatars" not found in Supabase. Please execute the schema.sql migration in Supabase SQL Editor.';
+  }
+  if (
+    lower.includes('row-level security') ||
+    lower.includes('violates row-level security') ||
+    lower.includes('permission denied') ||
+    lower.includes('unauthorized') ||
+    lower.includes('security policy')
+  ) {
+    return 'Upload permission denied by Supabase Storage security policies. Please verify Storage RLS policies in Supabase.';
+  }
+  if (
+    lower.includes('payload too large') ||
+    lower.includes('entity too large') ||
+    lower.includes('size limit') ||
+    lower.includes('exceeded')
+  ) {
+    return 'The image file exceeds the maximum 5 MB limit.';
+  }
+  if (
+    lower.includes('mime') ||
+    lower.includes('unsupported') ||
+    lower.includes('invalid file type') ||
+    lower.includes('content-type')
+  ) {
+    return 'Unsupported image format. Please select a JPG, PNG, or WebP image.';
+  }
+  return formatAuthError(rawError);
+};
 
 export const validateAvatarFile = (file: File): { valid: boolean; error: string | null } => {
   if (!file) {
     return { valid: false, error: 'No file selected.' };
   }
-  const fileType = file.type.toLowerCase();
-  if (!ALLOWED_AVATAR_TYPES.includes(fileType)) {
-    return { valid: false, error: 'Only JPG, PNG, and WebP images are supported.' };
+
+  const fileExt = file.name.split('.').pop()?.toLowerCase() || '';
+  const fileType = file.type ? file.type.toLowerCase() : '';
+
+  const isExtValid = ALLOWED_AVATAR_EXTENSIONS.includes(fileExt);
+  const isTypeValid = !fileType || ALLOWED_AVATAR_TYPES.includes(fileType) || fileType.startsWith('image/');
+
+  if (!isExtValid && !isTypeValid) {
+    return { valid: false, error: 'Only JPG, JPEG, PNG, and WebP images are supported.' };
   }
+
   if (file.size > MAX_AVATAR_SIZE) {
     return { valid: false, error: 'Image size must be 5 MB or smaller.' };
   }
+
   return { valid: true, error: null };
 };
 
@@ -571,9 +624,11 @@ export const uploadAvatar = async (
       return { user: null, avatarUrl: null, error: 'Please sign in to upload a profile photo.' };
     }
 
-    const fileExt = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+    const rawExt = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+    const fileExt = ALLOWED_AVATAR_EXTENSIONS.includes(rawExt) ? rawExt : 'jpg';
     const fileName = `avatar_${Date.now()}.${fileExt}`;
     const filePath = `${user.id}/${fileName}`;
+    const mimeType = file.type || (fileExt === 'png' ? 'image/png' : fileExt === 'webp' ? 'image/webp' : 'image/jpeg');
 
     // Clean up old avatar files in user's directory
     try {
@@ -588,12 +643,16 @@ export const uploadAvatar = async (
     const { error: uploadError } = await client.storage
       .from('avatars')
       .upload(filePath, file, {
+        contentType: mimeType,
         cacheControl: '3600',
         upsert: true,
       });
 
     if (uploadError) {
-      return { user: null, avatarUrl: null, error: formatAuthError(uploadError.message) };
+      if (import.meta.env.DEV) {
+        console.error('[Luno Avatar Upload Error]:', uploadError);
+      }
+      return { user: null, avatarUrl: null, error: formatAvatarError(uploadError.message) };
     }
 
     // Get public URL
@@ -606,7 +665,10 @@ export const uploadAvatar = async (
     });
 
     if (authUpdateError) {
-      return { user: null, avatarUrl: null, error: formatAuthError(authUpdateError.message) };
+      if (import.meta.env.DEV) {
+        console.error('[Luno Auth Metadata Update Error]:', authUpdateError);
+      }
+      return { user: null, avatarUrl: null, error: formatAvatarError(authUpdateError.message) };
     }
 
     // Update public.profiles table
@@ -624,7 +686,10 @@ export const uploadAvatar = async (
 
     return { user: mappedUser, avatarUrl: publicUrl, error: null };
   } catch (err: unknown) {
-    const msg = err instanceof Error ? formatAuthError(err.message) : 'Failed to upload profile photo.';
+    if (import.meta.env.DEV) {
+      console.error('[Luno Avatar Upload Exception]:', err);
+    }
+    const msg = err instanceof Error ? formatAvatarError(err.message) : 'Failed to upload profile photo.';
     return { user: null, avatarUrl: null, error: msg };
   }
 };
@@ -659,7 +724,10 @@ export const removeAvatar = async (): Promise<{ user: UserProfile | null; error:
     });
 
     if (authUpdateError) {
-      return { user: null, error: formatAuthError(authUpdateError.message) };
+      if (import.meta.env.DEV) {
+        console.error('[Luno Auth Metadata Clear Error]:', authUpdateError);
+      }
+      return { user: null, error: formatAvatarError(authUpdateError.message) };
     }
 
     // Clear profiles table
@@ -677,7 +745,10 @@ export const removeAvatar = async (): Promise<{ user: UserProfile | null; error:
 
     return { user: mappedUser, error: null };
   } catch (err: unknown) {
-    const msg = err instanceof Error ? formatAuthError(err.message) : 'Failed to remove avatar.';
+    if (import.meta.env.DEV) {
+      console.error('[Luno Avatar Remove Exception]:', err);
+    }
+    const msg = err instanceof Error ? formatAvatarError(err.message) : 'Failed to remove avatar.';
     return { user: null, error: msg };
   }
 };

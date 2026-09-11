@@ -230,9 +230,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    e.target.value = ''; // allow re-selecting same file
+    // Reset input value so identical file can be re-selected if needed
+    e.target.value = '';
+
     const validation = validateAvatarFile(file);
     if (!validation.valid) {
+      if (import.meta.env.DEV) {
+        console.warn('[Luno Avatar Validation Warning]:', validation.error, file);
+      }
       setAvatarError(validation.error);
       setAvatarSuccess(null);
       return;
@@ -249,10 +254,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       } else if (res.user) {
         setAvatarSuccess('Profile photo updated successfully!');
         onUserUpdate?.(res.user);
-        setTimeout(() => setAvatarSuccess(null), 3000);
+        setTimeout(() => setAvatarSuccess(null), 3500);
       }
-    } catch {
-      setAvatarError('Failed to upload profile photo.');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to upload profile photo.';
+      setAvatarError(msg);
+      if (import.meta.env.DEV) {
+        console.error('[Luno Avatar Error]:', err);
+      }
     } finally {
       setIsUploadingAvatar(false);
     }
@@ -872,7 +881,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           <input
                             ref={avatarFileInputRef}
                             type="file"
-                            accept="image/jpeg,image/png,image/webp,image/jpg"
+                            accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp,image/jpg"
                             onChange={handleAvatarFileChange}
                             className="hidden"
                           />
