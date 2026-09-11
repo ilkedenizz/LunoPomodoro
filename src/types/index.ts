@@ -101,6 +101,36 @@ export interface UserProfile {
   createdAt: number;
 }
 
+export type FriendshipStatus = 'pending' | 'accepted' | 'rejected';
+
+export interface PublicUserProfile {
+  id: string;
+  nickname: string;
+  displayName?: string;
+  avatarUrl?: string;
+}
+
+export interface Friendship {
+  id: string;
+  requesterId: string;
+  addresseeId: string;
+  status: FriendshipStatus;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface Friend extends PublicUserProfile {
+  friendshipId: string;
+  since: number;
+}
+
+export interface FriendRequest {
+  id: string; // friendship id
+  user: PublicUserProfile;
+  createdAt: number;
+  type: 'incoming' | 'outgoing';
+}
+
 export type SyncState = 'idle' | 'syncing' | 'synced' | 'offline' | 'error';
 
 export interface SyncStatus {
@@ -109,4 +139,5 @@ export interface SyncStatus {
   pendingCount: number;
   errorMessage?: string;
 }
+
 

@@ -283,3 +283,218 @@ DO $$ BEGIN
     );
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
+
+-- 7. FRIENDSHIPS (USER CONNECTIONS & FRIEND REQUESTS)
+CREATE TABLE IF NOT EXISTS public.friendships (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  requester_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  addressee_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'rejected')),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  CONSTRAINT check_not_self_friendship CHECK (requester_id != addressee_id)
+);
+
+-- Unique index preventing duplicate pairs between any two users in either direction
+CREATE UNIQUE INDEX IF NOT EXISTS idx_friendships_unique_pair
+  ON public.friendships (LEAST(requester_id, addressee_id), GREATEST(requester_id, addressee_id));
+
+CREATE INDEX IF NOT EXISTS idx_friendships_requester ON public.friendships(requester_id);
+CREATE INDEX IF NOT EXISTS idx_friendships_addressee ON public.friendships(addressee_id);
+CREATE INDEX IF NOT EXISTS idx_friendships_status ON public.friendships(status);
+
+ALTER TABLE public.friendships ENABLE ROW LEVEL SECURITY;
+
+DO $$ BEGIN
+  CREATE POLICY "Users can view friendships they are part of"
+    ON public.friendships
+    FOR SELECT
+    USING (auth.uid() = requester_id OR auth.uid() = addressee_id);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE POLICY "Users can send friend requests"
+    ON public.friendships
+    FOR INSERT
+    WITH CHECK (auth.uid() = requester_id AND requester_id != addressee_id);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE POLICY "Users can update friendships they are part of"
+    ON public.friendships
+    FOR UPDATE
+    USING (auth.uid() = requester_id OR auth.uid() = addressee_id)
+    WITH CHECK (auth.uid() = requester_id OR auth.uid() = addressee_id);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE POLICY "Users can remove friendships they are part of"
+    ON public.friendships
+    FOR DELETE
+    USING (auth.uid() = requester_id OR auth.uid() = addressee_id);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+-- 8. SECURE FRIENDSHIP RPC FUNCTIONS
+
+-- Search public profiles by nickname or display name (safe, only public fields)
+CREATE OR REPLACE FUNCTION public.search_profiles_by_nickname(
+  search_term TEXT,
+  limit_count INT DEFAULT 10
+)
+RETURNS TABLE (
+  id UUID,
+  nickname TEXT,
+  display_name TEXT,
+  avatar_url TEXT
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF trim(search_term) = '' THEN
+    RETURN;
+  END IF;
+
+  RETURN QUERY
+  SELECT
+    p.id,
+    p.nickname,
+    p.display_name,
+    p.avatar_url
+  FROM public.profiles p
+  WHERE
+    (auth.uid() IS NULL OR p.id != auth.uid())
+    AND (
+      lower(p.nickname) LIKE '%' || lower(trim(search_term)) || '%'
+      OR (p.display_name IS NOT NULL AND lower(p.display_name) LIKE '%' || lower(trim(search_term)) || '%')
+    )
+  ORDER BY
+    CASE WHEN lower(p.nickname) = lower(trim(search_term)) THEN 0 ELSE 1 END,
+    p.nickname ASC
+  LIMIT LEAST(limit_count, 20);
+END;
+$$;
+
+-- Get all accepted friends with profile data for the calling user
+CREATE OR REPLACE FUNCTION public.get_my_friends()
+RETURNS TABLE (
+  friendship_id UUID,
+  friend_id UUID,
+  nickname TEXT,
+  display_name TEXT,
+  avatar_url TEXT,
+  since TIMESTAMP WITH TIME ZONE
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RETURN;
+  END IF;
+
+  RETURN QUERY
+  SELECT
+    f.id AS friendship_id,
+    p.id AS friend_id,
+    p.nickname,
+    p.display_name,
+    p.avatar_url,
+    f.updated_at AS since
+  FROM public.friendships f
+  JOIN public.profiles p ON p.id = (
+    CASE
+      WHEN f.requester_id = auth.uid() THEN f.addressee_id
+      ELSE f.requester_id
+    END
+  )
+  WHERE
+    (f.requester_id = auth.uid() OR f.addressee_id = auth.uid())
+    AND f.status = 'accepted'
+  ORDER BY p.nickname ASC;
+END;
+$$;
+
+-- Get incoming pending requests for the calling user
+CREATE OR REPLACE FUNCTION public.get_incoming_friend_requests()
+RETURNS TABLE (
+  friendship_id UUID,
+  requester_id UUID,
+  nickname TEXT,
+  display_name TEXT,
+  avatar_url TEXT,
+  created_at TIMESTAMP WITH TIME ZONE
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RETURN;
+  END IF;
+
+  RETURN QUERY
+  SELECT
+    f.id AS friendship_id,
+    p.id AS requester_id,
+    p.nickname,
+    p.display_name,
+    p.avatar_url,
+    f.created_at
+  FROM public.friendships f
+  JOIN public.profiles p ON p.id = f.requester_id
+  WHERE
+    f.addressee_id = auth.uid()
+    AND f.status = 'pending'
+  ORDER BY f.created_at DESC;
+END;
+$$;
+
+-- Get outgoing pending requests for the calling user
+CREATE OR REPLACE FUNCTION public.get_outgoing_friend_requests()
+RETURNS TABLE (
+  friendship_id UUID,
+  addressee_id UUID,
+  nickname TEXT,
+  display_name TEXT,
+  avatar_url TEXT,
+  created_at TIMESTAMP WITH TIME ZONE
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RETURN;
+  END IF;
+
+  RETURN QUERY
+  SELECT
+    f.id AS friendship_id,
+    p.id AS addressee_id,
+    p.nickname,
+    p.display_name,
+    p.avatar_url,
+    f.created_at
+  FROM public.friendships f
+  JOIN public.profiles p ON p.id = f.addressee_id
+  WHERE
+    f.requester_id = auth.uid()
+    AND f.status = 'pending'
+  ORDER BY f.created_at DESC;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.search_profiles_by_nickname(TEXT, INT) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.get_my_friends() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_incoming_friend_requests() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_outgoing_friend_requests() TO authenticated;
+

@@ -10,6 +10,7 @@ import {
   Moon,
   Sun,
   Cloud,
+  Users,
 } from 'lucide-react';
 import type { AtmosphereTheme, AppTheme, UserProfile, SyncStatus } from '../types';
 
@@ -22,6 +23,8 @@ interface HeaderProps {
   onOpenAudio: () => void;
   onOpenShortcuts: () => void;
   onOpenHistory: () => void;
+  onOpenFriends: () => void;
+  incomingRequestsCount?: number;
   isAudioPlaying: boolean;
   isFullscreen: boolean;
   onToggleFullscreen: () => void;
@@ -42,6 +45,8 @@ export const Header: React.FC<HeaderProps> = React.memo(({
   onOpenAudio,
   onOpenShortcuts,
   onOpenHistory,
+  onOpenFriends,
+  incomingRequestsCount = 0,
   isAudioPlaying,
   isFullscreen,
   onToggleFullscreen,
@@ -203,6 +208,29 @@ export const Header: React.FC<HeaderProps> = React.memo(({
           title="Keyboard Shortcuts"
         >
           <Keyboard className="w-4 h-4" />
+        </button>
+
+        {/* Friends & Community Button */}
+        <button
+          onClick={onOpenFriends}
+          aria-label={`Friends & Requests ${incomingRequestsCount > 0 ? `(${incomingRequestsCount} pending)` : ''}`}
+          className={`relative p-2.5 rounded-xl glass-panel glass-panel-hover transition-all focus:outline-none focus-visible:ring-2 cursor-pointer ${
+            incomingRequestsCount > 0
+              ? isLight
+                ? 'text-indigo-600 bg-indigo-50/80 border-indigo-200'
+                : 'text-indigo-300 bg-indigo-500/20 border-indigo-400/30'
+              : isLight
+              ? 'text-slate-700 hover:text-slate-900 focus-visible:ring-slate-400'
+              : 'text-white/80 hover:text-white focus-visible:ring-white/50'
+          }`}
+          title={incomingRequestsCount > 0 ? `Friends (${incomingRequestsCount} new request!)` : 'Friends & Community'}
+        >
+          <Users className="w-4 h-4" />
+          {incomingRequestsCount > 0 && (
+            <span className="absolute -top-1 -right-1 flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-indigo-500 text-[10px] font-bold text-white shadow-md animate-pulse">
+              {incomingRequestsCount}
+            </span>
+          )}
         </button>
 
         {/* Account / Sync Button */}

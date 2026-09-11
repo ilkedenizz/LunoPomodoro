@@ -24,6 +24,9 @@ const ShortcutsModal = lazy(() =>
 const FocusHistoryModal = lazy(() =>
   import('./components/FocusHistoryModal').then((m) => ({ default: m.FocusHistoryModal }))
 );
+const FriendsModal = lazy(() =>
+  import('./components/FriendsModal').then((m) => ({ default: m.FriendsModal }))
+);
 const AuthModal = lazy(() =>
   import('./components/AuthModal').then((m) => ({ default: m.AuthModal }))
 );
@@ -67,6 +70,7 @@ import { getAtmosphereById } from './utils/backgrounds';
 import { playCompletionChime, ambientEngine } from './utils/sound';
 import { isToday } from './utils/dates';
 import { onAuthStateChange, signOut, getCurrentUser } from './services/auth';
+import { getIncomingFriendRequests } from './services/friends';
 import {
   SyncEngine,
   markTaskPending,
@@ -105,6 +109,10 @@ export function App() {
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState<AuthModalMode>('signup');
 
+  // Friends State
+  const [isFriendsOpen, setIsFriendsOpen] = useState(false);
+  const [incomingRequestsCount, setIncomingRequestsCount] = useState(0);
+
   // 2. Timer State
   const [mode, setMode] = useState<TimerMode>('pomodoro');
   const [timerState, setTimerState] = useState<TimerState>('idle');
@@ -142,6 +150,9 @@ export function App() {
     getCurrentUser().then((initialUser) => {
       if (initialUser && isMounted) {
         setUser(initialUser);
+        getIncomingFriendRequests().then((reqs) => {
+          if (isMounted) setIncomingRequestsCount(reqs.length);
+        });
         SyncEngine.pullAndMerge(initialUser.id).then(() => {
           if (!isMounted) return;
           setSettings(loadSettings());
@@ -157,6 +168,14 @@ export function App() {
     const unsubAuth = onAuthStateChange((currentUser, event) => {
       if (!isMounted) return;
       setUser(currentUser);
+
+      if (currentUser) {
+        getIncomingFriendRequests().then((reqs) => {
+          if (isMounted) setIncomingRequestsCount(reqs.length);
+        });
+      } else {
+        setIncomingRequestsCount(0);
+      }
 
       // Handle password recovery link from Supabase email
       if (event === 'PASSWORD_RECOVERY') {
@@ -758,6 +777,8 @@ export function App() {
         onOpenAudio={() => setIsAudioOpen(true)}
         onOpenShortcuts={() => setIsShortcutsOpen(true)}
         onOpenHistory={() => setIsHistoryOpen(true)}
+        onOpenFriends={() => setIsFriendsOpen(true)}
+        incomingRequestsCount={incomingRequestsCount}
         isAudioPlaying={isAudioPlaying}
         isFullscreen={isFullscreen}
         onToggleFullscreen={toggleFullscreen}
@@ -973,6 +994,17 @@ export function App() {
             isOpen={isHistoryOpen}
             onClose={() => setIsHistoryOpen(false)}
             sessions={sessions}
+          />
+        )}
+
+        {isFriendsOpen && (
+          <FriendsModal
+            isOpen={isFriendsOpen}
+            onClose={() => setIsFriendsOpen(false)}
+            user={user}
+            theme={settings.theme}
+            onOpenAuth={() => handleOpenAuth('signin')}
+            onRequestCountChange={setIncomingRequestsCount}
           />
         )}
 
