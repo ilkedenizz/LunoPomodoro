@@ -54,6 +54,30 @@ const formatAuthError = (message: string): string => {
   return message;
 };
 
+export const mapSupabaseUser = (user: {
+  id: string;
+  email?: string;
+  email_confirmed_at?: string | null;
+  confirmed_at?: string | null;
+  user_metadata?: { display_name?: string; full_name?: string; [key: string]: unknown };
+  created_at?: string;
+}): UserProfile => {
+  const isVerified = Boolean(user.email_confirmed_at || user.confirmed_at);
+  const displayName = typeof user.user_metadata?.display_name === 'string'
+    ? user.user_metadata.display_name
+    : typeof user.user_metadata?.full_name === 'string'
+    ? user.user_metadata.full_name
+    : undefined;
+
+  return {
+    id: user.id,
+    email: user.email || '',
+    displayName,
+    emailVerified: isVerified,
+    createdAt: user.created_at ? new Date(user.created_at).getTime() : Date.now(),
+  };
+};
+
 export const signUp = async (email: string, password: string): Promise<AuthResponse> => {
   const trimmedEmail = email.trim().toLowerCase();
   if (!trimmedEmail || !trimmedEmail.includes('@')) {
@@ -97,12 +121,7 @@ export const signUp = async (email: string, password: string): Promise<AuthRespo
     }
 
     if (data.user) {
-      const userProfile: UserProfile = {
-        id: data.user.id,
-        email: data.user.email || trimmedEmail,
-        createdAt: data.user.created_at ? new Date(data.user.created_at).getTime() : Date.now(),
-      };
-      return { user: userProfile, error: null };
+      return { user: mapSupabaseUser(data.user), error: null };
     }
 
     return { user: null, error: 'Unable to complete account registration.' };
@@ -141,12 +160,7 @@ export const signIn = async (email: string, password: string): Promise<AuthRespo
     }
 
     if (data.user) {
-      const userProfile: UserProfile = {
-        id: data.user.id,
-        email: data.user.email || trimmedEmail,
-        createdAt: data.user.created_at ? new Date(data.user.created_at).getTime() : Date.now(),
-      };
-      return { user: userProfile, error: null };
+      return { user: mapSupabaseUser(data.user), error: null };
     }
 
     return { user: null, error: 'Unable to sign in.' };
@@ -267,6 +281,39 @@ export const signOut = async (): Promise<{ error: string | null }> => {
   return { error: null };
 };
 
+export const updateUserProfile = async (
+  updates: { displayName?: string }
+): Promise<{ user: UserProfile | null; error: string | null }> => {
+  if (!isSupabaseConfigured()) {
+    return { user: null, error: UNCONFIGURED_AUTH_ERROR };
+  }
+  const client = getSupabaseClient();
+  if (!client) {
+    return { user: null, error: UNCONFIGURED_AUTH_ERROR };
+  }
+
+  try {
+    const { data, error } = await client.auth.updateUser({
+      data: {
+        display_name: updates.displayName?.trim() || '',
+      },
+    });
+
+    if (error) {
+      return { user: null, error: formatAuthError(error.message) };
+    }
+
+    if (data.user) {
+      return { user: mapSupabaseUser(data.user), error: null };
+    }
+
+    return { user: null, error: 'Failed to update profile.' };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? formatAuthError(err.message) : 'Failed to update profile.';
+    return { user: null, error: msg };
+  }
+};
+
 export const getCurrentUser = async (): Promise<UserProfile | null> => {
   const client = getSupabaseClient();
   if (!client) return null;
@@ -274,11 +321,7 @@ export const getCurrentUser = async (): Promise<UserProfile | null> => {
   try {
     const { data: { session } } = await client.auth.getSession();
     if (session?.user) {
-      return {
-        id: session.user.id,
-        email: session.user.email || '',
-        createdAt: session.user.created_at ? new Date(session.user.created_at).getTime() : Date.now(),
-      };
+      return mapSupabaseUser(session.user);
     }
   } catch {}
   return null;
@@ -291,14 +334,7 @@ export const onAuthStateChange = (
   if (client) {
     const { data: { subscription } } = client.auth.onAuthStateChange((event, session) => {
       if (session?.user) {
-        callback(
-          {
-            id: session.user.id,
-            email: session.user.email || '',
-            createdAt: session.user.created_at ? new Date(session.user.created_at).getTime() : Date.now(),
-          },
-          event
-        );
+        callback(mapSupabaseUser(session.user), event);
       } else {
         callback(null, event);
       }

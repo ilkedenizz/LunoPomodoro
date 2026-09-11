@@ -123,6 +123,7 @@ export function App() {
 
   // 3. Audio & Modals
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<'preferences' | 'account'>('preferences');
   const [isBackgroundsOpen, setIsBackgroundsOpen] = useState(false);
   const [isAudioOpen, setIsAudioOpen] = useState(false);
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
@@ -731,7 +732,10 @@ export function App() {
         todayPomodoros={todayPomodorosCount}
         todayMinutes={todayTotalMinutes}
         onOpenBackgrounds={() => setIsBackgroundsOpen(true)}
-        onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenSettings={() => {
+          setSettingsTab('preferences');
+          setIsSettingsOpen(true);
+        }}
         onOpenAudio={() => setIsAudioOpen(true)}
         onOpenShortcuts={() => setIsShortcutsOpen(true)}
         onOpenHistory={() => setIsHistoryOpen(true)}
@@ -745,6 +749,7 @@ export function App() {
         syncStatus={syncStatus}
         onOpenAuth={() => {
           if (user) {
+            setSettingsTab('account');
             setIsSettingsOpen(true);
           } else {
             handleOpenAuth('signin');
@@ -897,9 +902,13 @@ export function App() {
             }}
             user={user}
             syncStatus={syncStatus}
-            onOpenAuth={() => handleOpenAuth('signup')}
+            sessions={sessions}
+            tasks={tasks}
+            initialTab={settingsTab}
+            onOpenAuth={(mode) => handleOpenAuth(mode || 'signin')}
             onSignOut={handleSignOut}
             onSyncNow={handleSyncNow}
+            onUserUpdate={(updatedUser) => setUser(updatedUser)}
           />
         )}
 
