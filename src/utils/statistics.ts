@@ -1,4 +1,4 @@
-import type { FocusSession } from '../types';
+import type { FocusSession, AppLanguage } from '../types';
 import { isToday, isYesterday, isSameDay, getStartOfWeek } from './dates';
 
 export const getPomodoroSessions = (sessions: FocusSession[]): FocusSession[] => {
@@ -9,17 +9,18 @@ export const getTotalFocusMinutes = (sessions: FocusSession[]): number => {
   return getPomodoroSessions(sessions).reduce((acc, s) => acc + s.durationMinutes, 0);
 };
 
-export const formatTotalFocusTime = (totalMinutes: number): string => {
+export const formatTotalFocusTime = (totalMinutes: number, lang: 'en' | 'tr' = 'en'): string => {
   const rounded = Math.max(0, Math.round(totalMinutes));
   const hrs = Math.floor(rounded / 60);
   const mins = rounded % 60;
-  if (hrs === 0) {
-    return `${mins} dk`;
+  if (lang === 'tr') {
+    if (hrs === 0) return `${mins} dk`;
+    if (mins === 0) return `${hrs} saat`;
+    return `${hrs} saat ${mins} dk`;
   }
-  if (mins === 0) {
-    return `${hrs} saat`;
-  }
-  return `${hrs} saat ${mins} dk`;
+  if (hrs === 0) return `${mins}m`;
+  if (mins === 0) return `${hrs}h`;
+  return `${hrs}h ${mins}m`;
 };
 
 export const getPomodoroCount = (sessions: FocusSession[]): number => {
@@ -243,7 +244,7 @@ export interface GroupedSessionHistory {
   sessions: FocusSession[];
 }
 
-export const getGroupedRecentSessions = (sessions: FocusSession[]): GroupedSessionHistory[] => {
+export const getGroupedRecentSessions = (sessions: FocusSession[], lang: AppLanguage = 'en'): GroupedSessionHistory[] => {
   const poms = getPomodoroSessions(sessions);
   if (poms.length === 0) return [];
 
@@ -257,10 +258,10 @@ export const getGroupedRecentSessions = (sessions: FocusSession[]): GroupedSessi
       .padStart(2, '0')}`;
 
     if (!map.has(key)) {
-      let label = 'Today';
-      if (isToday(s.timestamp)) label = 'Today';
-      else if (isYesterday(s.timestamp)) label = 'Yesterday';
-      else label = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      let label = lang === 'tr' ? 'Bugün' : 'Today';
+      if (isToday(s.timestamp)) label = lang === 'tr' ? 'Bugün' : 'Today';
+      else if (isYesterday(s.timestamp)) label = lang === 'tr' ? 'Dün' : 'Yesterday';
+      else label = d.toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US', { month: 'short', day: 'numeric' });
 
       map.set(key, { dateLabel: label, timestamp: s.timestamp, sessions: [] });
     }

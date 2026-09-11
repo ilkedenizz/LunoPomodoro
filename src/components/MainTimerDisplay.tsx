@@ -1,6 +1,7 @@
 import React from 'react';
-import type { TimerMode, TimerState, AppTheme, TimerColorId } from '../types';
+import type { TimerMode, TimerState, AppTheme, TimerColorId, AppLanguage } from '../types';
 import { getTimerColor } from '../utils/timerColors';
+import { getTranslations } from '../utils/translations';
 
 interface MainTimerDisplayProps {
   timeLeftSeconds: number;
@@ -11,6 +12,7 @@ interface MainTimerDisplayProps {
   activeTaskTitle?: string | null;
   theme?: AppTheme;
   timerColor?: TimerColorId;
+  language?: AppLanguage;
 }
 
 export const MainTimerDisplay: React.FC<MainTimerDisplayProps> = React.memo(({
@@ -22,7 +24,9 @@ export const MainTimerDisplay: React.FC<MainTimerDisplayProps> = React.memo(({
   activeTaskTitle,
   theme = 'dark',
   timerColor = 'default',
+  language = 'en',
 }) => {
+  const t = getTranslations(language);
   const minutes = Math.floor(timeLeftSeconds / 60);
   const seconds = timeLeftSeconds % 60;
 
@@ -57,13 +61,13 @@ export const MainTimerDisplay: React.FC<MainTimerDisplayProps> = React.memo(({
 
   const modeTitle = isCompleted
     ? mode === 'pomodoro'
-      ? 'Focus Session Completed'
-      : 'Break Finished'
+      ? t.sessionComplete
+      : t.breakComplete
     : mode === 'pomodoro'
-    ? 'Focus Session'
+    ? t.focusSessionHeading
     : mode === 'shortBreak'
-    ? 'Short Break'
-    : 'Long Break';
+    ? t.shortBreakHeading
+    : t.longBreakHeading;
 
   const effectiveProgress = isCompleted ? 100 : progress;
 
@@ -154,8 +158,8 @@ export const MainTimerDisplay: React.FC<MainTimerDisplayProps> = React.memo(({
             }`}
           >
             <span>{modeTitle}</span>
-            {isPaused && <span className="ml-1.5 font-bold">• PAUSED</span>}
-            {isCompleted && <span className="ml-1.5 font-bold">• DONE</span>}
+            {isPaused && <span className="ml-1.5 font-bold">• {language === 'tr' ? 'DURAKLATILDI' : 'PAUSED'}</span>}
+            {isCompleted && <span className="ml-1.5 font-bold">• {language === 'tr' ? 'TAMAMLANDI' : 'DONE'}</span>}
           </div>
 
           {/* Large Monospace Timer Display */}
@@ -169,7 +173,11 @@ export const MainTimerDisplay: React.FC<MainTimerDisplayProps> = React.memo(({
           {/* 4-Pomodoro Cycle Dots */}
           <div
             className="flex items-center space-x-2 mt-3"
-            aria-label={`Cycle progress: ${completedInCycle} of 4 sessions completed`}
+            aria-label={
+              language === 'tr'
+                ? `Döngü ilerlemesi: 4 oturumdan ${completedInCycle} tanesi tamamlandı`
+                : `Cycle progress: ${completedInCycle} of 4 sessions completed`
+            }
           >
             {[1, 2, 3, 4].map((step) => {
               const isDone = isCompleted && mode === 'pomodoro'
@@ -180,7 +188,7 @@ export const MainTimerDisplay: React.FC<MainTimerDisplayProps> = React.memo(({
               return (
                 <div
                   key={step}
-                  title={`Session ${step} of 4`}
+                  title={language === 'tr' ? `Oturum ${step} / 4` : `Session ${step} of 4`}
                   className={`h-2 rounded-full transition-all duration-500 ${
                     isCurrent
                       ? isLight
@@ -204,7 +212,11 @@ export const MainTimerDisplay: React.FC<MainTimerDisplayProps> = React.memo(({
             }`}
           >
             {isCompleted && mode === 'pomodoro'
-              ? `${completedInCycle} of 4 Completed`
+              ? language === 'tr'
+                ? `${completedInCycle} / 4 Tamamlandı`
+                : `${completedInCycle} of 4 Completed`
+              : language === 'tr'
+              ? `Oturum ${nextCycleIndex} / 4`
               : `Session ${nextCycleIndex} of 4`}
           </span>
         </div>
@@ -225,7 +237,7 @@ export const MainTimerDisplay: React.FC<MainTimerDisplayProps> = React.memo(({
               isLight ? 'text-slate-500' : 'text-white/50'
             }`}
           >
-            FOCUSING ON:
+            {language === 'tr' ? 'ODAKLANILAN GÖREV:' : 'FOCUSING ON:'}
           </span>
           <span className="truncate font-semibold">{activeTaskTitle}</span>
         </div>

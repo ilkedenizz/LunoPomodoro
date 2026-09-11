@@ -15,7 +15,8 @@ import {
   Calendar,
   AtSign,
 } from 'lucide-react';
-import type { AppTheme, UserProfile, Friend, FriendRequest, PublicUserProfile } from '../types';
+import type { AppTheme, UserProfile, Friend, FriendRequest, PublicUserProfile, AppLanguage } from '../types';
+import { getTranslations } from '../utils/translations';
 import {
   searchUsers,
   getFriendsList,
@@ -33,6 +34,7 @@ interface FriendsModalProps {
   onClose: () => void;
   user: UserProfile | null;
   theme?: AppTheme;
+  language?: AppLanguage;
   onOpenAuth?: () => void;
   onRequestCountChange?: (count: number) => void;
 }
@@ -75,9 +77,11 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
   onClose,
   user,
   theme = 'dark',
+  language = 'en',
   onOpenAuth,
   onRequestCountChange,
 }) => {
+  const t = getTranslations(language);
   const isLight = theme === 'light';
   const [activeTab, setActiveTab] = useState<FriendsTab>('friends');
 
@@ -193,7 +197,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
       if (res.error) {
         showFeedback('error', res.error);
       } else {
-        showFeedback('success', res.message || 'Friend request sent!');
+        showFeedback('success', language === 'tr' ? 'Arkadaşlık isteği gönderildi!' : (res.message || 'Friend request sent!'));
         await loadAllData();
       }
     } finally {
@@ -208,7 +212,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
       if (res.error) {
         showFeedback('error', res.error);
       } else {
-        showFeedback('success', 'Friend request accepted!');
+        showFeedback('success', language === 'tr' ? 'Arkadaşlık isteği kabul edildi!' : 'Friend request accepted!');
         await loadAllData();
       }
     } finally {
@@ -223,7 +227,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
       if (res.error) {
         showFeedback('error', res.error);
       } else {
-        showFeedback('success', 'Friend request declined.');
+        showFeedback('success', language === 'tr' ? 'İstek reddedildi.' : 'Friend request declined.');
         await loadAllData();
       }
     } finally {
@@ -238,7 +242,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
       if (res.error) {
         showFeedback('error', res.error);
       } else {
-        showFeedback('success', 'Friend request cancelled.');
+        showFeedback('success', language === 'tr' ? 'İstek iptal edildi.' : 'Friend request cancelled.');
         await loadAllData();
       }
     } finally {
@@ -247,7 +251,11 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
   };
 
   const handleRemoveFriend = async (friendshipId: string, friendName: string) => {
-    if (!window.confirm(`Are you sure you want to remove @${friendName} from your friends?`)) {
+    const confirmPrompt =
+      language === 'tr'
+        ? `@${friendName} adlı kullanıcıyı arkadaşlarınızdan çıkarmak istediğinize emin misiniz?`
+        : `Are you sure you want to remove @${friendName} from your friends?`;
+    if (!window.confirm(confirmPrompt)) {
       return;
     }
     setActionLoadingId(friendshipId);
@@ -256,7 +264,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
       if (res.error) {
         showFeedback('error', res.error);
       } else {
-        showFeedback('success', 'Friend removed.');
+        showFeedback('success', language === 'tr' ? 'Arkadaş listeden çıkarıldı.' : 'Friend removed.');
         await loadAllData();
       }
     } finally {
@@ -292,17 +300,17 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
             </div>
             <div>
               <h2 id="friends-modal-title" className="text-lg font-bold tracking-tight">
-                Friends & Community
+                {t.friendsTitle}
               </h2>
               <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-white/60'}`}>
-                Connect with study partners and share your focus journey
+                {t.friendsCommunityDesc}
               </p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            aria-label="Close modal"
+            aria-label={t.close}
             className={`p-2 rounded-xl transition-all cursor-pointer ${
               isLight ? 'hover:bg-slate-200 text-slate-600' : 'hover:bg-white/10 text-white/70 hover:text-white'
             }`}
@@ -336,11 +344,13 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
               <UserPlus className="w-8 h-8" />
             </div>
             <div>
-              <h3 className="text-base font-bold">Sign in to add friends</h3>
+              <h3 className="text-base font-bold">{language === 'tr' ? 'Arkadaş eklemek için giriş yapın' : 'Sign in to add friends'}</h3>
               <p className={`text-xs max-w-sm mx-auto mt-1.5 leading-relaxed ${
                 isLight ? 'text-slate-600' : 'text-white/70'
               }`}>
-                Create a free Luno account or sign in to search by nickname, send requests, and connect with other focusers.
+                {language === 'tr'
+                  ? 'Kullanıcı adına göre arama yapmak, istek göndermek ve diğer odaklananlarla bağlantı kurmak için ücretsiz Luno hesabı oluşturun veya giriş yapın.'
+                  : 'Create a free Luno account or sign in to search by nickname, send requests, and connect with other focusers.'}
               </p>
             </div>
             <div className="pt-2">
@@ -352,7 +362,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                 }}
                 className="px-6 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs transition-all shadow-md cursor-pointer"
               >
-                Sign In / Create Account
+                {t.signInCreateAccount}
               </button>
             </div>
           </div>
@@ -374,7 +384,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                 }`}
               >
                 <Users className="w-3.5 h-3.5" />
-                <span>Friends</span>
+                <span>{t.myFriendsTab}</span>
                 <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-medium ${
                   activeTab === 'friends'
                     ? isLight ? 'bg-indigo-50 text-indigo-600' : 'bg-white/20 text-white'
@@ -398,7 +408,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                 }`}
               >
                 <Clock className="w-3.5 h-3.5" />
-                <span>Requests</span>
+                <span>{t.requestsTab}</span>
                 {totalIncomingCount > 0 && (
                   <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
                 )}
@@ -427,7 +437,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                 }`}
               >
                 <Search className="w-3.5 h-3.5" />
-                <span>Find Friends</span>
+                <span>{t.findFriendsTab}</span>
               </button>
             </div>
 
@@ -439,7 +449,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                   {isLoadingLists ? (
                     <div className="py-12 flex flex-col items-center justify-center space-y-2 text-white/50">
                       <Loader2 className="w-6 h-6 animate-spin text-indigo-400" />
-                      <span className="text-xs">Loading friends...</span>
+                      <span className="text-xs">{language === 'tr' ? 'Arkadaşlar yükleniyor...' : 'Loading friends...'}</span>
                     </div>
                   ) : friends.length === 0 ? (
                     <div className="py-10 text-center space-y-3">
@@ -447,9 +457,9 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                         <Users className="w-6 h-6" />
                       </div>
                       <div>
-                        <p className="text-sm font-semibold">No friends yet</p>
+                        <p className="text-sm font-semibold">{t.noFriendsYet}</p>
                         <p className={`text-xs mt-1 ${isLight ? 'text-slate-500' : 'text-white/50'}`}>
-                          Search by @nickname to connect with focus partners!
+                          {language === 'tr' ? 'Çalışma arkadaşları eklemek için yukarıdan kullanıcı adı arayın!' : 'Search by @nickname to connect with focus partners!'}
                         </p>
                       </div>
                       <button
@@ -461,7 +471,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                             : 'bg-indigo-500/20 border-indigo-500/30 text-indigo-300 hover:bg-indigo-500/30'
                         }`}
                       >
-                        Search Friends
+                        {t.findFriendsTab}
                       </button>
                     </div>
                   ) : (
@@ -497,7 +507,11 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                               isLight ? 'text-slate-400' : 'text-white/40'
                             }`}>
                               <Calendar className="w-3 h-3" />
-                              <span>Friends since {new Date(friend.since).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                              <span>
+                                {language === 'tr'
+                                  ? `${new Date(friend.since).toLocaleDateString('tr-TR', { month: 'short', day: 'numeric', year: 'numeric' })} tarihinden beri arkadaşsınız`
+                                  : `Friends since ${new Date(friend.since).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`}
+                              </span>
                             </div>
                           </div>
                         </div>
@@ -511,7 +525,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                               ? 'text-slate-500 hover:text-rose-600 hover:bg-rose-50'
                               : 'text-white/50 hover:text-rose-400 hover:bg-rose-500/10'
                           }`}
-                          title="Remove Friend"
+                          title={t.removeFriend}
                           aria-label={`Remove @${friend.nickname}`}
                         >
                           {actionLoadingId === friend.friendshipId ? (
@@ -534,12 +548,12 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                     <h3 className={`text-[11px] font-mono font-semibold uppercase tracking-wider flex items-center gap-1.5 ${
                       isLight ? 'text-slate-500' : 'text-white/50'
                     }`}>
-                      Incoming Requests ({incomingRequests.length})
+                      {language === 'tr' ? `Gelen İstekler (${incomingRequests.length})` : `Incoming Requests (${incomingRequests.length})`}
                     </h3>
 
                     {incomingRequests.length === 0 ? (
                       <p className={`text-xs italic py-2 text-center ${isLight ? 'text-slate-400' : 'text-white/40'}`}>
-                        No incoming friend requests.
+                        {t.noRequests}
                       </p>
                     ) : (
                       incomingRequests.map((req) => (
@@ -583,7 +597,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                               ) : (
                                 <>
                                   <Check className="w-3.5 h-3.5" />
-                                  <span>Accept</span>
+                                  <span>{t.accept}</span>
                                 </>
                               )}
                             </button>
@@ -597,7 +611,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                                   ? 'bg-slate-200 text-slate-700 hover:bg-rose-100 hover:text-rose-600'
                                   : 'bg-white/10 text-white/70 hover:bg-rose-500/20 hover:text-rose-300'
                               }`}
-                              title="Decline"
+                              title={t.reject}
                             >
                               <X className="w-4 h-4" />
                             </button>
@@ -612,12 +626,12 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                     <h3 className={`text-[11px] font-mono font-semibold uppercase tracking-wider flex items-center gap-1.5 ${
                       isLight ? 'text-slate-500' : 'text-white/50'
                     }`}>
-                      Sent Requests ({outgoingRequests.length})
+                      {language === 'tr' ? `Gönderilen İstekler (${outgoingRequests.length})` : `Sent Requests (${outgoingRequests.length})`}
                     </h3>
 
                     {outgoingRequests.length === 0 ? (
                       <p className={`text-xs italic py-2 text-center ${isLight ? 'text-slate-400' : 'text-white/40'}`}>
-                        No outgoing pending requests.
+                        {language === 'tr' ? 'Bekleyen gönderilmiş istek yok.' : 'No outgoing pending requests.'}
                       </p>
                     ) : (
                       outgoingRequests.map((req) => (
@@ -640,7 +654,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                                 @{req.user.nickname}
                               </span>
                               <span className="text-[10px] text-amber-400 font-medium">
-                                Awaiting response...
+                                {language === 'tr' ? 'Yanıt bekleniyor...' : 'Awaiting response...'}
                               </span>
                             </div>
                           </div>
@@ -658,7 +672,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                             {actionLoadingId === req.id ? (
                               <Loader2 className="w-3.5 h-3.5 animate-spin" />
                             ) : (
-                              <span>Cancel</span>
+                              <span>{t.cancel}</span>
                             )}
                           </button>
                         </div>
@@ -680,7 +694,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                       type="text"
                       value={searchQuery}
                       onChange={(e) => handleSearchChange(e.target.value)}
-                      placeholder="Search focusers by @nickname or name..."
+                      placeholder={t.searchFriendsPlaceholder}
                       className={`w-full pl-10 pr-10 py-2.5 rounded-2xl text-xs sm:text-sm border transition-all focus:outline-none focus:ring-2 ${
                         isLight
                           ? 'bg-white border-slate-300 text-slate-900 focus:border-indigo-600 focus:ring-indigo-500/20'
@@ -700,7 +714,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                     {searchQuery.trim().length >= 2 && searchResults.length === 0 && !isSearching && (
                       <div className="py-8 text-center space-y-2 text-white/50">
                         <AtSign className="w-6 h-6 mx-auto opacity-40" />
-                        <p className="text-xs">No users found matching "{searchQuery}"</p>
+                        <p className="text-xs">{t.noUsersFound}</p>
                       </div>
                     )}
 
@@ -742,12 +756,12 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                             {isAlreadyFriend ? (
                               <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
                                 <UserCheck className="w-3.5 h-3.5" />
-                                <span>Friends</span>
+                                <span>{t.alreadyFriends}</span>
                               </span>
                             ) : isPendingOutgoing ? (
                               <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/30">
                                 <Clock className="w-3.5 h-3.5" />
-                                <span>Requested</span>
+                                <span>{t.requestSent}</span>
                               </span>
                             ) : incomingReq ? (
                               <button
@@ -761,7 +775,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                                 ) : (
                                   <>
                                     <Check className="w-3.5 h-3.5" />
-                                    <span>Accept</span>
+                                    <span>{t.accept}</span>
                                   </>
                                 )}
                               </button>
@@ -781,7 +795,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                                 ) : (
                                   <>
                                     <UserPlus className="w-3.5 h-3.5" />
-                                    <span>Add Friend</span>
+                                    <span>{t.addFriend}</span>
                                   </>
                                 )}
                               </button>
@@ -796,7 +810,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                     <div className="py-6 text-center space-y-2">
                       <Sparkles className="w-6 h-6 mx-auto text-indigo-400 opacity-60" />
                       <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-white/50'}`}>
-                        Type any username (e.g. <code>zen_master</code>) to search and send friend requests.
+                        {t.searchPrompt}
                       </p>
                     </div>
                   )}

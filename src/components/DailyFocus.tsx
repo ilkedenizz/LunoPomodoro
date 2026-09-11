@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Target, CheckCircle2, Edit2, Check } from 'lucide-react';
-import type { DailyGoal, AppTheme } from '../types';
+import type { DailyGoal, AppTheme, AppLanguage } from '../types';
+import { getTranslations } from '../utils/translations';
 
 interface DailyFocusProps {
   todayPomodoros: number;
@@ -8,6 +9,7 @@ interface DailyFocusProps {
   dailyGoal: DailyGoal;
   onUpdateGoal: (newGoal: DailyGoal) => void;
   theme?: AppTheme;
+  language?: AppLanguage;
 }
 
 export const DailyFocus: React.FC<DailyFocusProps> = React.memo(({
@@ -16,7 +18,9 @@ export const DailyFocus: React.FC<DailyFocusProps> = React.memo(({
   dailyGoal,
   onUpdateGoal,
   theme = 'dark',
+  language = 'en',
 }) => {
+  const t = getTranslations(language);
   const [isEditing, setIsEditing] = useState(false);
   const [tempTargetPomodoros, setTempTargetPomodoros] = useState(dailyGoal.targetPomodoros);
 
@@ -53,7 +57,7 @@ export const DailyFocus: React.FC<DailyFocusProps> = React.memo(({
               isLight ? 'text-slate-600' : 'text-white/70'
             }`}
           >
-            Today's Focus
+            {t.dailyFocus}
           </span>
         </div>
 
@@ -69,8 +73,8 @@ export const DailyFocus: React.FC<DailyFocusProps> = React.memo(({
                 ? 'text-slate-500 hover:text-slate-900 hover:bg-black/5'
                 : 'text-white/50 hover:text-white hover:bg-white/10'
             }`}
-            title="Edit Daily Goal"
-            aria-label="Edit daily goal"
+            title={t.editGoal}
+            aria-label={t.editGoal}
           >
             <Edit2 className="w-3.5 h-3.5" />
           </button>
@@ -82,11 +86,11 @@ export const DailyFocus: React.FC<DailyFocusProps> = React.memo(({
                 ? 'bg-slate-900 text-white hover:bg-slate-800'
                 : 'bg-white/20 hover:bg-white/30 text-white'
             }`}
-            title="Save Daily Goal"
-            aria-label="Save daily goal"
+            title={t.save}
+            aria-label={t.save}
           >
             <Check className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Save</span>
+            <span>{t.save}</span>
           </button>
         )}
       </div>
@@ -95,7 +99,7 @@ export const DailyFocus: React.FC<DailyFocusProps> = React.memo(({
       {isEditing ? (
         <div className="py-2 flex items-center justify-between text-xs">
           <span className={isLight ? 'text-slate-700' : 'text-white/70'}>
-            Target Pomodoros:
+            {t.targetPomodoros}:
           </span>
           <div className="flex items-center space-x-2">
             <button
@@ -129,15 +133,15 @@ export const DailyFocus: React.FC<DailyFocusProps> = React.memo(({
               </span>
               <span className={`text-xs ${isLight ? 'text-slate-400' : 'text-white/50'}`}>/</span>
               <span className={`font-timer text-sm ${isLight ? 'text-slate-600' : 'text-white/70'}`}>
-                {dailyGoal.targetPomodoros} sessions
+                {dailyGoal.targetPomodoros} {language === 'tr' ? 'oturum' : 'sessions'}
               </span>
             </div>
 
             <div className={`text-xs ${isLight ? 'text-slate-600' : 'text-white/70'}`}>
               <span className={`font-semibold ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                {todayMinutes} min
+                {todayMinutes} {t.min}
               </span>
-              <span className={isLight ? 'text-slate-400' : 'text-white/40'}> focused</span>
+              <span className={isLight ? 'text-slate-400' : 'text-white/40'}> {language === 'tr' ? 'odaklanıldı' : 'focused'}</span>
             </div>
           </div>
 
@@ -166,12 +170,12 @@ export const DailyFocus: React.FC<DailyFocusProps> = React.memo(({
                 isLight ? 'text-slate-500' : 'text-white/50'
               }`}
             >
-              Progress {progressPercent}%
+              {language === 'tr' ? `İlerleme %${progressPercent}` : `Progress ${progressPercent}%`}
             </span>
             {isGoalReached && (
               <span className="flex items-center space-x-1 text-emerald-600 dark:text-emerald-300 font-medium">
                 <CheckCircle2 className="w-3 h-3" />
-                <span>Daily goal complete</span>
+                <span>{language === 'tr' ? 'Günlük hedef tamamlandı' : 'Daily goal complete'}</span>
               </span>
             )}
           </div>

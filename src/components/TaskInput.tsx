@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { Plus, X } from 'lucide-react';
-import type { AppTheme } from '../types';
+import type { AppTheme, AppLanguage } from '../types';
+import { getTranslations } from '../utils/translations';
 
 interface TaskInputProps {
   onAddTask: (title: string) => void;
   onCancel?: () => void;
   autoFocus?: boolean;
   theme?: AppTheme;
+  language?: AppLanguage;
 }
 
 export const TaskInput: React.FC<TaskInputProps> = ({
@@ -14,7 +16,9 @@ export const TaskInput: React.FC<TaskInputProps> = ({
   onCancel,
   autoFocus = true,
   theme = 'dark',
+  language = 'en',
 }) => {
+  const t = getTranslations(language);
   const [title, setTitle] = useState('');
   const isLight = theme === 'light';
 
@@ -48,33 +52,33 @@ export const TaskInput: React.FC<TaskInputProps> = ({
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="What's on your mind?"
+          placeholder={t.addTaskPlaceholder}
           autoFocus={autoFocus}
           className={`w-full bg-transparent text-sm focus:outline-none ${
             isLight
               ? 'text-slate-900 placeholder-slate-400'
               : 'text-white placeholder-white/40'
           }`}
-          aria-label="New task title"
+          aria-label={t.addTaskPlaceholder}
         />
         {title.length > 0 && (
           <button
             type="submit"
-            aria-label="Add task"
+            aria-label={t.addTask}
             className={`px-2.5 py-1 rounded-lg font-semibold text-xs transition-all shrink-0 ${
               isLight
                 ? 'bg-slate-900 text-white hover:bg-slate-800'
                 : 'bg-white text-black hover:bg-white/90'
             }`}
           >
-            Add
+            {language === 'tr' ? 'Ekle' : 'Add'}
           </button>
         )}
         {onCancel && (
           <button
             type="button"
             onClick={onCancel}
-            aria-label="Cancel adding task"
+            aria-label={t.cancel}
             className={`p-1 rounded-lg transition-all shrink-0 ${
               isLight
                 ? 'text-slate-400 hover:text-slate-900 hover:bg-black/5'
@@ -88,4 +92,5 @@ export const TaskInput: React.FC<TaskInputProps> = ({
     </form>
   );
 };
+
  

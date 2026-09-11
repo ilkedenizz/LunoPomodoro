@@ -2,6 +2,7 @@ export type TimerMode = 'pomodoro' | 'shortBreak' | 'longBreak';
 export type TimerState = 'idle' | 'running' | 'paused' | 'completed';
 
 export type AppTheme = 'dark' | 'light';
+export type AppLanguage = 'en' | 'tr';
 export type TimerColorId =
   | 'default'
   | 'white'
@@ -25,6 +26,7 @@ export interface TimerSettings {
   tickingEnabled: boolean;
   theme: AppTheme;
   timerColor: TimerColorId;
+  language?: AppLanguage;
 }
 
 export interface FocusSession {
@@ -38,7 +40,9 @@ export interface FocusSession {
 export interface AtmosphereTheme {
   id: string;
   name: string;
+  nameTr?: string;
   tagline: string;
+  taglineTr?: string;
   themeType?: 'dark' | 'light' | 'both';
   imageUrl?: string;
   cssBackground: string;

@@ -32,6 +32,7 @@ import {
   ChevronRight,
   Trash2,
   Upload,
+  Globe,
 } from 'lucide-react';
 import type {
   TimerSettings,
@@ -41,6 +42,7 @@ import type {
   SyncStatus,
   FocusSession,
   Task,
+  AppLanguage,
 } from '../types';
 import { TIMER_COLORS } from '../utils/timerColors';
 import {
@@ -50,6 +52,7 @@ import {
   formatTotalFocusTime,
 } from '../utils/statistics';
 import { isToday } from '../utils/dates';
+import { getTranslations } from '../utils/translations';
 import {
   updateUserProfile,
   updateUserPassword,
@@ -67,6 +70,7 @@ interface DurationInputProps {
   value: number;
   onChange: (newValue: number) => void;
   isLight: boolean;
+  unit?: string;
 }
 
 const DurationInput: React.FC<DurationInputProps> = ({
@@ -75,6 +79,7 @@ const DurationInput: React.FC<DurationInputProps> = ({
   value,
   onChange,
   isLight,
+  unit = 'min',
 }) => {
   const [localText, setLocalText] = useState<string | null>(null);
 
@@ -146,7 +151,7 @@ const DurationInput: React.FC<DurationInputProps> = ({
           }`}
         />
         <span className={`text-xs font-mono font-medium ${isLight ? 'text-slate-500' : 'text-white/50'}`}>
-          min
+          {unit}
         </span>
       </div>
     </div>
@@ -172,6 +177,7 @@ interface SettingsModalProps {
   onUserUpdate?: (updatedUser: UserProfile) => void;
   onOpenFriends?: () => void;
   incomingRequestsCount?: number;
+  language?: AppLanguage;
 }
 
 const formatLastSynced = (timestamp: number | null): string => {
@@ -378,6 +384,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   if (!isOpen) return null;
 
+  const language: AppLanguage = settings.language || 'en';
+  const t = getTranslations(language);
+
   const handleChange = (key: keyof TimerSettings, value: unknown) => {
     onSaveSettings({ ...settings, [key]: value });
   };
@@ -406,11 +415,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     if (isNicknameChanged) {
       const valRes = validateNickname(cleanNickname);
       if (!valRes.valid) {
-        setProfileSaveError(valRes.error || 'Invalid nickname.');
+        setProfileSaveError(valRes.error || t.nicknameInvalid);
         return;
       }
       if (nicknameStatus === 'taken') {
-        setProfileSaveError('This nickname is already taken. Please choose another.');
+        setProfileSaveError(t.nicknameTaken);
         return;
       }
     }
@@ -438,7 +447,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         }, 1200);
       }
     } catch {
-      setProfileSaveError('Failed to update profile.');
+      setProfileSaveError(language === 'tr' ? 'Profil güncellenemedi.' : 'Failed to update profile.');
     } finally {
       setIsSavingProfile(false);
     }
@@ -449,37 +458,37 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     setNicknameInput(user?.nickname || '');
     setNicknameStatus('idle');
     setNicknameMessage('');
+    setIsEditingProfile(false);
     setProfileSaveError(null);
+    setProfileSaveSuccess(false);
     setIsChangingPassword(false);
     setNewPassword('');
     setConfirmPassword('');
     setPasswordError(null);
     setPasswordSuccess(null);
-    setIsEditingProfile(false);
   };
 
   // Handle Password Change
-  const handleSavePassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setPasswordError(null);
-    setPasswordSuccess(null);
-
-    if (newPassword.length < 6) {
-      setPasswordError('New password must be at least 6 characters long.');
+  const handleSavePassword = async () => {
+    if (!newPassword || newPassword.length < 6) {
+      setPasswordError(t.passwordMinLength);
       return;
     }
     if (newPassword !== confirmPassword) {
-      setPasswordError('Passwords do not match.');
+      setPasswordError(t.passwordsDoNotMatch);
       return;
     }
 
     setIsSavingPassword(true);
+    setPasswordError(null);
+    setPasswordSuccess(null);
+
     try {
       const res = await updateUserPassword(newPassword);
       if (res.error) {
         setPasswordError(res.error);
       } else {
-        setPasswordSuccess('Password updated successfully!');
+        setPasswordSuccess(t.passwordUpdatedSuccess);
         setNewPassword('');
         setConfirmPassword('');
         setTimeout(() => {
@@ -488,15 +497,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         }, 2000);
       }
     } catch {
-      setPasswordError('Failed to update password.');
+      setPasswordError(language === 'tr' ? 'Şifre güncellenemedi.' : 'Failed to update password.');
     } finally {
       setIsSavingPassword(false);
     }
   };
 
-  // Handle Resend Email Verification
+  // Handle Resend Email Confirmation
   const handleResendEmail = async () => {
-    if (!user?.email) return;
+    if (!user?.email || isResendingEmail) return;
+
     setIsResendingEmail(true);
     setResendError(null);
     setResendSuccess(null);
@@ -506,11 +516,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       if (res.error) {
         setResendError(res.error);
       } else {
-        setResendSuccess('Verification email sent! Check your inbox.');
+        setResendSuccess(t.resendSuccess);
         setTimeout(() => setResendSuccess(null), 4000);
       }
     } catch {
-      setResendError('Failed to resend confirmation email.');
+      setResendError(language === 'tr' ? 'Doğrulama e-postası yeniden gönderilemedi.' : 'Failed to resend confirmation email.');
     } finally {
       setIsResendingEmail(false);
     }
@@ -564,13 +574,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <h2 id="settings-title" className={`text-lg sm:text-xl font-bold tracking-tight ${
                 isLight ? 'text-slate-900' : 'text-white'
               }`}>
-                {activeTab === 'preferences' ? 'Settings & Preferences' : 'Profile Hub'}
+                {activeTab === 'preferences' ? t.settingsPreferences : t.profileHub}
               </h2>
             </div>
 
             <button
               onClick={onClose}
-              aria-label="Close settings"
+              aria-label={t.close}
               className={`p-2 rounded-xl transition-all focus:outline-none focus-visible:ring-2 ${
                 isLight
                   ? 'text-slate-500 hover:text-slate-900 hover:bg-slate-100 focus-visible:ring-slate-400'
@@ -599,7 +609,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               }`}
             >
               <Sliders className="w-3.5 h-3.5" />
-              <span>Preferences</span>
+              <span>{t.preferences}</span>
             </button>
 
             <button
@@ -616,7 +626,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               }`}
             >
               <User className="w-3.5 h-3.5" />
-              <span>Profile Hub</span>
+              <span>{t.profileHub}</span>
               {user && (
                 <span className={`w-2 h-2 rounded-full ${
                   syncStatus?.state === 'syncing'
@@ -637,12 +647,58 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                TAB 1: PREFERENCES & TIMER SETTINGS
                ========================================================== */
             <>
+              {/* Language Selection */}
+              <div>
+                <h3 className={`text-[11px] font-mono font-semibold uppercase tracking-wider mb-3 flex items-center gap-1.5 ${
+                  isLight ? 'text-slate-500' : 'text-white/50'
+                }`}>
+                  <Globe className="w-3.5 h-3.5" /> {t.language}
+                </h3>
+                <div className={`grid grid-cols-2 gap-2 p-1 rounded-2xl border ${
+                  isLight ? 'bg-slate-100 border-slate-200' : 'bg-white/5 border-white/10'
+                }`}>
+                  <button
+                    type="button"
+                    onClick={() => handleChange('language', 'en')}
+                    className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-medium transition-all ${
+                      language === 'en'
+                        ? isLight
+                          ? 'bg-white text-slate-900 shadow-sm border border-slate-200 font-semibold'
+                          : 'bg-white/20 text-white shadow-md border border-white/25 font-semibold'
+                        : isLight
+                        ? 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+                        : 'text-white/60 hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    <span>🇬🇧</span>
+                    <span>English</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleChange('language', 'tr')}
+                    className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-medium transition-all ${
+                      language === 'tr'
+                        ? isLight
+                          ? 'bg-white text-slate-900 shadow-sm border border-slate-200 font-semibold'
+                          : 'bg-white/20 text-white shadow-md border border-white/25 font-semibold'
+                        : isLight
+                        ? 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+                        : 'text-white/60 hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    <span>🇹🇷</span>
+                    <span>Türkçe</span>
+                  </button>
+                </div>
+              </div>
+
               {/* Appearance / Theme Mode */}
               <div>
                 <h3 className={`text-[11px] font-mono font-semibold uppercase tracking-wider mb-3 flex items-center gap-1.5 ${
                   isLight ? 'text-slate-500' : 'text-white/50'
                 }`}>
-                  <Sun className="w-3.5 h-3.5" /> Appearance / Theme
+                  <Sun className="w-3.5 h-3.5" /> {t.appearanceTheme}
                 </h3>
                 <div className={`grid grid-cols-2 gap-2 p-1 rounded-2xl border ${
                   isLight ? 'bg-slate-100 border-slate-200' : 'bg-white/5 border-white/10'
@@ -661,7 +717,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     }`}
                   >
                     <Moon className="w-4 h-4" />
-                    <span>Dark Theme</span>
+                    <span>{t.darkTheme}</span>
                   </button>
 
                   <button
@@ -674,7 +730,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     }`}
                   >
                     <Sun className="w-4 h-4" />
-                    <span>Light Theme</span>
+                    <span>{t.lightTheme}</span>
                   </button>
                 </div>
               </div>
@@ -685,10 +741,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <h3 className={`text-[11px] font-mono font-semibold uppercase tracking-wider flex items-center gap-1.5 ${
                     isLight ? 'text-slate-500' : 'text-white/50'
                   }`}>
-                    <Palette className="w-3.5 h-3.5" /> Timer Color
+                    <Palette className="w-3.5 h-3.5" /> {t.timerColor}
                   </h3>
                   <span className={`text-[11px] font-medium ${isLight ? 'text-slate-600' : 'text-white/70'}`}>
-                    {TIMER_COLORS.find((c) => c.id === (settings.timerColor || 'default'))?.name}
+                    {(() => {
+                      const sel = TIMER_COLORS.find((c) => c.id === (settings.timerColor || 'default'));
+                      return language === 'tr' ? sel?.nameTr : sel?.name;
+                    })()}
                   </span>
                 </div>
 
@@ -698,12 +757,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <div className="grid grid-cols-5 sm:grid-cols-9 gap-2">
                     {TIMER_COLORS.map((color) => {
                       const isSelected = (settings.timerColor || 'default') === color.id;
+                      const colLabel = language === 'tr' ? color.nameTr : color.name;
                       return (
                         <button
                           key={color.id}
                           type="button"
                           onClick={() => handleChange('timerColor', color.id as TimerColorId)}
-                          aria-label={`Select ${color.name} timer color`}
+                          aria-label={`Select ${colLabel} timer color`}
                           title={`${color.name} (${color.nameTr})`}
                           className={`relative w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 focus:outline-none focus-visible:ring-2 ${
                             isSelected
@@ -731,31 +791,34 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <h3 className={`text-[11px] font-mono font-semibold uppercase tracking-wider mb-3 ${
                   isLight ? 'text-slate-500' : 'text-white/50'
                 }`}>
-                  Timer Durations
+                  {t.timerDurations}
                 </h3>
                 <div className="grid grid-cols-3 gap-2 sm:gap-3">
                   <DurationInput
                     id="setting-duration-focus"
-                    label="Focus"
+                    label={language === 'tr' ? 'Odak' : 'Focus'}
                     value={settings.pomodoroDuration}
                     onChange={(val) => handleChange('pomodoroDuration', val)}
                     isLight={isLight}
+                    unit={t.min}
                   />
 
                   <DurationInput
                     id="setting-duration-short-break"
-                    label="Short Break"
+                    label={t.shortBreak}
                     value={settings.shortBreakDuration}
                     onChange={(val) => handleChange('shortBreakDuration', val)}
                     isLight={isLight}
+                    unit={t.min}
                   />
 
                   <DurationInput
                     id="setting-duration-long-break"
-                    label="Long Break"
+                    label={t.longBreak}
                     value={settings.longBreakDuration}
                     onChange={(val) => handleChange('longBreakDuration', val)}
                     isLight={isLight}
+                    unit={t.min}
                   />
                 </div>
               </div>
@@ -765,7 +828,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <h3 className={`text-[11px] font-mono font-semibold uppercase tracking-wider mb-3 flex items-center gap-1.5 ${
                   isLight ? 'text-slate-500' : 'text-white/50'
                 }`}>
-                  <Sparkles className="w-3.5 h-3.5" /> Automation
+                  <Sparkles className="w-3.5 h-3.5" /> {t.automation}
                 </h3>
                 <div className="space-y-2.5">
                   <label className={`flex items-center justify-between p-3 rounded-2xl border cursor-pointer transition-all ${
@@ -773,7 +836,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       ? 'bg-slate-50 hover:bg-slate-100/80 border-slate-200 text-slate-800'
                       : 'bg-white/5 hover:bg-white/10 border-white/10 text-white/90'
                   }`}>
-                    <span className="text-sm font-medium">Auto-start Breaks</span>
+                    <span className="text-sm font-medium">{t.autoStartBreaks}</span>
                     <input
                       type="checkbox"
                       checked={settings.autoStartBreaks}
@@ -787,7 +850,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       ? 'bg-slate-50 hover:bg-slate-100/80 border-slate-200 text-slate-800'
                       : 'bg-white/5 hover:bg-white/10 border-white/10 text-white/90'
                   }`}>
-                    <span className="text-sm font-medium">Auto-start Pomodoros</span>
+                    <span className="text-sm font-medium">{t.autoStartPomodoros}</span>
                     <input
                       type="checkbox"
                       checked={settings.autoStartPomodoros}
@@ -803,7 +866,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <h3 className={`text-[11px] font-mono font-semibold uppercase tracking-wider mb-3 flex items-center gap-1.5 ${
                   isLight ? 'text-slate-500' : 'text-white/50'
                 }`}>
-                  <Volume2 className="w-3.5 h-3.5" /> Audio & Notifications
+                  <Volume2 className="w-3.5 h-3.5" /> {t.audioNotifications}
                 </h3>
                 <div className="space-y-2.5">
                   <label className={`flex items-center justify-between p-3 rounded-2xl border cursor-pointer transition-all ${
@@ -813,7 +876,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   }`}>
                     <div className="flex items-center gap-2">
                       <Volume2 className={`w-4 h-4 ${isLight ? 'text-slate-500' : 'text-white/60'}`} />
-                      <span className="text-sm font-medium">Completion Sound Chime</span>
+                      <span className="text-sm font-medium">{t.completionSound}</span>
                     </div>
                     <input
                       type="checkbox"
@@ -830,7 +893,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   }`}>
                     <div className="flex items-center gap-2">
                       <Bell className={`w-4 h-4 ${isLight ? 'text-slate-500' : 'text-white/60'}`} />
-                      <span className="text-sm font-medium">Browser Notifications</span>
+                      <span className="text-sm font-medium">{t.browserNotifications}</span>
                     </div>
                     <input
                       type="checkbox"
@@ -890,11 +953,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                               <button
                                 type="button"
                                 onClick={() => avatarFileInputRef.current?.click()}
-                                aria-label="Upload or change profile photo"
+                                aria-label={user.avatarUrl ? t.changePhoto : t.uploadPhoto}
                                 className="absolute inset-0 bg-black/55 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity flex flex-col items-center justify-center text-white text-[11px] font-medium cursor-pointer z-10 rounded-full"
                               >
                                 <Camera className="w-5 h-5 mb-0.5" />
-                                <span>{user.avatarUrl ? 'Change' : 'Upload'}</span>
+                                <span>{user.avatarUrl ? (language === 'tr' ? 'Değiştir' : 'Change') : (language === 'tr' ? 'Yükle' : 'Upload')}</span>
                               </button>
                             )}
                           </div>
@@ -944,12 +1007,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             {user.emailVerified ? (
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
                                 <ShieldCheck className="w-3 h-3" />
-                                <span>Verified</span>
+                                <span>{t.verified}</span>
                               </span>
                             ) : (
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/15 text-amber-400 border border-amber-500/30">
                                 <AlertCircle className="w-3 h-3" />
-                                <span>Unverified</span>
+                                <span>{t.unverified}</span>
                               </span>
                             )}
                           </div>
@@ -968,12 +1031,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                               <Cloud className="w-3 h-3" />
                               <span>
                                 {syncStatus?.state === 'syncing'
-                                  ? 'Syncing...'
+                                  ? t.syncing
                                   : syncStatus?.state === 'offline'
-                                  ? 'Offline'
+                                  ? t.offline
                                   : (syncStatus?.pendingCount ?? 0) > 0
-                                  ? 'Saved Locally'
-                                  : 'Cloud Synced'}
+                                  ? t.savedLocally
+                                  : t.cloudSynced}
                               </span>
                             </span>
 
@@ -983,8 +1046,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                 : 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30'
                             }`}>
                               <Clock className="w-3 h-3 text-indigo-400 shrink-0" />
-                              <span className="font-timer">{formatTotalFocusTime(totalFocusMinutes)}</span>
-                              <span className="font-normal opacity-75">Focus</span>
+                              <span className="font-timer">{formatTotalFocusTime(totalFocusMinutes, language)}</span>
+                              <span className="font-normal opacity-75">{language === 'tr' ? 'Odak' : 'Focus'}</span>
                             </span>
                           </div>
                         </div>
@@ -1006,7 +1069,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           }`}
                         >
                           <Edit3 className="w-3.5 h-3.5" />
-                          <span>{isEditingProfile ? 'Close Edit' : 'Edit Profile'}</span>
+                          <span>{isEditingProfile ? t.closeEdit : t.editProfile}</span>
                         </button>
 
                         <button
@@ -1019,7 +1082,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           }`}
                         >
                           <LogOut className="w-3.5 h-3.5" />
-                          <span>Sign Out</span>
+                          <span>{t.signOut}</span>
                         </button>
                       </div>
                     </div>
@@ -1049,7 +1112,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       <div className="flex items-center justify-between border-b pb-2.5 border-dashed border-white/10">
                         <div className="flex items-center gap-2">
                           <Edit3 className="w-4 h-4 text-indigo-400" />
-                          <h3 className="text-xs sm:text-sm font-bold">Edit Profile Details</h3>
+                          <h3 className="text-xs sm:text-sm font-bold">{t.editProfileDetails}</h3>
                         </div>
                         <button
                           type="button"
@@ -1058,7 +1121,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             isLight ? 'text-slate-500 hover:bg-slate-100' : 'text-white/60 hover:bg-white/10'
                           }`}
                         >
-                          Cancel
+                          {t.cancel}
                         </button>
                       </div>
 
@@ -1079,9 +1142,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             )}
                           </div>
                           <div>
-                            <p className="text-xs font-semibold">Profile Photo</p>
+                            <p className="text-xs font-semibold">{t.profilePhoto}</p>
                             <p className={`text-[11px] ${isLight ? 'text-slate-500' : 'text-white/60'}`}>
-                              JPG, PNG or WEBP (max 3MB)
+                              {t.photoHint}
                             </p>
                           </div>
                         </div>
@@ -1098,7 +1161,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             }`}
                           >
                             <Upload className="w-3.5 h-3.5" />
-                            <span>{isUploadingAvatar ? 'Uploading...' : 'Upload'}</span>
+                            <span>{isUploadingAvatar ? (language === 'tr' ? 'Yükleniyor...' : 'Uploading...') : t.uploadPhoto}</span>
                           </button>
 
                           {user.avatarUrl && (
@@ -1109,7 +1172,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                               className="px-3 py-1.5 rounded-xl text-xs font-semibold text-rose-400 hover:text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 transition-all cursor-pointer disabled:opacity-50 flex items-center gap-1"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
-                              <span>{isRemovingAvatar ? 'Removing...' : 'Remove'}</span>
+                              <span>{isRemovingAvatar ? (language === 'tr' ? 'Kaldırılıyor...' : 'Removing...') : t.removePhoto}</span>
                             </button>
                           )}
                         </div>
@@ -1124,10 +1187,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                               htmlFor="edit-account-nickname"
                               className={`block text-xs font-medium ${isLight ? 'text-slate-700' : 'text-white/80'}`}
                             >
-                              Nickname / Username
+                              {t.nicknameLabel}
                             </label>
                             <span className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-white/50'}`}>
-                              3-20 chars, unique
+                              {t.nicknameHint}
                             </span>
                           </div>
                           <div className="relative">
@@ -1140,7 +1203,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                               autoComplete="username"
                               value={nicknameInput}
                               onChange={(e) => handleNicknameChange(e.target.value)}
-                              placeholder="zen_master"
+                              placeholder={t.nicknamePlaceholder}
                               maxLength={20}
                               className={`w-full pl-10 pr-10 py-2 rounded-xl text-xs sm:text-sm border transition-all focus:outline-none focus:ring-2 ${
                                 nicknameStatus === 'available'
@@ -1187,14 +1250,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             htmlFor="edit-account-display-name"
                             className={`block text-xs font-medium mb-1 ${isLight ? 'text-slate-700' : 'text-white/80'}`}
                           >
-                            Display Name (optional)
+                            {t.displayNameLabel}
                           </label>
                           <input
                             id="edit-account-display-name"
                             type="text"
                             value={displayNameInput}
                             onChange={(e) => setDisplayNameInput(e.target.value)}
-                            placeholder="e.g. Alex, FocusMaster"
+                            placeholder={t.displayNamePlaceholder}
                             maxLength={40}
                             className={`w-full px-3.5 py-2 rounded-xl text-xs sm:text-sm border transition-all focus:outline-none focus:ring-2 ${
                               isLight
@@ -1215,13 +1278,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                               }`}
                             >
                               <Lock className="w-3.5 h-3.5" />
-                              <span>Change account password...</span>
+                              <span>{t.changePasswordLink}</span>
                             </button>
                           ) : (
                             <div className="space-y-2.5 p-3 rounded-2xl border border-indigo-500/30 bg-indigo-500/5">
                               <div className="flex items-center justify-between">
                                 <span className="text-xs font-semibold flex items-center gap-1.5">
-                                  <Lock className="w-3.5 h-3.5 text-indigo-400" /> New Password
+                                  <Lock className="w-3.5 h-3.5 text-indigo-400" /> {t.newPasswordLabel}
                                 </span>
                                 <button
                                   type="button"
@@ -1232,12 +1295,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                   }}
                                   className="text-[11px] opacity-60 hover:opacity-100 underline cursor-pointer"
                                 >
-                                  Hide
+                                  {language === 'tr' ? 'Gizle' : 'Hide'}
                                 </button>
                               </div>
                               <input
                                 type="password"
-                                placeholder="New password (min. 6 chars)"
+                                placeholder={t.newPasswordPlaceholder}
                                 value={newPassword}
                                 onChange={(e) => setNewPassword(e.target.value)}
                                 className={`w-full px-3 py-1.5 rounded-xl text-xs border ${
@@ -1246,7 +1309,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                               />
                               <input
                                 type="password"
-                                placeholder="Confirm new password"
+                                placeholder={t.confirmPasswordPlaceholder}
                                 value={confirmPassword}
                                 onChange={(e) => setConfirmPassword(e.target.value)}
                                 className={`w-full px-3 py-1.5 rounded-xl text-xs border ${
@@ -1273,7 +1336,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                   isLight ? 'bg-indigo-600 text-white' : 'bg-indigo-500 text-white'
                                 }`}
                               >
-                                {isSavingPassword ? 'Updating Password...' : 'Update Password'}
+                                {isSavingPassword ? t.updatingPassword : t.updatePassword}
                               </button>
                             </div>
                           )}
@@ -1296,7 +1359,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                 isLight ? 'text-slate-600 hover:bg-slate-100' : 'text-white/60 hover:bg-white/10'
                               }`}
                             >
-                              Cancel
+                              {t.cancel}
                             </button>
 
                             <button
@@ -1321,10 +1384,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                               ) : profileSaveSuccess ? (
                                 <>
                                   <Check className="w-3.5 h-3.5" />
-                                  <span>Saved</span>
+                                  <span>{t.saved}</span>
                                 </>
                               ) : (
-                                <span>Save Changes</span>
+                                <span>{t.saveChanges}</span>
                               )}
                             </button>
                           </div>
@@ -1338,7 +1401,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <h3 className={`text-[11px] font-mono font-semibold uppercase tracking-wider flex items-center gap-1.5 ${
                       isLight ? 'text-slate-500' : 'text-white/50'
                     }`}>
-                      <TrendingUp className="w-3.5 h-3.5" /> Focus Statistics
+                      <TrendingUp className="w-3.5 h-3.5" /> {t.focusStatistics}
                     </h3>
 
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
@@ -1351,17 +1414,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         <div className="flex items-center justify-between text-indigo-400 mb-1.5">
                           <Clock className="w-4 h-4" />
                           <span className={`text-[10px] font-mono font-semibold ${isLight ? 'text-indigo-600' : 'text-indigo-300'}`}>
-                            TOTAL
+                            {language === 'tr' ? 'TOPLAM' : 'TOTAL'}
                           </span>
                         </div>
                         <div>
                           <div className={`text-base sm:text-lg font-bold font-timer tracking-tight ${
                             isLight ? 'text-indigo-800' : 'text-indigo-200'
                           }`}>
-                            {formatTotalFocusTime(totalFocusMinutes)}
+                            {formatTotalFocusTime(totalFocusMinutes, language)}
                           </div>
                           <div className={`text-[10px] font-medium ${isLight ? 'text-slate-600' : 'text-white/70'}`}>
-                            Total Focus Time
+                            {t.totalFocusTime}
                           </div>
                         </div>
                       </div>
@@ -1373,13 +1436,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         <div className="flex items-center justify-between text-purple-400 mb-1.5">
                           <Award className="w-4 h-4" />
                           <span className={`text-[10px] font-mono font-medium ${isLight ? 'text-slate-500' : 'text-white/50'}`}>
-                            POMOS
+                            {t.pomos}
                           </span>
                         </div>
                         <div>
                           <div className="text-base sm:text-lg font-bold font-timer">{completedPomodoros}</div>
                           <div className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-white/60'}`}>
-                            Completed
+                            {t.completed}
                           </div>
                         </div>
                       </div>
@@ -1391,15 +1454,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         <div className="flex items-center justify-between text-emerald-400 mb-1.5">
                           <TrendingUp className="w-4 h-4" />
                           <span className={`text-[10px] font-mono font-medium ${isLight ? 'text-slate-500' : 'text-white/50'}`}>
-                            TODAY
+                            {language === 'tr' ? 'BUGÜN' : 'TODAY'}
                           </span>
                         </div>
                         <div>
                           <div className="text-base sm:text-lg font-bold font-timer">
-                            {formatTotalFocusTime(todayFocusMinutes)}
+                            {formatTotalFocusTime(todayFocusMinutes, language)}
                           </div>
                           <div className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-white/60'}`}>
-                            Today Focus
+                            {t.todayFocus}
                           </div>
                         </div>
                       </div>
@@ -1411,15 +1474,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         <div className="flex items-center justify-between text-amber-400 mb-1.5">
                           <Flame className="w-4 h-4" />
                           <span className={`text-[10px] font-mono font-medium ${isLight ? 'text-slate-500' : 'text-white/50'}`}>
-                            STREAK
+                            {t.streak}
                           </span>
                         </div>
                         <div>
                           <div className="text-base sm:text-lg font-bold font-timer">
-                            {currentStreakDays} {currentStreakDays === 1 ? 'day' : 'days'}
+                            {currentStreakDays} {currentStreakDays === 1 ? t.day : t.days}
                           </div>
                           <div className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-white/60'}`}>
-                            Active Streak
+                            {t.activeStreak}
                           </div>
                         </div>
                       </div>
@@ -1439,15 +1502,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         </div>
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
-                            <h4 className="text-xs sm:text-sm font-bold truncate">Friends & Community</h4>
+                            <h4 className="text-xs sm:text-sm font-bold truncate">{language === 'tr' ? 'Arkadaşlar & Topluluk' : 'Friends & Community'}</h4>
                             {incomingRequestsCount > 0 && (
                               <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500 text-white animate-pulse">
-                                {incomingRequestsCount} new request!
+                                {incomingRequestsCount} {t.newRequest}
                               </span>
                             )}
                           </div>
                           <p className={`text-[11px] truncate ${isLight ? 'text-slate-600' : 'text-white/70'}`}>
-                            Find study partners, compare streaks, and share focus sessions.
+                            {t.friendsCommunityDesc}
                           </p>
                         </div>
                       </div>
@@ -1464,7 +1527,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             : 'bg-indigo-500 text-white hover:bg-indigo-600 shadow-md'
                         }`}
                       >
-                        <span>Open Friends</span>
+                        <span>{t.openFriends}</span>
                         <ChevronRight className="w-3.5 h-3.5" />
                       </button>
                     </div>
@@ -1477,7 +1540,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <div className="flex items-center justify-between text-xs">
                       <div className="flex items-center space-x-2">
                         <Cloud className={`w-3.5 h-3.5 ${isLight ? 'text-slate-400' : 'text-white/40'}`} />
-                        <span className={isLight ? 'text-slate-600' : 'text-white/70'}>Last cloud sync:</span>
+                        <span className={isLight ? 'text-slate-600' : 'text-white/70'}>{t.lastCloudSync}</span>
                       </div>
                       <span className="font-semibold font-mono text-[11px]">
                         {formatLastSynced(syncStatus?.lastSyncedAt ?? null)}
@@ -1487,10 +1550,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <div className="pt-2 border-t border-dashed border-white/10 flex items-center justify-between text-xs">
                       <div className="flex items-center space-x-2">
                         <Calendar className={`w-3.5 h-3.5 ${isLight ? 'text-slate-400' : 'text-white/40'}`} />
-                        <span className={isLight ? 'text-slate-600' : 'text-white/70'}>Member since:</span>
+                        <span className={isLight ? 'text-slate-600' : 'text-white/70'}>{t.memberSince}</span>
                       </div>
                       <span className="font-medium">
-                        {new Date(user.createdAt).toLocaleDateString(undefined, {
+                        {new Date(user.createdAt).toLocaleDateString(language === 'tr' ? 'tr-TR' : 'en-US', {
                           month: 'long',
                           day: 'numeric',
                           year: 'numeric',
@@ -1503,7 +1566,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 space-y-1.5">
                         <div className="flex items-center justify-between text-xs">
                           <span className="font-medium text-amber-300 flex items-center gap-1.5">
-                            <AlertCircle className="w-3.5 h-3.5 shrink-0" /> Email unverified
+                            <AlertCircle className="w-3.5 h-3.5 shrink-0" /> {t.emailUnverified}
                           </span>
                           <button
                             type="button"
@@ -1512,7 +1575,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             className="text-amber-300 hover:text-amber-200 text-xs font-semibold underline flex items-center gap-1 shrink-0 cursor-pointer disabled:opacity-50"
                           >
                             {isResendingEmail ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
-                            <span>Resend Email</span>
+                            <span>{t.resendEmail}</span>
                           </button>
                         </div>
                         {resendSuccess && (
@@ -1532,8 +1595,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
                     {(syncStatus?.pendingCount ?? 0) > 0 && (
                       <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs flex items-center justify-between">
-                        <span>{syncStatus?.pendingCount} unsynced change(s) saved locally</span>
-                        <span className="text-[10px] opacity-80">Auto-retrying</span>
+                        <span>{syncStatus?.pendingCount} {t.unsyncedChanges}</span>
+                        <span className="text-[10px] opacity-80">{t.autoRetrying}</span>
                       </div>
                     )}
 
@@ -1548,7 +1611,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       }`}
                     >
                       <RefreshCw className={`w-3.5 h-3.5 ${isManualSyncing || syncStatus?.state === 'syncing' ? 'animate-spin' : ''}`} />
-                      <span>{isManualSyncing || syncStatus?.state === 'syncing' ? 'Synchronizing records...' : 'Sync Now'}</span>
+                      <span>{isManualSyncing || syncStatus?.state === 'syncing' ? t.syncingRecords : t.syncNow}</span>
                     </button>
                   </div>
                 </div>
@@ -1562,11 +1625,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       <User className="w-7 h-7" />
                     </div>
                     <div>
-                      <h3 className="text-base font-bold">Local Guest Mode</h3>
+                      <h3 className="text-base font-bold">{t.localGuestMode}</h3>
                       <p className={`text-xs max-w-xs mx-auto mt-1 leading-relaxed ${
                         isLight ? 'text-slate-600' : 'text-white/70'
                       }`}>
-                        All your tasks, preferences, and focus sessions are saved locally on this browser. Create or sign in to an account anytime to back up, sync across all your devices, and connect with study friends.
+                        {t.guestModeDesc}
                       </p>
                     </div>
 
@@ -1584,7 +1647,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         }`}
                       >
                         <Cloud className="w-4 h-4" />
-                        <span>Sign In / Create Account</span>
+                        <span>{t.signInCreateAccount}</span>
                       </button>
                     </div>
                   </div>
@@ -1594,33 +1657,33 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <h3 className={`text-[11px] font-mono font-semibold uppercase tracking-wider flex items-center gap-1.5 ${
                       isLight ? 'text-slate-500' : 'text-white/50'
                     }`}>
-                      <TrendingUp className="w-3.5 h-3.5" /> Local Focus Stats
+                      <TrendingUp className="w-3.5 h-3.5" /> {t.localFocusStats}
                     </h3>
 
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                       <div className={`p-3.5 rounded-2xl border ${
                         isLight ? 'bg-indigo-50/70 border-indigo-200/80' : 'bg-indigo-500/15 border-indigo-500/30'
                       }`}>
-                        <div className="text-xs font-bold font-timer text-indigo-400">{formatTotalFocusTime(totalFocusMinutes)}</div>
-                        <div className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-white/60'}`}>Total Focus</div>
+                        <div className="text-xs font-bold font-timer text-indigo-400">{formatTotalFocusTime(totalFocusMinutes, language)}</div>
+                        <div className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-white/60'}`}>{t.allTimeFocus}</div>
                       </div>
                       <div className={`p-3.5 rounded-2xl border ${
                         isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'
                       }`}>
                         <div className="text-xs font-bold font-timer">{completedPomodoros}</div>
-                        <div className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-white/60'}`}>Pomodoros</div>
+                        <div className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-white/60'}`}>{t.pomodoro}</div>
                       </div>
                       <div className={`p-3.5 rounded-2xl border ${
                         isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'
                       }`}>
-                        <div className="text-xs font-bold font-timer">{formatTotalFocusTime(todayFocusMinutes)}</div>
-                        <div className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-white/60'}`}>Today</div>
+                        <div className="text-xs font-bold font-timer">{formatTotalFocusTime(todayFocusMinutes, language)}</div>
+                        <div className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-white/60'}`}>{t.today}</div>
                       </div>
                       <div className={`p-3.5 rounded-2xl border ${
                         isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'
                       }`}>
-                        <div className="text-xs font-bold font-timer">{currentStreakDays}d</div>
-                        <div className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-white/60'}`}>Streak</div>
+                        <div className="text-xs font-bold font-timer">{currentStreakDays}{language === 'tr' ? 'g' : 'd'}</div>
+                        <div className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-white/60'}`}>{t.streak}</div>
                       </div>
                     </div>
                   </div>
@@ -1637,13 +1700,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {activeTab === 'preferences' ? (
             <button
               onClick={() => {
-                if (confirm('Are you sure you want to reset today statistics?')) {
+                if (confirm(t.resetConfirm)) {
                   onResetStats();
                 }
               }}
               className="text-xs text-rose-500 hover:text-rose-600 flex items-center gap-1 transition-all font-medium cursor-pointer"
             >
-              <RefreshCw className="w-3.5 h-3.5" /> Reset Today's Stats
+              <RefreshCw className="w-3.5 h-3.5" /> {t.resetTodayStats}
             </button>
           ) : (
             <span className={`text-[11px] ${isLight ? 'text-slate-500' : 'text-white/50'}`}>
@@ -1659,11 +1722,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 : 'bg-white text-black hover:bg-white/90 shadow-md'
             }`}
           >
-            Done
+            {t.done}
           </button>
         </div>
       </div>
     </div>
   );
 };
-

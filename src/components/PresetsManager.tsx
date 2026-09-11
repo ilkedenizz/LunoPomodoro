@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import type { AtmospherePreset, AtmosphereTheme, SoundMixerState } from '../types';
+import type { AtmospherePreset, AtmosphereTheme, SoundMixerState, AppLanguage } from '../types';
 import { Bookmark, Plus, Trash2, Check, Sparkles } from 'lucide-react';
+import { getTranslations } from '../utils/translations';
+import { getAtmosphereDisplayName } from '../utils/backgrounds';
 
 interface PresetsManagerProps {
   currentAtmosphere: AtmosphereTheme;
@@ -9,6 +11,7 @@ interface PresetsManagerProps {
   onApplyPreset: (preset: AtmospherePreset) => void;
   onSavePreset: (preset: AtmospherePreset) => void;
   onDeletePreset: (presetId: string) => void;
+  language?: AppLanguage;
 }
 
 export const PresetsManager: React.FC<PresetsManagerProps> = ({
@@ -18,10 +21,12 @@ export const PresetsManager: React.FC<PresetsManagerProps> = ({
   onApplyPreset,
   onSavePreset,
   onDeletePreset,
+  language = 'en',
 }) => {
   const [newPresetName, setNewPresetName] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [appliedPresetId, setAppliedPresetId] = useState<string | null>(null);
+  const t = getTranslations(language);
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,15 +57,15 @@ export const PresetsManager: React.FC<PresetsManagerProps> = ({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Bookmark className="w-4 h-4 text-indigo-500" />
-          <h4 className="text-sm font-semibold">Atmosphere & Sound Presets</h4>
+          <h4 className="text-sm font-semibold">{t.presetsTitle}</h4>
         </div>
         {!isCreating && (
           <button
             onClick={() => setIsCreating(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-600 dark:text-indigo-300 border border-indigo-500/30 rounded-lg transition"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-600 dark:text-indigo-300 border border-indigo-500/30 rounded-lg transition cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>Save Current Setup</span>
+            <span>{t.saveCurrentSetup}</span>
           </button>
         )}
       </div>
@@ -69,14 +74,14 @@ export const PresetsManager: React.FC<PresetsManagerProps> = ({
       {isCreating && (
         <form onSubmit={handleSave} className="p-3.5 rounded-xl bg-black/5 dark:bg-white/5 border border-indigo-500/30 space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-indigo-600 dark:text-indigo-300">Name Your Atmosphere Preset</span>
-            <span className="text-[11px] opacity-50">{currentAtmosphere.name}</span>
+            <span className="text-xs font-medium text-indigo-600 dark:text-indigo-300">{t.nameYourPreset}</span>
+            <span className="text-[11px] opacity-50">{getAtmosphereDisplayName(currentAtmosphere, language)}</span>
           </div>
 
           <div className="flex gap-2">
             <input
               type="text"
-              placeholder="e.g., Deep Focus Rain & Lo-Fi"
+              placeholder={t.presetPlaceholder}
               value={newPresetName}
               onChange={(e) => setNewPresetName(e.target.value)}
               autoFocus
@@ -85,16 +90,16 @@ export const PresetsManager: React.FC<PresetsManagerProps> = ({
             <button
               type="submit"
               disabled={!newPresetName.trim()}
-              className="px-4 py-2 text-xs font-medium bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 text-white rounded-lg transition"
+              className="px-4 py-2 text-xs font-medium bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 text-white rounded-lg transition cursor-pointer"
             >
-              Save
+              {t.save}
             </button>
             <button
               type="button"
               onClick={() => setIsCreating(false)}
-              className="px-3 py-2 text-xs font-medium bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 opacity-70 rounded-lg transition"
+              className="px-3 py-2 text-xs font-medium bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 opacity-70 rounded-lg transition cursor-pointer"
             >
-              Cancel
+              {t.cancel}
             </button>
           </div>
         </form>
@@ -104,9 +109,9 @@ export const PresetsManager: React.FC<PresetsManagerProps> = ({
       {presets.length === 0 ? (
         <div className="p-6 text-center rounded-xl bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10">
           <Sparkles className="w-8 h-8 opacity-30 mx-auto mb-2" />
-          <p className="text-xs opacity-60">No custom presets saved yet.</p>
+          <p className="text-xs opacity-60">{t.noPresetsYet}</p>
           <p className="text-[11px] opacity-40 mt-1">
-            Mix your favorite background and sounds, then save it as a quick preset!
+            {t.noPresetsHint}
           </p>
         </div>
       ) : (
@@ -133,7 +138,7 @@ export const PresetsManager: React.FC<PresetsManagerProps> = ({
                     </span>
                     {isCurrentlyApplied && (
                       <span className="flex items-center gap-1 text-[10px] bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-500/30">
-                        <Check className="w-3 h-3" /> Active
+                        <Check className="w-3 h-3" /> {t.activeBadge}
                       </span>
                     )}
                   </div>
@@ -152,14 +157,14 @@ export const PresetsManager: React.FC<PresetsManagerProps> = ({
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => handleApply(preset)}
-                    className="px-3 py-1.5 text-xs font-medium bg-black/10 dark:bg-white/10 hover:bg-indigo-500 hover:text-white rounded-lg transition"
+                    className="px-3 py-1.5 text-xs font-medium bg-black/10 dark:bg-white/10 hover:bg-indigo-500 hover:text-white rounded-lg transition cursor-pointer"
                   >
-                    Apply
+                    {t.applyPreset}
                   </button>
                   <button
                     onClick={() => onDeletePreset(preset.id)}
-                    className="p-1.5 opacity-40 hover:opacity-100 hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition"
-                    title="Delete Preset"
+                    className="p-1.5 opacity-40 hover:opacity-100 hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition cursor-pointer"
+                    title={t.deletePreset}
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>

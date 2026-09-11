@@ -29,7 +29,8 @@ import {
 import { isSupabaseConfigured } from '../services/supabaseClient';
 import { SyncEngine, clearPendingQueue, setLastSyncedAt } from '../services/syncEngine';
 import { clearLocalStorageData } from '../utils/storage';
-import type { AppTheme, UserProfile } from '../types';
+import type { AppTheme, UserProfile, AppLanguage } from '../types';
+import { getTranslations } from '../utils/translations';
 
 export type AuthModalMode =
   | 'signin'
@@ -42,6 +43,7 @@ interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   theme?: AppTheme;
+  language?: AppLanguage;
   initialMode?: AuthModalMode;
   initialError?: string | null;
   initialSuccess?: string | null;
@@ -52,11 +54,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   isOpen,
   onClose,
   theme = 'dark',
+  language = 'en',
   initialMode = 'signup',
   initialError = null,
   initialSuccess = null,
   onAuthSuccess,
 }) => {
+  const t = getTranslations(language);
   const [mode, setMode] = useState<AuthModalMode>(initialMode);
   const [email, setEmail] = useState('');
   const [nickname, setNickname] = useState('');
@@ -357,7 +361,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <button
                 type="button"
                 onClick={() => handleModeChange('signin')}
-                aria-label="Back to sign in"
+                aria-label={t.backToSignIn}
                 className={`p-2 rounded-xl transition-all focus:outline-none focus-visible:ring-2 ${
                   isLight
                     ? 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'
@@ -376,32 +380,32 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <div className="min-w-0">
               <h2 id="auth-modal-title" className="text-base sm:text-lg font-bold tracking-tight truncate">
                 {mode === 'signup'
-                  ? 'Create Luno Account'
+                  ? (language === 'tr' ? 'Luno Hesabı Oluştur' : 'Create Luno Account')
                   : mode === 'signin'
-                  ? 'Sign In to Luno'
+                  ? (language === 'tr' ? "Luno'ya Giriş Yap" : 'Sign In to Luno')
                   : mode === 'forgot-password'
-                  ? 'Reset Password'
+                  ? (language === 'tr' ? 'Şifre Sıfırlama' : 'Reset Password')
                   : mode === 'update-password'
-                  ? 'Set New Password'
-                  : 'Verify Your Email'}
+                  ? (language === 'tr' ? 'Yeni Şifre Belirle' : 'Set New Password')
+                  : (language === 'tr' ? 'E-postanızı Doğrulayın' : 'Verify Your Email')}
               </h2>
               <p className={`text-xs truncate ${isLight ? 'text-slate-500' : 'text-white/60'}`}>
                 {mode === 'signup'
-                  ? 'Back up and sync your focus data'
+                  ? (language === 'tr' ? 'Odak verilerinizi yedekleyin ve eşitleyin' : 'Back up and sync your focus data')
                   : mode === 'signin'
-                  ? 'Access your synced workspace'
+                  ? (language === 'tr' ? 'Senkronize çalışma alanınıza erişin' : 'Access your synced workspace')
                   : mode === 'forgot-password'
-                  ? 'We will email you a recovery link'
+                  ? (language === 'tr' ? 'Size bir kurtarma bağlantısı göndereceğiz' : 'We will email you a recovery link')
                   : mode === 'update-password'
-                  ? 'Choose a secure new password'
-                  : 'Check your email inbox to activate'}
+                  ? (language === 'tr' ? 'Güvenli yeni bir şifre seçin' : 'Choose a secure new password')
+                  : (language === 'tr' ? 'Etkinleştirmek için gelen kutunuzu kontrol edin' : 'Check your email inbox to activate')}
               </p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            aria-label="Close account modal"
+            aria-label={t.close}
             className={`p-2 rounded-xl transition-all focus:outline-none focus-visible:ring-2 shrink-0 ${
               isLight
                 ? 'text-slate-500 hover:text-slate-900 hover:bg-slate-100 focus-visible:ring-slate-400'
@@ -423,8 +427,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             }`}>
               <Info className="w-4 h-4 shrink-0 text-amber-500 mt-0.5" />
               <div>
-                <span className="font-semibold block mb-0.5">Guest Mode Active</span>
-                Cloud synchronization credentials have not been configured yet. All your tasks, timer settings, and history continue to be saved 100% locally on this device.
+                <span className="font-semibold block mb-0.5">{language === 'tr' ? 'Misafir Modu Aktif' : 'Guest Mode Active'}</span>
+                {language === 'tr'
+                  ? 'Bulut senkronizasyon bilgileri henüz yapılandırılmamış. Tüm görevleriniz, zamanlayıcı ayarlarınız ve geçmişiniz bu cihazda %100 yerel olarak kaydedilmeye devam eder.'
+                  : 'Cloud synchronization credentials have not been configured yet. All your tasks, timer settings, and history continue to be saved 100% locally on this device.'}
               </div>
             </div>
           ) : (mode === 'signup' || mode === 'signin') ? (
@@ -433,7 +439,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             }`}>
               <Cloud className="w-4 h-4 shrink-0 text-indigo-500" />
               <div className="leading-snug">
-                <span className="font-semibold">Local-First Guarantee:</span> Your existing tasks, statistics, and settings will be preserved without data loss.
+                <span className="font-semibold">{language === 'tr' ? 'Yerel Öncelikli Güvence:' : 'Local-First Guarantee:'}</span> {language === 'tr' ? 'Mevcut görevleriniz, istatistikleriniz ve ayarlarınız veri kaybı olmadan korunur.' : 'Your existing tasks, statistics, and settings will be preserved without data loss.'}
               </div>
             </div>
           ) : null}
@@ -456,7 +462,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     : 'text-white/60 hover:text-white'
                 }`}
               >
-                Create Account
+                {t.createAccountBtn}
               </button>
               <button
                 type="button"
@@ -471,7 +477,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     : 'text-white/60 hover:text-white'
                 }`}
               >
-                Sign In
+                {t.signInBtn}
               </button>
             </div>
           )}
@@ -492,7 +498,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   }}
                   className="self-start text-[11px] font-semibold underline text-indigo-300 hover:text-indigo-200 mt-1 cursor-pointer"
                 >
-                  Go to email verification screen & resend
+                  {language === 'tr' ? 'E-posta doğrulama ekranına git ve yeniden gönder' : 'Go to email verification screen & resend'}
                 </button>
               )}
             </div>
@@ -512,9 +518,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <Mail className="w-6 h-6" />
               </div>
               <div>
-                <h3 className="text-sm font-semibold mb-1">Check your inbox</h3>
+                <h3 className="text-sm font-semibold mb-1">{language === 'tr' ? 'Gelen kutunuzu kontrol edin' : 'Check your inbox'}</h3>
                 <p className={`text-xs max-w-xs mx-auto leading-relaxed ${isLight ? 'text-slate-600' : 'text-white/70'}`}>
-                  We sent a confirmation link to <span className="font-semibold text-indigo-400">{pendingConfirmationEmailState || email}</span>. Click the link in the email to activate your account.
+                  {language === 'tr' ? (
+                    <>
+                      <span className="font-semibold text-indigo-400">{pendingConfirmationEmailState || email}</span> adresine bir doğrulama bağlantısı gönderdik. Hesabınızı etkinleştirmek için e-postadaki bağlantıya tıklayın.
+                    </>
+                  ) : (
+                    <>
+                      We sent a confirmation link to <span className="font-semibold text-indigo-400">{pendingConfirmationEmailState || email}</span>. Click the link in the email to activate your account.
+                    </>
+                  )}
                 </p>
               </div>
 
@@ -529,7 +543,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   }`}
                 >
                   <Check className="w-4 h-4" />
-                  <span>I've Confirmed — Sign In</span>
+                  <span>{language === 'tr' ? 'Doğruladım — Giriş Yap' : "I've Confirmed — Sign In"}</span>
                 </button>
 
                 <button
@@ -545,12 +559,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   {isResending ? (
                     <>
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      <span>Resending email...</span>
+                      <span>{language === 'tr' ? 'E-posta yeniden gönderiliyor...' : 'Resending email...'}</span>
                     </>
                   ) : (
                     <>
                       <RotateCw className="w-3.5 h-3.5" />
-                      <span>Resend Confirmation Email</span>
+                      <span>{t.resendEmail}</span>
                     </>
                   )}
                 </button>
@@ -567,9 +581,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       htmlFor="auth-nickname"
                       className={`block text-xs font-medium ${isLight ? 'text-slate-700' : 'text-white/80'}`}
                     >
-                      Username / Nickname
+                      {t.nicknameLabel}
                     </label>
-                    <span className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-white/50'}`}>3-20 chars, letters/nums/_</span>
+                    <span className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-white/50'}`}>
+                      {t.nicknameHint}
+                    </span>
                   </div>
                   <div className="relative">
                     <AtSign className={`w-4 h-4 absolute left-3.5 top-1/2 transform -translate-y-1/2 ${
@@ -582,7 +598,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       required
                       value={nickname}
                       onChange={(e) => handleNicknameChange(e.target.value)}
-                      placeholder="zen_master"
+                      placeholder={t.nicknamePlaceholder}
                       maxLength={20}
                       className={`w-full pl-10 pr-10 py-2.5 rounded-xl text-sm border transition-all focus:outline-none focus:ring-2 min-h-[44px] ${
                         nicknameStatus === 'available'
@@ -631,7 +647,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     htmlFor="auth-email"
                     className={`block text-xs font-medium mb-1 ${isLight ? 'text-slate-700' : 'text-white/80'}`}
                   >
-                    Email Address
+                    {t.emailLabel}
                   </label>
                   <div className="relative">
                     <Mail className={`w-4 h-4 absolute left-3.5 top-1/2 transform -translate-y-1/2 ${
@@ -663,7 +679,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       htmlFor="auth-password"
                       className={`block text-xs font-medium ${isLight ? 'text-slate-700' : 'text-white/80'}`}
                     >
-                      Password
+                      {t.passwordLabel}
                     </label>
                     {mode === 'signin' && (
                       <button
@@ -673,7 +689,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                           isLight ? 'text-indigo-600 hover:text-indigo-700' : 'text-indigo-300 hover:text-indigo-200'
                         }`}
                       >
-                        Forgot password?
+                        {t.forgotPassword}
                       </button>
                     )}
                   </div>
@@ -707,7 +723,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     htmlFor="auth-confirm-password"
                     className={`block text-xs font-medium mb-1 ${isLight ? 'text-slate-700' : 'text-white/80'}`}
                   >
-                    Confirm Password
+                    {t.confirmPasswordLabel}
                   </label>
                   <div className="relative">
                     <Lock className={`w-4 h-4 absolute left-3.5 top-1/2 transform -translate-y-1/2 ${
@@ -740,7 +756,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       htmlFor="auth-new-password"
                       className={`block text-xs font-medium mb-1 ${isLight ? 'text-slate-700' : 'text-white/80'}`}
                     >
-                      New Password
+                      {t.newPasswordLabel}
                     </label>
                     <div className="relative">
                       <Lock className={`w-4 h-4 absolute left-3.5 top-1/2 transform -translate-y-1/2 ${
@@ -769,7 +785,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       htmlFor="auth-confirm-new-password"
                       className={`block text-xs font-medium mb-1 ${isLight ? 'text-slate-700' : 'text-white/80'}`}
                     >
-                      Confirm New Password
+                      {t.confirmPasswordPlaceholder}
                     </label>
                     <div className="relative">
                       <Lock className={`w-4 h-4 absolute left-3.5 top-1/2 transform -translate-y-1/2 ${
@@ -818,27 +834,27 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 {isLoading ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Processing...</span>
+                    <span>{language === 'tr' ? 'İşleniyor...' : 'Processing...'}</span>
                   </>
                 ) : mode === 'signup' ? (
                   <>
                     <Sparkles className="w-4 h-4" />
-                    <span>Create Account & Save Data</span>
+                    <span>{t.createAccountBtn}</span>
                   </>
                 ) : mode === 'signin' ? (
                   <>
                     <KeyRound className="w-4 h-4" />
-                    <span>Sign In & Sync</span>
+                    <span>{t.signInBtn}</span>
                   </>
                 ) : mode === 'forgot-password' ? (
                   <>
                     <Send className="w-4 h-4" />
-                    <span>Send Recovery Link</span>
+                    <span>{t.sendResetLink}</span>
                   </>
                 ) : (
                   <>
                     <Check className="w-4 h-4" />
-                    <span>Save New Password</span>
+                    <span>{t.updatePasswordBtn}</span>
                   </>
                 )}
               </button>
@@ -850,9 +866,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         <div className={`pt-3 border-t text-center text-[11px] shrink-0 ${
           isLight ? 'border-slate-200 text-slate-500' : 'border-white/10 text-white/50'
         }`}>
-          Luno is 100% functional without an account. Sign in anytime to sync across devices.
+          {language === 'tr'
+            ? 'Luno hesap olmadan %100 işlevseldir. Cihazlar arası eşitlemek için istediğiniz zaman giriş yapabilirsiniz.'
+            : 'Luno is 100% functional without an account. Sign in anytime to sync across devices.'}
         </div>
       </div>
     </div>
   );
 };
+

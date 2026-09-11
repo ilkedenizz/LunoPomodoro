@@ -18,15 +18,18 @@ import {
   ATMOSPHERES,
   createCustomAtmosphere,
   processBackgroundImage,
+  getAtmosphereDisplayName,
+  getAtmosphereDisplayTagline,
 } from '../utils/backgrounds';
 import {
   loadCustomBackground,
   saveCustomBackground,
   removeCustomBackground,
 } from '../utils/storage';
-import type { AtmosphereTheme, SoundMixerState, AtmospherePreset, AppTheme } from '../types';
+import type { AtmosphereTheme, SoundMixerState, AtmospherePreset, AppTheme, AppLanguage } from '../types';
 import { SoundMixer } from './SoundMixer';
 import { PresetsManager } from './PresetsManager';
+import { getTranslations } from '../utils/translations';
 
 interface BackgroundSelectorModalProps {
   isOpen: boolean;
@@ -42,6 +45,7 @@ interface BackgroundSelectorModalProps {
   onSavePreset: (preset: AtmospherePreset) => void;
   onDeletePreset: (presetId: string) => void;
   theme?: AppTheme;
+  language?: AppLanguage;
 }
 
 type TabType = 'atmospheres' | 'mixer' | 'presets';
@@ -61,7 +65,9 @@ export const BackgroundSelectorModal: React.FC<BackgroundSelectorModalProps> = (
   onSavePreset,
   onDeletePreset,
   theme = 'dark',
+  language = 'en',
 }) => {
+  const t = getTranslations(language);
   const [activeTab, setActiveTab] = useState<TabType>('atmospheres');
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
   const [customImage, setCustomImage] = useState<string | null>(() => loadCustomBackground());
@@ -143,17 +149,17 @@ export const BackgroundSelectorModal: React.FC<BackgroundSelectorModalProps> = (
                 <h2 id="atmosphere-2-title" className={`text-lg sm:text-xl font-bold ${
                   isLight ? 'text-slate-900' : 'text-white'
                 }`}>
-                  Atmosphere & Ambient Sound Studio
+                  {t.atmosphereStudioTitle}
                 </h2>
                 <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-white/60'}`}>
-                  {isLight ? 'Curated light atmospheres and ambient soundscapes' : 'Craft your custom study backdrop and focus environment'}
+                  {isLight ? t.atmosphereStudioSubtitleLight : t.atmosphereStudioSubtitleDark}
                 </p>
               </div>
             </div>
 
             <button
               onClick={onClose}
-              aria-label="Close studio modal"
+              aria-label={t.close}
               className={`p-2 rounded-xl transition-all ${
                 isLight
                   ? 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'
@@ -181,7 +187,7 @@ export const BackgroundSelectorModal: React.FC<BackgroundSelectorModalProps> = (
               }`}
             >
               <ImageIcon className="w-4 h-4" />
-              <span>Atmospheres</span>
+              <span>{t.atmospheresTab}</span>
             </button>
 
             <button
@@ -197,7 +203,7 @@ export const BackgroundSelectorModal: React.FC<BackgroundSelectorModalProps> = (
               }`}
             >
               <Sliders className="w-4 h-4" />
-              <span>Sound Mixer</span>
+              <span>{t.soundMixerTab}</span>
             </button>
 
             <button
@@ -213,7 +219,7 @@ export const BackgroundSelectorModal: React.FC<BackgroundSelectorModalProps> = (
               }`}
             >
               <Bookmark className="w-4 h-4" />
-              <span>Presets ({presets.length})</span>
+              <span>{t.presetsTab} ({presets.length})</span>
             </button>
           </div>
         </div>
@@ -233,7 +239,7 @@ export const BackgroundSelectorModal: React.FC<BackgroundSelectorModalProps> = (
                   onClick={() => setCustomUploadError(null)}
                   className="text-xs underline hover:text-white cursor-pointer"
                 >
-                  Dismiss
+                  {t.dismiss}
                 </button>
               </div>
             )}
@@ -253,7 +259,7 @@ export const BackgroundSelectorModal: React.FC<BackgroundSelectorModalProps> = (
                       : 'text-white/60 hover:text-white hover:bg-white/10'
                   }`}
                 >
-                  All ({availableAtmospheres.length + (customImage ? 1 : 0)})
+                  {t.all} ({availableAtmospheres.length + (customImage ? 1 : 0)})
                 </button>
                 <button
                   onClick={() => setCategoryFilter('favorites')}
@@ -266,7 +272,7 @@ export const BackgroundSelectorModal: React.FC<BackgroundSelectorModalProps> = (
                   }`}
                 >
                   <Heart className="w-3.5 h-3.5 fill-current text-rose-500" />
-                  <span>Favorites ({favoriteIds.filter(id => availableAtmospheres.some(a => a.id === id)).length})</span>
+                  <span>{t.favorites} ({favoriteIds.filter(id => availableAtmospheres.some(a => a.id === id)).length})</span>
                 </button>
               </div>
             </div>
@@ -277,9 +283,9 @@ export const BackgroundSelectorModal: React.FC<BackgroundSelectorModalProps> = (
                 isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'
               }`}>
                 <Heart className="w-8 h-8 text-rose-400/40 mx-auto mb-2" />
-                <p className={`text-sm ${isLight ? 'text-slate-700' : 'text-white/70'}`}>No favorite atmospheres yet.</p>
+                <p className={`text-sm ${isLight ? 'text-slate-700' : 'text-white/70'}`}>{t.noFavoritesYet}</p>
                 <p className={`text-xs mt-1 ${isLight ? 'text-slate-400' : 'text-white/40'}`}>
-                  Click the heart icon on any atmosphere card to add it to your favorites!
+                  {t.noFavoritesHint}
                 </p>
               </div>
             ) : (
@@ -335,10 +341,10 @@ export const BackgroundSelectorModal: React.FC<BackgroundSelectorModalProps> = (
                                   ? 'bg-white/90 text-slate-800 hover:bg-white border border-slate-200 shadow-xs'
                                   : 'bg-black/50 text-white hover:bg-black/70 border border-white/15'
                               }`}
-                              title="Change custom wallpaper"
+                              title={t.changeWallpaper}
                             >
                               <Camera className="w-3.5 h-3.5" />
-                              <span>Change</span>
+                              <span>{t.changeWallpaper}</span>
                             </button>
 
                             <button
@@ -346,7 +352,7 @@ export const BackgroundSelectorModal: React.FC<BackgroundSelectorModalProps> = (
                               onClick={handleRemoveCustom}
                               disabled={isUploadingCustom}
                               className="p-1.5 rounded-xl text-rose-400 hover:text-rose-300 bg-black/40 hover:bg-black/60 border border-rose-500/30 backdrop-blur-md transition-all cursor-pointer"
-                              title="Remove custom wallpaper"
+                              title={t.removeCustomBg}
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
@@ -358,7 +364,7 @@ export const BackgroundSelectorModal: React.FC<BackgroundSelectorModalProps> = (
                                 isLight ? 'bg-indigo-600 text-white' : 'bg-indigo-500 text-white shadow-lg'
                               }`}
                             >
-                              <Check className="w-3 h-3 stroke-[3]" /> Active
+                              <Check className="w-3 h-3 stroke-[3]" /> {t.activeBadge}
                             </span>
                           )}
                         </div>
@@ -383,10 +389,10 @@ export const BackgroundSelectorModal: React.FC<BackgroundSelectorModalProps> = (
                                 : 'text-white drop-shadow-md group-hover:text-indigo-300'
                             }`}
                           >
-                            Custom Wallpaper
+                            {t.customWallpaper}
                           </span>
                           <span className={`text-[11px] line-clamp-1 mt-0.5 ${isLight ? 'text-slate-500' : 'text-white/70'}`}>
-                            Your uploaded photo
+                            {t.yourUploadedPhoto}
                           </span>
                         </button>
                       </>
@@ -415,7 +421,7 @@ export const BackgroundSelectorModal: React.FC<BackgroundSelectorModalProps> = (
                               isLight ? 'text-indigo-950' : 'text-white'
                             }`}
                           >
-                            {isUploadingCustom ? 'Optimizing Image...' : 'Upload Wallpaper'}
+                            {isUploadingCustom ? t.optimizingImage : t.uploadWallpaper}
                           </span>
                           <span
                             className={`text-[10px] block mt-0.5 ${
@@ -497,7 +503,7 @@ export const BackgroundSelectorModal: React.FC<BackgroundSelectorModalProps> = (
                               ? 'bg-indigo-600 text-white'
                               : 'bg-indigo-500 text-white shadow-lg'
                           }`}>
-                            <Check className="w-3 h-3 stroke-[3]" /> Active
+                            <Check className="w-3 h-3 stroke-[3]" /> {t.activeBadge}
                           </span>
                         )}
                       </div>
@@ -515,12 +521,12 @@ export const BackgroundSelectorModal: React.FC<BackgroundSelectorModalProps> = (
                             ? 'text-slate-900 group-hover:text-indigo-600'
                             : 'text-white drop-shadow-md group-hover:text-indigo-300'
                         }`}>
-                          {item.name}
+                          {getAtmosphereDisplayName(item, language)}
                         </span>
                         <span className={`text-[11px] line-clamp-1 mt-0.5 ${
                           isLight ? 'text-slate-500' : 'text-white/70'
                         }`}>
-                          {item.tagline}
+                          {getAtmosphereDisplayTagline(item, language)}
                         </span>
                       </button>
                     </div>
@@ -534,7 +540,7 @@ export const BackgroundSelectorModal: React.FC<BackgroundSelectorModalProps> = (
         {/* Tab 2: Sound Mixer */}
         {activeTab === 'mixer' && (
           <div className="py-4 overflow-y-auto pr-1 flex-1">
-            <SoundMixer mixerState={mixerState} onChange={onMixerChange} />
+            <SoundMixer mixerState={mixerState} onChange={onMixerChange} language={language} />
           </div>
         )}
 
@@ -552,6 +558,7 @@ export const BackgroundSelectorModal: React.FC<BackgroundSelectorModalProps> = (
               }}
               onSavePreset={onSavePreset}
               onDeletePreset={onDeletePreset}
+              language={language}
             />
           </div>
         )}

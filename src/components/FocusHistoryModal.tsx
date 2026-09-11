@@ -5,7 +5,7 @@ import type { PeriodType } from './PeriodSelector';
 import { StatsOverview } from './StatsOverview';
 import { FocusChart } from './FocusChart';
 import { SessionHistory } from './SessionHistory';
-import type { FocusSession } from '../types';
+import type { FocusSession, AppLanguage } from '../types';
 import {
   getTotalFocusMinutes,
   getPomodoroCount,
@@ -17,19 +17,23 @@ import {
   getGroupedRecentSessions,
 } from '../utils/statistics';
 import { formatDuration } from '../utils/dates';
+import { getTranslations } from '../utils/translations';
 
 interface FocusHistoryModalProps {
   isOpen: boolean;
   onClose: () => void;
   sessions: FocusSession[];
+  language?: AppLanguage;
 }
 
 export const FocusHistoryModal: React.FC<FocusHistoryModalProps> = ({
   isOpen,
   onClose,
   sessions,
+  language = 'en',
 }) => {
   const [period, setPeriod] = useState<PeriodType>('week');
+  const t = getTranslations(language);
 
   if (!isOpen) return null;
 
@@ -41,7 +45,7 @@ export const FocusHistoryModal: React.FC<FocusHistoryModalProps> = ({
   const weeklyStats = getWeeklyStats(sessions);
   const monthlyStats = getMonthlyStats(sessions);
   const allTimeStats = getAllTimeStats(sessions);
-  const groupedSessions = getGroupedRecentSessions(sessions);
+  const groupedSessions = getGroupedRecentSessions(sessions, language);
 
   const hasHistory = totalPomodoros > 0;
 
@@ -65,16 +69,16 @@ export const FocusHistoryModal: React.FC<FocusHistoryModalProps> = ({
             </div>
             <div>
               <h2 id="history-title" className="text-lg sm:text-xl font-bold text-white tracking-tight">
-                Focus History & Analytics
+                {t.historyTitle}
               </h2>
-              <p className="text-xs text-white/60 font-medium">Your personal focus journey over time</p>
+              <p className="text-xs text-white/60 font-medium">{t.historySubtitle}</p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            aria-label="Close Focus History"
-            className="p-2 rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+            aria-label={t.close}
+            className="p-2 rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50 cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -89,23 +93,23 @@ export const FocusHistoryModal: React.FC<FocusHistoryModalProps> = ({
                 <Sparkles className="w-8 h-8" />
               </div>
               <h3 className="text-base sm:text-lg font-bold text-white uppercase tracking-wider">
-                YOUR FOCUS JOURNEY STARTS HERE
+                {t.journeyStartsHere}
               </h3>
               <p className="text-xs text-white/60 max-w-sm">
-                Complete your first Pomodoro session in Luno to unlock your statistics, charts, and streak history.
+                {t.journeyDesc}
               </p>
               <button
                 onClick={onClose}
                 className="px-6 py-2.5 rounded-2xl bg-white text-black font-semibold text-xs hover:bg-white/90 transition-all cursor-pointer"
               >
-                Start Focusing
+                {t.startFocusing}
               </button>
             </div>
           ) : (
             <>
               {/* Period Selector */}
               <div className="flex items-center justify-center">
-                <PeriodSelector period={period} onChangePeriod={setPeriod} />
+                <PeriodSelector period={period} onChangePeriod={setPeriod} language={language} />
               </div>
 
               {/* Stats Summary Overview Cards */}
@@ -114,6 +118,7 @@ export const FocusHistoryModal: React.FC<FocusHistoryModalProps> = ({
                 pomodoros={totalPomodoros}
                 currentStreak={currentStreak}
                 bestDay={bestDay}
+                language={language}
               />
 
               {/* Weekly Bar Chart / Monthly Heatmap */}
@@ -121,6 +126,7 @@ export const FocusHistoryModal: React.FC<FocusHistoryModalProps> = ({
                 period={period}
                 weeklyStats={weeklyStats}
                 monthlyStats={monthlyStats}
+                language={language}
               />
 
               {/* All Time Statistics */}
@@ -128,14 +134,14 @@ export const FocusHistoryModal: React.FC<FocusHistoryModalProps> = ({
                 <div className="flex items-center space-x-2 border-b border-white/10 pb-3">
                   <Award className="w-4 h-4 text-amber-300" />
                   <h3 className="text-xs font-semibold uppercase tracking-wider text-white/70">
-                    All-Time Stats
+                    {t.allTimeStats}
                   </h3>
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
                   <div>
                     <span className="text-[10px] text-white/50 uppercase font-mono block mb-1">
-                      Total Focus
+                      {t.totalFocus}
                     </span>
                     <span className="font-timer text-lg font-bold text-white">
                       {formatDuration(allTimeStats.totalMinutes)}
@@ -144,7 +150,7 @@ export const FocusHistoryModal: React.FC<FocusHistoryModalProps> = ({
 
                   <div>
                     <span className="text-[10px] text-white/50 uppercase font-mono block mb-1">
-                      Pomodoros
+                      {t.pomodorosSessions}
                     </span>
                     <span className="font-timer text-lg font-bold text-white">
                       {allTimeStats.totalPomodoros}
@@ -153,7 +159,7 @@ export const FocusHistoryModal: React.FC<FocusHistoryModalProps> = ({
 
                   <div>
                     <span className="text-[10px] text-white/50 uppercase font-mono block mb-1">
-                      Days Focused
+                      {t.daysFocused}
                     </span>
                     <span className="font-timer text-lg font-bold text-white">
                       {allTimeStats.daysFocused}
@@ -162,17 +168,17 @@ export const FocusHistoryModal: React.FC<FocusHistoryModalProps> = ({
 
                   <div>
                     <span className="text-[10px] text-white/50 uppercase font-mono block mb-1">
-                      Avg / Focus Day
+                      {t.avgPerFocusDay}
                     </span>
                     <span className="font-timer text-lg font-bold text-white">
-                      {allTimeStats.avgMinutesPerFocusDay}m
+                      {allTimeStats.avgMinutesPerFocusDay}{t.min}
                     </span>
                   </div>
                 </div>
               </div>
 
               {/* Recent Grouped Session History */}
-              <SessionHistory groupedSessions={groupedSessions} />
+              <SessionHistory groupedSessions={groupedSessions} language={language} />
             </>
           )}
         </div>

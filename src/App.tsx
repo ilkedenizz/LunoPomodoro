@@ -81,10 +81,12 @@ import {
   markDailyGoalPending,
   markSessionPending,
 } from './services/syncEngine';
+import { getTranslations } from './utils/translations';
 
 export function App() {
   // 1. Settings & Persistence
   const [settings, setSettings] = useState<TimerSettings>(() => loadSettings());
+  const t = getTranslations(settings.language || 'en');
   const [atmosphere, setAtmosphere] = useState<AtmosphereTheme>(() =>
     getAtmosphereById(loadSavedBackground(loadSettings().theme || 'dark'), loadSettings().theme || 'dark')
   );
@@ -829,6 +831,7 @@ export function App() {
             handleOpenAuth('signin');
           }
         }}
+        language={settings.language || 'en'}
       />
 
       {/* 3. Main Center Focus Workspace (True 3-Column Desktop Layout) */}
@@ -842,6 +845,7 @@ export function App() {
               dailyGoal={dailyGoal}
               onUpdateGoal={handleUpdateGoal}
               theme={settings.theme}
+              language={settings.language || 'en'}
             />
           </div>
 
@@ -852,6 +856,7 @@ export function App() {
               currentMode={mode}
               onSelectMode={handleSelectMode}
               theme={settings.theme}
+              language={settings.language || 'en'}
             />
 
             {/* 2. Central Timer Display with Mode Label, 25:00, Sessions, Active Task, and chosen Timer Color */}
@@ -864,6 +869,7 @@ export function App() {
               activeTaskTitle={activeTaskTitle}
               theme={settings.theme}
               timerColor={settings.timerColor}
+              language={settings.language || 'en'}
             />
 
             {/* 3. Timer Controls */}
@@ -878,6 +884,7 @@ export function App() {
               onContinueFocus={handleContinueFocus}
               breakType={todayPomodorosCount > 0 && todayPomodorosCount % 4 === 0 ? 'longBreak' : 'shortBreak'}
               theme={settings.theme}
+              language={settings.language || 'en'}
             />
           </div>
 
@@ -892,6 +899,7 @@ export function App() {
               onEditTask={handleEditTask}
               onDeleteTask={handleDeleteTask}
               theme={settings.theme}
+              language={settings.language || 'en'}
             />
           </div>
         </div>
@@ -906,14 +914,16 @@ export function App() {
           }`}
         >
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-          <span>Today: {todayPomodorosCount} pomodoros ({todayTotalMinutes}m focused)</span>
+          <span>
+            {t.today}: {todayPomodorosCount} {todayPomodorosCount === 1 ? t.todayPomodoroSingle : t.todayPomodoroPlural} ({todayTotalMinutes}{t.min} {t.todayFocused})
+          </span>
         </button>
         <div
           className={`hidden md:block font-mono text-[11px] ${
             isLight ? 'text-slate-500' : 'text-white/60'
           }`}
         >
-          Press{' '}
+          {t.pressKey}{' '}
           <kbd
             className={`px-1.5 py-0.5 rounded text-[10px] ${
               isLight ? 'bg-black/10 text-slate-800' : 'bg-white/10 text-white/90'
@@ -921,7 +931,7 @@ export function App() {
           >
             Space
           </kbd>{' '}
-          Start/Pause •{' '}
+          {t.start}/{t.pause} •{' '}
           <kbd
             className={`px-1.5 py-0.5 rounded text-[10px] ${
               isLight ? 'bg-black/10 text-slate-800' : 'bg-white/10 text-white/90'
@@ -929,7 +939,7 @@ export function App() {
           >
             R
           </kbd>{' '}
-          Reset •{' '}
+          {t.reset} •{' '}
           <kbd
             className={`px-1.5 py-0.5 rounded text-[10px] ${
               isLight ? 'bg-black/10 text-slate-800' : 'bg-white/10 text-white/90'
@@ -937,14 +947,14 @@ export function App() {
           >
             M
           </kbd>{' '}
-          Audio
+          {t.audioKey}
         </div>
         <div
           className={`transition-colors text-[11px] font-medium ${
             isLight ? 'text-slate-600 hover:text-slate-900' : 'text-white/60 hover:text-white/80'
           }`}
         >
-          Luno — Focus in your own atmosphere
+          Luno — {t.brandTagline}
         </div>
       </footer>
 
@@ -988,6 +998,7 @@ export function App() {
               setIsFriendsOpen(true);
             }}
             incomingRequestsCount={incomingRequestsCount}
+            language={settings.language || 'en'}
           />
         )}
 
@@ -1009,6 +1020,7 @@ export function App() {
             onSavePreset={handleSavePreset}
             onDeletePreset={handleDeletePreset}
             theme={settings.theme}
+            language={settings.language || 'en'}
           />
         )}
 
@@ -1018,6 +1030,7 @@ export function App() {
             onClose={() => setIsAudioOpen(false)}
             mixerState={soundMixerState}
             onChangeMixerState={handleMixerChange}
+            language={settings.language || 'en'}
           />
         )}
 
@@ -1025,6 +1038,7 @@ export function App() {
           <ShortcutsModal
             isOpen={isShortcutsOpen}
             onClose={() => setIsShortcutsOpen(false)}
+            language={settings.language || 'en'}
           />
         )}
 
@@ -1033,6 +1047,7 @@ export function App() {
             isOpen={isHistoryOpen}
             onClose={() => setIsHistoryOpen(false)}
             sessions={sessions}
+            language={settings.language || 'en'}
           />
         )}
 
@@ -1044,6 +1059,7 @@ export function App() {
             theme={settings.theme}
             onOpenAuth={() => handleOpenAuth('signin')}
             onRequestCountChange={setIncomingRequestsCount}
+            language={settings.language || 'en'}
           />
         )}
 
@@ -1058,6 +1074,7 @@ export function App() {
             initialMode={authModalMode}
             initialError={authModalError}
             onAuthSuccess={handleAuthSuccess}
+            language={settings.language || 'en'}
           />
         )}
       </Suspense>

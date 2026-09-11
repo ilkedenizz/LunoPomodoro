@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { ListTodo, Plus, CheckCircle2 } from 'lucide-react';
 import { TaskItem } from './TaskItem';
 import { TaskInput } from './TaskInput';
-import type { Task, AppTheme } from '../types';
+import type { Task, AppTheme, AppLanguage } from '../types';
+import { getTranslations } from '../utils/translations';
 
 interface TaskListProps {
   tasks: Task[];
@@ -13,6 +14,7 @@ interface TaskListProps {
   onEditTask: (id: string, newTitle: string) => void;
   onDeleteTask: (id: string) => void;
   theme?: AppTheme;
+  language?: AppLanguage;
 }
 
 export const TaskList: React.FC<TaskListProps> = React.memo(({
@@ -24,7 +26,9 @@ export const TaskList: React.FC<TaskListProps> = React.memo(({
   onEditTask,
   onDeleteTask,
   theme = 'dark',
+  language = 'en',
 }) => {
+  const t = getTranslations(language);
   const [isAdding, setIsAdding] = useState(false);
   const [filter, setFilter] = useState<'all' | 'pending' | 'completed'>('all');
 
@@ -58,7 +62,7 @@ export const TaskList: React.FC<TaskListProps> = React.memo(({
               isLight ? 'text-slate-600' : 'text-white/70'
             }`}
           >
-            Focus Tasks
+            {t.tasks}
           </h2>
           {tasks.length > 0 && (
             <span
@@ -66,7 +70,7 @@ export const TaskList: React.FC<TaskListProps> = React.memo(({
                 isLight ? 'bg-black/5 text-slate-600' : 'bg-white/10 text-white/70'
               }`}
             >
-              {pendingTasks.length} left
+              {pendingTasks.length} {language === 'tr' ? 'kaldı' : 'left'}
             </span>
           )}
         </div>
@@ -75,7 +79,7 @@ export const TaskList: React.FC<TaskListProps> = React.memo(({
         {!isAdding && (
           <button
             onClick={() => setIsAdding(true)}
-            aria-label="Add a task"
+            aria-label={t.addTask}
             className={`p-1 px-2.5 rounded-xl font-medium text-xs transition-all flex items-center space-x-1 ${
               isLight
                 ? 'bg-black/5 hover:bg-black/10 text-slate-800'
@@ -83,7 +87,7 @@ export const TaskList: React.FC<TaskListProps> = React.memo(({
             }`}
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>Add task</span>
+            <span>{t.addTask}</span>
           </button>
         )}
       </div>
@@ -98,6 +102,7 @@ export const TaskList: React.FC<TaskListProps> = React.memo(({
             }}
             onCancel={() => setIsAdding(false)}
             theme={theme}
+            language={language}
           />
         </div>
       )}
@@ -121,7 +126,7 @@ export const TaskList: React.FC<TaskListProps> = React.memo(({
                 : 'hover:text-white'
             }`}
           >
-            All ({tasks.length})
+            {language === 'tr' ? `Tümü (${tasks.length})` : `All (${tasks.length})`}
           </button>
           <button
             onClick={() => setFilter('pending')}
@@ -135,7 +140,7 @@ export const TaskList: React.FC<TaskListProps> = React.memo(({
                 : 'hover:text-white'
             }`}
           >
-            Active ({pendingTasks.length})
+            {language === 'tr' ? `Aktif (${pendingTasks.length})` : `Active (${pendingTasks.length})`}
           </button>
           {completedTasks.length > 0 && (
             <button
@@ -150,7 +155,7 @@ export const TaskList: React.FC<TaskListProps> = React.memo(({
                   : 'hover:text-white'
               }`}
             >
-              Done ({completedTasks.length})
+              {language === 'tr' ? `Tamamlanan (${completedTasks.length})` : `Done (${completedTasks.length})`}
             </button>
           )}
         </div>
@@ -167,8 +172,8 @@ export const TaskList: React.FC<TaskListProps> = React.memo(({
             <CheckCircle2 className="w-8 h-8 mb-2 stroke-1" />
             <p className="text-xs">
               {tasks.length === 0
-                ? 'No tasks added yet. Add a task to start focusing!'
-                : 'No tasks in this view.'}
+                ? (language === 'tr' ? 'Henüz görev eklenmedi. Odaklanmaya başlamak için bir görev ekleyin!' : 'No tasks added yet. Add a task to start focusing!')
+                : (language === 'tr' ? 'Bu görünümde görev yok.' : 'No tasks in this view.')}
             </p>
           </div>
         ) : (
@@ -182,6 +187,7 @@ export const TaskList: React.FC<TaskListProps> = React.memo(({
               onEditTask={onEditTask}
               onDeleteTask={onDeleteTask}
               theme={theme}
+              language={language}
             />
           ))
         )}

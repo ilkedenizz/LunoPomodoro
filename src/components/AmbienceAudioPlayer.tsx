@@ -1,13 +1,15 @@
 import React from 'react';
 import { X, Sliders } from 'lucide-react';
-import type { SoundMixerState } from '../types';
+import type { SoundMixerState, AppLanguage } from '../types';
 import { SoundMixer } from './SoundMixer';
+import { getTranslations } from '../utils/translations';
 
 interface AmbienceAudioPlayerProps {
   isOpen: boolean;
   onClose: () => void;
   mixerState: SoundMixerState;
   onChangeMixerState: (state: SoundMixerState) => void;
+  language?: AppLanguage;
 }
 
 export const AmbienceAudioPlayer: React.FC<AmbienceAudioPlayerProps> = ({
@@ -15,8 +17,10 @@ export const AmbienceAudioPlayer: React.FC<AmbienceAudioPlayerProps> = ({
   onClose,
   mixerState,
   onChangeMixerState,
+  language = 'en',
 }) => {
   if (!isOpen) return null;
+  const t = getTranslations(language);
 
   return (
     <div
@@ -38,17 +42,17 @@ export const AmbienceAudioPlayer: React.FC<AmbienceAudioPlayerProps> = ({
             </div>
             <div>
               <h2 id="audio-mixer-title" className="text-lg font-bold text-white">
-                Multi-Track Ambient Sound Mixer
+                {t.multiTrackMixerTitle}
               </h2>
               <p className="text-xs text-white/60">
-                Layer ambient soundscapes (Rain, Café, Fire, Waves, Lo-Fi) simultaneously
+                {t.multiTrackMixerSubtitle}
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            aria-label="Close sound mixer menu"
-            className="p-2 rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-all"
+            aria-label={t.close}
+            className="p-2 rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -56,7 +60,7 @@ export const AmbienceAudioPlayer: React.FC<AmbienceAudioPlayerProps> = ({
 
         {/* Multi-Track Mixer Component */}
         <div className="py-4 overflow-y-auto pr-1 flex-1">
-          <SoundMixer mixerState={mixerState} onChange={onChangeMixerState} />
+          <SoundMixer mixerState={mixerState} onChange={onChangeMixerState} language={language} />
         </div>
       </div>
     </div>

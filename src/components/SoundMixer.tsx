@@ -1,25 +1,28 @@
 import React from 'react';
-import type { SoundMixerState, AmbientSoundId } from '../types';
+import type { SoundMixerState, AmbientSoundId, AppLanguage } from '../types';
 import { Volume2, VolumeX, CloudRain, Coffee, Flame, Waves, Music, SlidersHorizontal } from 'lucide-react';
+import { getTranslations } from '../utils/translations';
 
 interface SoundMixerProps {
   mixerState: SoundMixerState;
   onChange: (newState: SoundMixerState) => void;
+  language?: AppLanguage;
 }
 
-const TRACK_CONFIG: {
-  id: Exclude<AmbientSoundId, 'off'>;
-  label: string;
-  icon: React.FC<{ className?: string }>;
-}[] = [
-  { id: 'rain', label: 'Rainfall', icon: CloudRain },
-  { id: 'cafe', label: 'Café Murmur', icon: Coffee },
-  { id: 'fire', label: 'Cozy Fireplace', icon: Flame },
-  { id: 'waves', label: 'Ocean Waves', icon: Waves },
-  { id: 'lofi', label: 'Lo-Fi Chords', icon: Music },
-];
+export const SoundMixer: React.FC<SoundMixerProps> = ({ mixerState, onChange, language = 'en' }) => {
+  const t = getTranslations(language);
 
-export const SoundMixer: React.FC<SoundMixerProps> = ({ mixerState, onChange }) => {
+  const TRACK_CONFIG: {
+    id: Exclude<AmbientSoundId, 'off'>;
+    label: string;
+    icon: React.FC<{ className?: string }>;
+  }[] = [
+    { id: 'rain', label: t.trackRain, icon: CloudRain },
+    { id: 'cafe', label: t.trackCafe, icon: Coffee },
+    { id: 'fire', label: t.trackFire, icon: Flame },
+    { id: 'waves', label: t.trackWaves, icon: Waves },
+    { id: 'lofi', label: t.trackLofi, icon: Music },
+  ];
   const handleMasterVolumeChange = (vol: number) => {
     onChange({
       ...mixerState,
@@ -76,8 +79,8 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ mixerState, onChange }) 
             <SlidersHorizontal className="w-5 h-5" />
           </div>
           <div>
-            <h4 className="font-semibold text-sm">Master Sound Volume</h4>
-            <p className="text-xs opacity-60">Overall audio output level</p>
+            <h4 className="font-semibold text-sm">{t.masterSoundVolume}</h4>
+            <p className="text-xs opacity-60">{t.overallAudioOutput}</p>
           </div>
         </div>
 
@@ -85,7 +88,7 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ mixerState, onChange }) 
           <button
             onClick={() => handleMasterVolumeChange(mixerState.masterVolume === 0 ? 0.5 : 0)}
             className="p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 opacity-70 hover:opacity-100 transition"
-            title="Toggle Master Mute"
+            title={t.toggleMasterMute}
           >
             {mixerState.masterVolume === 0 ? <VolumeX className="w-5 h-5 text-rose-500" /> : <Volume2 className="w-5 h-5" />}
           </button>
@@ -109,12 +112,12 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ mixerState, onChange }) 
       {/* Individual Sound Tracks */}
       <div className="space-y-3">
         <div className="flex items-center justify-between text-xs opacity-60 px-1">
-          <span>AMBIENT SOUND TRACKS</span>
+          <span>{t.ambientSoundTracks}</span>
           <button
             onClick={handleResetMixer}
             className="hover:opacity-100 transition underline cursor-pointer"
           >
-            Reset Mix
+            {t.resetMix}
           </button>
         </div>
 
@@ -169,7 +172,7 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ mixerState, onChange }) 
                     className="w-full accent-indigo-500 cursor-pointer h-1.5 bg-black/20 dark:bg-white/20 rounded-lg appearance-none"
                   />
                   <span className="text-[11px] font-mono w-8 text-right opacity-60">
-                    {trackState.muted ? 'Mute' : `${Math.round(trackState.volume * 100)}%`}
+                    {trackState.muted ? t.mute : `${Math.round(trackState.volume * 100)}%`}
                   </span>
                 </div>
               </div>

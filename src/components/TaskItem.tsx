@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { CheckCircle2, Circle, Trash2, Edit2, Check, Target } from 'lucide-react';
-import type { Task, AppTheme } from '../types';
+import type { Task, AppTheme, AppLanguage } from '../types';
+import { getTranslations } from '../utils/translations';
 
 interface TaskItemProps {
   task: Task;
@@ -10,6 +11,7 @@ interface TaskItemProps {
   onEditTask: (id: string, newTitle: string) => void;
   onDeleteTask: (id: string) => void;
   theme?: AppTheme;
+  language?: AppLanguage;
 }
 
 export const TaskItem: React.FC<TaskItemProps> = ({
@@ -20,7 +22,9 @@ export const TaskItem: React.FC<TaskItemProps> = ({
   onEditTask,
   onDeleteTask,
   theme = 'dark',
+  language = 'en',
 }) => {
+  const t = getTranslations(language);
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(task.title);
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
@@ -61,7 +65,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({
         {/* Toggle Complete Checkbox */}
         <button
           onClick={() => onToggleComplete(task.id)}
-          aria-label={task.completed ? 'Mark task as incomplete' : 'Mark task as completed'}
+          aria-label={task.completed ? (language === 'tr' ? 'Görevi tamamlanmadı olarak işaretle' : 'Mark task as incomplete') : (language === 'tr' ? 'Görevi tamamlandı olarak işaretle' : 'Mark task as completed')}
           className="shrink-0 focus:outline-none transition-colors"
         >
           {task.completed ? (
@@ -94,7 +98,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({
             />
             <button
               onClick={handleSaveEdit}
-              aria-label="Save title"
+              aria-label={t.save}
               className="p-1 text-emerald-600 hover:text-emerald-500"
             >
               <Check className="w-4 h-4" />
@@ -104,7 +108,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({
           <div
             onDoubleClick={() => setIsEditing(true)}
             className="flex flex-col min-w-0 cursor-pointer select-none"
-            title="Double-click to edit"
+            title={language === 'tr' ? 'Düzenlemek için çift tıklayın' : 'Double-click to edit'}
           >
             <span
               className={`text-xs sm:text-sm font-medium transition-all line-clamp-1 ${
@@ -125,7 +129,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({
                   isLight ? 'text-slate-500' : 'text-white/50'
                 }`}
               >
-                {task.pomodoros} {task.pomodoros === 1 ? 'pomodoro' : 'pomodoros'}
+                {task.pomodoros} {language === 'tr' ? 'pomodoro' : task.pomodoros === 1 ? 'pomodoro' : 'pomodoros'}
               </span>
             )}
           </div>
@@ -138,8 +142,8 @@ export const TaskItem: React.FC<TaskItemProps> = ({
         {!task.completed && (
           <button
             onClick={() => onSelectActive(task.id)}
-            aria-label={isActive ? 'Active focusing task' : 'Focus on this task'}
-            title={isActive ? 'Currently Focusing' : 'Set as Active Task'}
+            aria-label={isActive ? (language === 'tr' ? 'Aktif odaklanılan görev' : 'Active focusing task') : t.selectAsActive}
+            title={isActive ? (language === 'tr' ? 'Şu An Odaklanılıyor' : 'Currently Focusing') : t.selectAsActive}
             className={`p-1.5 rounded-lg text-xs font-medium transition-all flex items-center space-x-1 ${
               isActive
                 ? isLight
@@ -151,7 +155,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({
             }`}
           >
             <Target className="w-3.5 h-3.5" />
-            {isActive && <span className="text-[10px] hidden sm:inline">Focusing</span>}
+            {isActive && <span className="text-[10px] hidden sm:inline">{language === 'tr' ? 'Odaklanılıyor' : 'Focusing'}</span>}
           </button>
         )}
 
@@ -159,13 +163,13 @@ export const TaskItem: React.FC<TaskItemProps> = ({
         {!isEditing && (
           <button
             onClick={() => setIsEditing(true)}
-            aria-label="Edit task title"
+            aria-label={t.edit}
             className={`p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all ${
               isLight
                 ? 'text-slate-400 hover:text-slate-900 hover:bg-black/5'
                 : 'text-white/40 hover:text-white hover:bg-white/10'
             }`}
-            title="Edit task"
+            title={t.edit}
           >
             <Edit2 className="w-3.5 h-3.5" />
           </button>
@@ -178,7 +182,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({
               onClick={() => onDeleteTask(task.id)}
               className="px-2 py-0.5 rounded bg-red-500 hover:bg-red-600 text-white text-[10px] font-semibold transition-all"
             >
-              Delete
+              {t.delete}
             </button>
             <button
               onClick={() => setIsConfirmingDelete(false)}
@@ -186,19 +190,19 @@ export const TaskItem: React.FC<TaskItemProps> = ({
                 isLight ? 'text-slate-500 hover:text-slate-900' : 'text-white/50 hover:text-white'
               }`}
             >
-              No
+              {language === 'tr' ? 'Hayır' : 'No'}
             </button>
           </div>
         ) : (
           <button
             onClick={() => setIsConfirmingDelete(true)}
-            aria-label="Delete task"
+            aria-label={t.delete}
             className={`p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all ${
               isLight
                 ? 'text-slate-400 hover:text-rose-600 hover:bg-black/5'
                 : 'text-white/40 hover:text-red-300 hover:bg-white/10'
             }`}
-            title="Delete task"
+            title={t.delete}
           >
             <Trash2 className="w-3.5 h-3.5" />
           </button>

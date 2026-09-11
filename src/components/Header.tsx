@@ -12,7 +12,8 @@ import {
   Cloud,
   Users,
 } from 'lucide-react';
-import type { AtmosphereTheme, AppTheme, UserProfile, SyncStatus } from '../types';
+import type { AtmosphereTheme, AppTheme, UserProfile, SyncStatus, AppLanguage } from '../types';
+import { getTranslations, formatDurationHoursMinutes } from '../utils/translations';
 
 interface HeaderProps {
   currentAtmosphere: AtmosphereTheme;
@@ -30,6 +31,7 @@ interface HeaderProps {
   onToggleFullscreen: () => void;
   timerRunning: boolean;
   theme?: AppTheme;
+  language?: AppLanguage;
   onToggleTheme?: () => void;
   user: UserProfile | null;
   syncStatus?: SyncStatus;
@@ -52,19 +54,14 @@ export const Header: React.FC<HeaderProps> = React.memo(({
   onToggleFullscreen,
   timerRunning,
   theme = 'dark',
+  language = 'en',
   onToggleTheme,
   user,
   syncStatus,
   onOpenAuth,
 }) => {
   const isLight = theme === 'light';
-
-  const formatHoursMinutes = (totalMinutes: number) => {
-    const hrs = Math.floor(totalMinutes / 60);
-    const mins = totalMinutes % 60;
-    if (hrs === 0) return `${mins}m`;
-    return `${hrs}h ${mins}m`;
-  };
+  const t = getTranslations(language);
 
   return (
     <header className="relative z-20 w-full px-4 md:px-8 py-3 sm:py-3.5 flex items-center justify-between shrink-0">
@@ -110,22 +107,22 @@ export const Header: React.FC<HeaderProps> = React.memo(({
       {/* Today Stats Pill - Desktop */}
       <button
         onClick={onOpenHistory}
-        aria-label="View focus history and statistics"
+        aria-label={t.focusHistoryTooltip}
         className={`hidden md:flex items-center space-x-2 px-4 py-1.5 rounded-full glass-pill glass-panel-hover text-xs font-medium cursor-pointer focus:outline-none focus-visible:ring-2 ${
           isLight
             ? 'text-slate-800 focus-visible:ring-slate-400'
             : 'text-white/90 focus-visible:ring-white/50'
         }`}
-        title="View Focus History"
+        title={t.focusHistoryTooltip}
       >
         <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-        <span className={isLight ? 'text-slate-500' : 'text-white/60'}>Today:</span>
+        <span className={isLight ? 'text-slate-500' : 'text-white/60'}>{t.today}:</span>
         <span className={`font-semibold ${isLight ? 'text-slate-900' : 'text-white'}`}>
-          {todayPomodoros} {todayPomodoros === 1 ? 'pomodoro' : 'pomodoros'}
+          {todayPomodoros} {todayPomodoros === 1 ? t.todayPomodoroSingle : t.todayPomodoroPlural}
         </span>
         <span className={isLight ? 'text-slate-400' : 'text-white/40'}>•</span>
         <span className={isLight ? 'text-slate-700' : 'text-white/80'}>
-          {formatHoursMinutes(todayMinutes)} focused
+          {formatDurationHoursMinutes(todayMinutes, language)} {t.todayFocused}
         </span>
       </button>
 
@@ -135,13 +132,13 @@ export const Header: React.FC<HeaderProps> = React.memo(({
         {onToggleTheme && (
           <button
             onClick={onToggleTheme}
-            aria-label={isLight ? 'Switch to dark theme' : 'Switch to light theme'}
+            aria-label={isLight ? t.themeDark : t.themeLight}
             className={`p-2.5 rounded-xl glass-panel glass-panel-hover transition-all focus:outline-none focus-visible:ring-2 ${
               isLight
                 ? 'text-amber-600 hover:text-amber-700 focus-visible:ring-slate-400'
                 : 'text-white/80 hover:text-white focus-visible:ring-white/50'
             }`}
-            title={isLight ? 'Switch to Dark Theme' : 'Switch to Light Theme'}
+            title={isLight ? t.themeDark : t.themeLight}
           >
             {isLight ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </button>
@@ -150,13 +147,13 @@ export const Header: React.FC<HeaderProps> = React.memo(({
         {/* Focus History Button */}
         <button
           onClick={onOpenHistory}
-          aria-label="Open Focus History"
+          aria-label={t.focusHistoryTooltip}
           className={`p-2.5 rounded-xl glass-panel glass-panel-hover transition-all focus:outline-none focus-visible:ring-2 ${
             isLight
               ? 'text-slate-700 hover:text-slate-900 focus-visible:ring-slate-400'
               : 'text-white/80 hover:text-white focus-visible:ring-white/50'
           }`}
-          title="Focus History & Stats"
+          title={t.focusHistoryTooltip}
         >
           <TrendingUp className="w-4 h-4" />
         </button>
@@ -164,7 +161,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
         {/* Ambient Studio / Sound Mixer Toggle Button */}
         <button
           onClick={onOpenAudio}
-          aria-label="Toggle ambient music and sound mixer"
+          aria-label={t.soundMixerTooltip}
           className={`relative p-2.5 rounded-xl glass-panel glass-panel-hover transition-all focus:outline-none focus-visible:ring-2 ${
             isAudioPlaying
               ? isLight
@@ -174,7 +171,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
               ? 'text-slate-700 hover:text-slate-900 focus-visible:ring-slate-400'
               : 'text-white/80 hover:text-white focus-visible:ring-white/50'
           }`}
-          title="Ambient Sound Mixer (M)"
+          title={t.soundMixerTooltip}
         >
           <Music className="w-4 h-4" />
           {isAudioPlaying && (
@@ -185,13 +182,13 @@ export const Header: React.FC<HeaderProps> = React.memo(({
         {/* Background Selector Button */}
         <button
           onClick={onOpenBackgrounds}
-          aria-label="Select atmosphere background"
+          aria-label={t.atmosphereStudioTooltip}
           className={`p-2.5 rounded-xl glass-panel glass-panel-hover transition-all focus:outline-none focus-visible:ring-2 ${
             isLight
               ? 'text-slate-700 hover:text-slate-900 focus-visible:ring-slate-400'
               : 'text-white/80 hover:text-white focus-visible:ring-white/50'
           }`}
-          title="Atmosphere Studio"
+          title={t.atmosphereStudioTooltip}
         >
           <ImageIcon className="w-4 h-4" />
         </button>
@@ -199,13 +196,13 @@ export const Header: React.FC<HeaderProps> = React.memo(({
         {/* Shortcuts Button */}
         <button
           onClick={onOpenShortcuts}
-          aria-label="View keyboard shortcuts"
+          aria-label={t.shortcutsTooltip}
           className={`hidden sm:flex p-2.5 rounded-xl glass-panel glass-panel-hover transition-all focus:outline-none focus-visible:ring-2 ${
             isLight
               ? 'text-slate-700 hover:text-slate-900 focus-visible:ring-slate-400'
               : 'text-white/80 hover:text-white focus-visible:ring-white/50'
           }`}
-          title="Keyboard Shortcuts"
+          title={t.shortcutsTooltip}
         >
           <Keyboard className="w-4 h-4" />
         </button>
@@ -213,7 +210,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
         {/* Friends & Community Button */}
         <button
           onClick={onOpenFriends}
-          aria-label={`Friends & Requests ${incomingRequestsCount > 0 ? `(${incomingRequestsCount} pending)` : ''}`}
+          aria-label={`${t.friendsCommunityTooltip} ${incomingRequestsCount > 0 ? `(${incomingRequestsCount})` : ''}`}
           className={`relative p-2.5 rounded-xl glass-panel glass-panel-hover transition-all focus:outline-none focus-visible:ring-2 cursor-pointer ${
             incomingRequestsCount > 0
               ? isLight
@@ -223,7 +220,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
               ? 'text-slate-700 hover:text-slate-900 focus-visible:ring-slate-400'
               : 'text-white/80 hover:text-white focus-visible:ring-white/50'
           }`}
-          title={incomingRequestsCount > 0 ? `Friends (${incomingRequestsCount} new request!)` : 'Friends & Community'}
+          title={incomingRequestsCount > 0 ? `${t.friendsCommunityTooltip} (${incomingRequestsCount} ${t.newRequest})` : t.friendsCommunityTooltip}
         >
           <Users className="w-4 h-4" />
           {incomingRequestsCount > 0 && (
@@ -236,7 +233,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
         {/* Account / Sync Button */}
         <button
           onClick={onOpenAuth}
-          aria-label={user ? `Account (${user.nickname ? `@${user.nickname}` : user.email})` : 'Sign in or create account'}
+          aria-label={user ? `${t.account} (${user.nickname ? `@${user.nickname}` : user.email})` : t.signIn}
           className={`relative flex items-center space-x-1.5 px-2.5 py-2 sm:px-3 sm:py-2.5 rounded-xl glass-panel glass-panel-hover transition-all focus:outline-none focus-visible:ring-2 ${
             user
               ? isLight
@@ -249,13 +246,13 @@ export const Header: React.FC<HeaderProps> = React.memo(({
           title={
             user
               ? syncStatus?.state === 'syncing'
-                ? `Syncing: ${user.nickname ? `@${user.nickname}` : user.email}`
+                ? `${t.syncing}: ${user.nickname ? `@${user.nickname}` : user.email}`
                 : syncStatus?.state === 'offline'
-                ? `Offline: ${user.nickname ? `@${user.nickname}` : user.email}`
+                ? `${t.offline}: ${user.nickname ? `@${user.nickname}` : user.email}`
                 : (syncStatus?.pendingCount ?? 0) > 0
-                ? `Saved locally (sync will retry): ${user.nickname ? `@${user.nickname}` : user.email}`
-                : `Synced: ${user.nickname ? `@${user.nickname}` : user.email}`
-              : 'Sign in to sync your focus data'
+                ? `${t.savedLocally}: ${user.nickname ? `@${user.nickname}` : user.email}`
+                : `${t.cloudSynced}: ${user.nickname ? `@${user.nickname}` : user.email}`
+              : t.signIn
           }
         >
           {user ? (
@@ -292,7 +289,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
           ) : (
             <>
               <Cloud className="w-4 h-4 shrink-0" />
-              <span className="hidden sm:inline text-xs font-medium">Sign In</span>
+              <span className="hidden sm:inline text-xs font-medium">{t.signIn}</span>
             </>
           )}
         </button>
@@ -300,13 +297,13 @@ export const Header: React.FC<HeaderProps> = React.memo(({
         {/* Settings Button */}
         <button
           onClick={onOpenSettings}
-          aria-label="Timer settings"
+          aria-label={t.settings}
           className={`p-2.5 rounded-xl glass-panel glass-panel-hover transition-all focus:outline-none focus-visible:ring-2 ${
             isLight
               ? 'text-slate-700 hover:text-slate-900 focus-visible:ring-slate-400'
               : 'text-white/80 hover:text-white focus-visible:ring-white/50'
           }`}
-          title="Settings"
+          title={t.settings}
         >
           <Settings className="w-4 h-4" />
         </button>
@@ -314,13 +311,13 @@ export const Header: React.FC<HeaderProps> = React.memo(({
         {/* Fullscreen Button */}
         <button
           onClick={onToggleFullscreen}
-          aria-label="Toggle fullscreen mode"
+          aria-label={t.toggleFullscreen}
           className={`hidden sm:flex p-2.5 rounded-xl glass-panel glass-panel-hover transition-all focus:outline-none focus-visible:ring-2 ${
             isLight
               ? 'text-slate-700 hover:text-slate-900 focus-visible:ring-slate-400'
               : 'text-white/80 hover:text-white focus-visible:ring-white/50'
           }`}
-          title="Toggle Fullscreen"
+          title={t.toggleFullscreen}
         >
           {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
         </button>

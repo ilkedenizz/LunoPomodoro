@@ -1,23 +1,27 @@
 import React from 'react';
-import type { TimerMode, AppTheme } from '../types';
+import type { TimerMode, AppTheme, AppLanguage } from '../types';
+import { getTranslations } from '../utils/translations';
 
 interface TimerModeSelectorProps {
   currentMode: TimerMode;
   onSelectMode: (mode: TimerMode) => void;
   theme?: AppTheme;
+  language?: AppLanguage;
 }
 
 export const TimerModeSelector: React.FC<TimerModeSelectorProps> = React.memo(({
   currentMode,
   onSelectMode,
   theme = 'dark',
+  language = 'en',
 }) => {
   const isLight = theme === 'light';
+  const t = getTranslations(language);
 
   const modes: { id: TimerMode; label: string }[] = [
-    { id: 'pomodoro', label: 'Pomodoro' },
-    { id: 'shortBreak', label: 'Short Break' },
-    { id: 'longBreak', label: 'Long Break' },
+    { id: 'pomodoro', label: t.pomodoro },
+    { id: 'shortBreak', label: t.shortBreak },
+    { id: 'longBreak', label: t.longBreak },
   ];
 
   return (

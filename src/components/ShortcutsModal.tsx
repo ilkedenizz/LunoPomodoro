@@ -1,20 +1,24 @@
 import React from 'react';
 import { X, Keyboard } from 'lucide-react';
+import type { AppLanguage } from '../types';
+import { getTranslations } from '../utils/translations';
 
 interface ShortcutsModalProps {
   isOpen: boolean;
   onClose: () => void;
+  language?: AppLanguage;
 }
 
-export const ShortcutsModal: React.FC<ShortcutsModalProps> = ({ isOpen, onClose }) => {
+export const ShortcutsModal: React.FC<ShortcutsModalProps> = ({ isOpen, onClose, language = 'en' }) => {
   if (!isOpen) return null;
+  const t = getTranslations(language);
 
   const shortcuts = [
-    { key: 'Space', desc: 'Start / Pause / Resume Timer' },
-    { key: 'R', desc: 'Reset Current Timer' },
-    { key: 'S', desc: 'Skip Current Session' },
-    { key: 'M', desc: 'Toggle Ambient Sound Studio' },
-    { key: 'Esc', desc: 'Close Active Overlay / Modal' },
+    { key: 'Space', desc: t.shortcutSpace },
+    { key: 'R', desc: t.shortcutR },
+    { key: 'S', desc: t.shortcutS },
+    { key: 'M', desc: t.shortcutM },
+    { key: 'Esc', desc: t.shortcutEsc },
   ];
 
   return (
@@ -35,13 +39,13 @@ export const ShortcutsModal: React.FC<ShortcutsModalProps> = ({ isOpen, onClose 
               <Keyboard className="w-4 h-4" />
             </div>
             <h2 id="shortcuts-title" className="text-lg font-bold text-white tracking-tight">
-              Keyboard Shortcuts
+              {t.shortcutsTitle}
             </h2>
           </div>
 
           <button
             onClick={onClose}
-            aria-label="Close shortcuts modal"
+            aria-label={t.close}
             className="p-2 rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
           >
             <X className="w-5 h-5" />

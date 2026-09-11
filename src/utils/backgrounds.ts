@@ -5,7 +5,9 @@ export const DARK_ATMOSPHERES: AtmosphereTheme[] = [
   {
     id: 'tokyo',
     name: 'Tokyo Rain',
+    nameTr: 'Tokyo Yağmuru',
     tagline: 'Neon reflections on wet Shibuya streets',
+    taglineTr: 'Islak Shibuya sokaklarında neon yansımalar',
     themeType: 'dark',
     imageUrl: '/atmospheres/tokyo-rain.jpg',
     cssBackground: `
@@ -23,7 +25,9 @@ export const DARK_ATMOSPHERES: AtmosphereTheme[] = [
   {
     id: 'cozy-room',
     name: 'Cozy Study',
+    nameTr: 'Sıcak Çalışma Odası',
     tagline: 'Warm amber lamp glow & quiet desk aesthetic',
+    taglineTr: 'Sıcak kehribar lamba ışıltısı & sakin masa estetiği',
     themeType: 'dark',
     imageUrl: '/atmospheres/cozy-study.jpg',
     cssBackground: `
@@ -41,7 +45,9 @@ export const DARK_ATMOSPHERES: AtmosphereTheme[] = [
   {
     id: 'library',
     name: 'Midnight Library',
+    nameTr: 'Gece Kütüphanesi',
     tagline: 'Quiet wooden shelves and antique spotlights',
+    taglineTr: 'Sessiz ahşap raflar ve loş aydınlatma',
     themeType: 'dark',
     imageUrl: '/atmospheres/midnight-library.jpg',
     cssBackground: `
@@ -59,7 +65,9 @@ export const DARK_ATMOSPHERES: AtmosphereTheme[] = [
   {
     id: 'cafe',
     name: 'Rainy Café',
+    nameTr: 'Yağmurlu Kafe',
     tagline: 'Dimly lit coffee house by window glass',
+    taglineTr: 'Pencere kenarında loş ışıklı kahve dükkanı',
     themeType: 'dark',
     imageUrl: '/atmospheres/rainy-cafe.jpg',
     cssBackground: `
@@ -77,7 +85,9 @@ export const DARK_ATMOSPHERES: AtmosphereTheme[] = [
   {
     id: 'rain',
     name: 'Glass Raindrops',
+    nameTr: 'Camdaki Damlalar',
     tagline: 'Soft rainfall against dark window glass',
+    taglineTr: 'Koyu renkli pencere camına vuran hafif yağmur',
     themeType: 'dark',
     imageUrl: '/atmospheres/glass-raindrops.jpg',
     cssBackground: `
@@ -92,7 +102,9 @@ export const DARK_ATMOSPHERES: AtmosphereTheme[] = [
   {
     id: 'night-city',
     name: 'Night Cityscape',
+    nameTr: 'Gece Şehri',
     tagline: 'Panoramic city lights under a starry sky',
+    taglineTr: 'Yıldızlı gökyüzü altında panoramik şehir ışıkları',
     themeType: 'dark',
     imageUrl: '/atmospheres/night-cityscape.jpg',
     cssBackground: `
@@ -113,7 +125,9 @@ export const LIGHT_ATMOSPHERES: AtmosphereTheme[] = [
   {
     id: 'soft-ivory',
     name: 'Soft Ivory',
+    nameTr: 'Sade Fildişi',
     tagline: 'Warm cream & delicate organic ambient shapes',
+    taglineTr: 'Sıcak krem & narin organik ortam tonları',
     themeType: 'light',
     cssBackground: `
       radial-gradient(circle at 15% 20%, rgba(254, 243, 199, 0.7) 0%, transparent 50%),
@@ -130,7 +144,9 @@ export const LIGHT_ATMOSPHERES: AtmosphereTheme[] = [
   {
     id: 'morning',
     name: 'Morning',
+    nameTr: 'Sabah Işığı',
     tagline: 'Crisp morning daylight & subtle sky-blue warmth',
+    taglineTr: 'Ferah sabah günışığı & gökyüzü mavisi sıcaklığı',
     themeType: 'light',
     cssBackground: `
       radial-gradient(circle at 20% 15%, rgba(254, 240, 138, 0.35) 0%, transparent 45%),
@@ -147,7 +163,9 @@ export const LIGHT_ATMOSPHERES: AtmosphereTheme[] = [
   {
     id: 'paper',
     name: 'Paper',
+    nameTr: 'Kağıt Dokusu',
     tagline: 'Warm editorial cream linen & tactile stillness',
+    taglineTr: 'Sıcak krem keten ve dingin durağanlık',
     themeType: 'light',
     cssBackground: `
       radial-gradient(circle at 75% 20%, rgba(245, 239, 230, 0.8) 0%, transparent 50%),
@@ -163,7 +181,9 @@ export const LIGHT_ATMOSPHERES: AtmosphereTheme[] = [
   {
     id: 'soft-nature',
     name: 'Soft Nature',
+    nameTr: 'Doğa Esintisi',
     tagline: 'Calm matcha sage & gentle organic beige tones',
+    taglineTr: 'Sakin adaçayı yeşili & nazik bej tonları',
     themeType: 'light',
     cssBackground: `
       radial-gradient(circle at 20% 25%, rgba(220, 252, 231, 0.55) 0%, transparent 50%),
@@ -271,4 +291,15 @@ export const getAtmosphereById = (id: string, theme: AppTheme = 'dark'): Atmosph
   if (found) return found;
   return getDefaultAtmosphere(theme);
 };
+
+export const getAtmosphereDisplayName = (atmo: AtmosphereTheme, lang: string = 'en'): string => {
+  if (lang === 'tr' && atmo.nameTr) return atmo.nameTr;
+  return atmo.name;
+};
+
+export const getAtmosphereDisplayTagline = (atmo: AtmosphereTheme, lang: string = 'en'): string => {
+  if (lang === 'tr' && atmo.taglineTr) return atmo.taglineTr;
+  return atmo.tagline;
+};
+
 

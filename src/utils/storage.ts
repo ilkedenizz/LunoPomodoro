@@ -22,6 +22,7 @@ export const DEFAULT_SETTINGS: TimerSettings = {
   tickingEnabled: false,
   theme: 'dark',
   timerColor: 'default',
+  language: typeof navigator !== 'undefined' && navigator.language?.toLowerCase().startsWith('tr') ? 'tr' : 'en',
 };
 
 export const DEFAULT_DAILY_GOAL: DailyGoal = {
@@ -73,6 +74,7 @@ const sanitizeSettings = (raw: unknown): TimerSettings => {
   const timerColor = VALID_TIMER_COLORS.includes(data.timerColor as string)
     ? (data.timerColor as TimerSettings['timerColor'])
     : 'default';
+  const language = data.language === 'tr' || data.language === 'en' ? data.language : DEFAULT_SETTINGS.language || 'en';
 
   return {
     pomodoroDuration: pomodoro,
@@ -86,6 +88,7 @@ const sanitizeSettings = (raw: unknown): TimerSettings => {
     tickingEnabled: Boolean(data.tickingEnabled),
     theme,
     timerColor,
+    language,
   };
 };
 
