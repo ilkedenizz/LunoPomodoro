@@ -9,6 +9,19 @@ export const getTotalFocusMinutes = (sessions: FocusSession[]): number => {
   return getPomodoroSessions(sessions).reduce((acc, s) => acc + s.durationMinutes, 0);
 };
 
+export const formatTotalFocusTime = (totalMinutes: number): string => {
+  const rounded = Math.max(0, Math.round(totalMinutes));
+  const hrs = Math.floor(rounded / 60);
+  const mins = rounded % 60;
+  if (hrs === 0) {
+    return `${mins} dk`;
+  }
+  if (mins === 0) {
+    return `${hrs} saat`;
+  }
+  return `${hrs} saat ${mins} dk`;
+};
+
 export const getPomodoroCount = (sessions: FocusSession[]): number => {
   return getPomodoroSessions(sessions).length;
 };

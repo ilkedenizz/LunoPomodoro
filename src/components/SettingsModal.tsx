@@ -43,6 +43,7 @@ import {
   getCurrentStreak,
   getPomodoroCount,
   getTotalFocusMinutes,
+  formatTotalFocusTime,
 } from '../utils/statistics';
 import { isToday } from '../utils/dates';
 import {
@@ -183,13 +184,6 @@ const formatLastSynced = (timestamp: number | null): string => {
     hour: '2-digit',
     minute: '2-digit',
   });
-};
-
-const formatFocusMinutes = (totalMinutes: number): string => {
-  const hrs = Math.floor(totalMinutes / 60);
-  const mins = totalMinutes % 60;
-  if (hrs === 0) return `${mins}m`;
-  return `${hrs}h ${mins}m`;
 };
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -981,6 +975,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                   : 'Synced'}
                               </span>
                             </span>
+
+                            {/* Prominent Total Focus Time Badge */}
+                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${
+                              isLight
+                                ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                                : 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30'
+                            }`}>
+                              <Clock className="w-3 h-3 text-indigo-400 shrink-0" />
+                              <span className="font-timer">{formatTotalFocusTime(totalFocusMinutes)}</span>
+                              <span className="font-normal opacity-75">Focus</span>
+                            </span>
                           </div>
                         </div>
                       </div>
@@ -1025,18 +1030,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                       {/* Total Focus Time */}
-                      <div className={`p-3 rounded-2xl border flex flex-col justify-between ${
-                        isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'
+                      <div className={`p-3 rounded-2xl border flex flex-col justify-between transition-all ${
+                        isLight
+                          ? 'bg-indigo-50/70 border-indigo-200/80 shadow-xs'
+                          : 'bg-gradient-to-br from-indigo-500/15 via-white/5 to-white/5 border-indigo-500/30 shadow-sm'
                       }`}>
                         <div className="flex items-center justify-between text-indigo-400 mb-1">
                           <Clock className="w-4 h-4" />
-                          <span className={`text-[10px] font-mono font-medium ${isLight ? 'text-slate-500' : 'text-white/50'}`}>TOTAL</span>
+                          <span className={`text-[10px] font-mono font-semibold ${isLight ? 'text-indigo-600' : 'text-indigo-300'}`}>TOTAL</span>
                         </div>
                         <div>
-                          <div className="text-base sm:text-lg font-bold font-timer">
-                            {formatFocusMinutes(totalFocusMinutes)}
+                          <div className={`text-base sm:text-lg font-bold font-timer tracking-tight ${isLight ? 'text-indigo-800' : 'text-indigo-200'}`}>
+                            {formatTotalFocusTime(totalFocusMinutes)}
                           </div>
-                          <div className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-white/60'}`}>Focus Time</div>
+                          <div className={`text-[10px] font-medium ${isLight ? 'text-slate-600' : 'text-white/70'}`}>Total Focus Time</div>
                         </div>
                       </div>
 
@@ -1064,7 +1071,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         </div>
                         <div>
                           <div className="text-base sm:text-lg font-bold font-timer">
-                            {formatFocusMinutes(todayFocusMinutes)}
+                            {formatTotalFocusTime(todayFocusMinutes)}
                           </div>
                           <div className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-white/60'}`}>Today Focus</div>
                         </div>
@@ -1473,10 +1480,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                       <div className={`p-3 rounded-2xl border ${
-                        isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'
+                        isLight ? 'bg-indigo-50/70 border-indigo-200/80' : 'bg-indigo-500/15 border-indigo-500/30'
                       }`}>
-                        <div className="text-xs font-bold font-timer">{formatFocusMinutes(totalFocusMinutes)}</div>
-                        <div className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-white/60'}`}>Total Time</div>
+                        <div className="text-xs font-bold font-timer text-indigo-400">{formatTotalFocusTime(totalFocusMinutes)}</div>
+                        <div className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-white/60'}`}>Total Focus</div>
                       </div>
                       <div className={`p-3 rounded-2xl border ${
                         isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'
@@ -1487,7 +1494,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       <div className={`p-3 rounded-2xl border ${
                         isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'
                       }`}>
-                        <div className="text-xs font-bold font-timer">{formatFocusMinutes(todayFocusMinutes)}</div>
+                        <div className="text-xs font-bold font-timer">{formatTotalFocusTime(todayFocusMinutes)}</div>
                         <div className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-white/60'}`}>Today</div>
                       </div>
                       <div className={`p-3 rounded-2xl border ${
