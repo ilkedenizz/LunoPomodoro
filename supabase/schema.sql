@@ -59,6 +59,17 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.profiles TO authenticated;
+GRANT SELECT ON TABLE public.profiles TO anon;
+
+DO $$ BEGIN
+  CREATE POLICY "Public profiles are viewable by authenticated users"
+    ON public.profiles
+    FOR SELECT
+    USING (true);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
 CREATE OR REPLACE FUNCTION public.check_nickname_available(username text, exclude_user_id uuid DEFAULT NULL)
 RETURNS boolean
 LANGUAGE plpgsql
@@ -82,6 +93,80 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.check_nickname_available(text, uuid) TO anon, authenticated;
+
+-- Atomic profile update function for authenticated users
+CREATE OR REPLACE FUNCTION public.update_my_profile(
+  p_nickname TEXT DEFAULT NULL,
+  p_display_name TEXT DEFAULT NULL,
+  p_avatar_url TEXT DEFAULT NULL
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_user_id UUID;
+  v_clean_nick TEXT;
+  v_clean_display TEXT;
+  v_result RECORD;
+BEGIN
+  v_user_id := auth.uid();
+  IF v_user_id IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Not authenticated');
+  END IF;
+
+  -- Validate and clean nickname if provided
+  IF p_nickname IS NOT NULL AND trim(p_nickname) != '' THEN
+    v_clean_nick := lower(trim(p_nickname));
+    IF char_length(v_clean_nick) < 3 OR char_length(v_clean_nick) > 20 THEN
+      RETURN jsonb_build_object('success', false, 'error', 'Nickname must be between 3 and 20 characters.');
+    END IF;
+    IF v_clean_nick !~ '^[a-zA-Z0-9_]{3,20}$' THEN
+      RETURN jsonb_build_object('success', false, 'error', 'Nickname can only contain letters, numbers, and underscores.');
+    END IF;
+
+    -- Check uniqueness against existing profiles
+    IF EXISTS (
+      SELECT 1 FROM public.profiles
+      WHERE lower(nickname) = v_clean_nick AND id != v_user_id
+    ) THEN
+      RETURN jsonb_build_object('success', false, 'error', 'This nickname is already taken.');
+    END IF;
+  END IF;
+
+  -- Upsert profile row
+  INSERT INTO public.profiles (id, nickname, display_name, avatar_url, updated_at)
+  VALUES (
+    v_user_id,
+    COALESCE(v_clean_nick, 'user_' || substring(v_user_id::text from 1 for 6)),
+    NULLIF(trim(p_display_name), ''),
+    NULLIF(p_avatar_url, ''),
+    timezone('utc'::text, now())
+  )
+  ON CONFLICT (id) DO UPDATE
+  SET
+    nickname = COALESCE(v_clean_nick, public.profiles.nickname),
+    display_name = CASE WHEN p_display_name IS NOT NULL THEN NULLIF(trim(p_display_name), '') ELSE public.profiles.display_name END,
+    avatar_url = CASE WHEN p_avatar_url IS NOT NULL THEN NULLIF(p_avatar_url, '') ELSE public.profiles.avatar_url END,
+    updated_at = timezone('utc'::text, now())
+  RETURNING * INTO v_result;
+
+  RETURN jsonb_build_object(
+    'success', true,
+    'profile', jsonb_build_object(
+      'id', v_result.id,
+      'nickname', v_result.nickname,
+      'display_name', v_result.display_name,
+      'avatar_url', v_result.avatar_url
+    )
+  );
+EXCEPTION WHEN OTHERS THEN
+  RETURN jsonb_build_object('success', false, 'error', SQLERRM);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.update_my_profile(TEXT, TEXT, TEXT) TO authenticated;
 
 -- ==============================================================================
 -- AUTOMATIC PROFILE CREATION TRIGGER & BACKFILL FOR AUTH USERS

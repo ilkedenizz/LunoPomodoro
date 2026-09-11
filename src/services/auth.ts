@@ -568,57 +568,110 @@ export const updateUserProfile = async (
       return { user: null, error: 'No active session found.' };
     }
 
-    const authDataUpdates: Record<string, string> = {};
-    const profileUpdates: Record<string, string | null> = { id: currentUser.id, updated_at: new Date().toISOString() };
-
-    if (updates.displayName !== undefined) {
-      const trimmed = updates.displayName.trim();
-      authDataUpdates.display_name = trimmed;
-      profileUpdates.display_name = trimmed;
-    }
-
-    if (updates.avatarUrl !== undefined) {
-      authDataUpdates.avatar_url = updates.avatarUrl || '';
-      profileUpdates.avatar_url = updates.avatarUrl || null;
-    }
-
+    let cleanNickname: string | undefined = undefined;
     if (updates.nickname !== undefined) {
       const val = validateNickname(updates.nickname);
       if (!val.valid) {
         return { user: null, error: val.error };
       }
-      const cleanNickname = val.normalized;
+      cleanNickname = val.normalized;
 
       // Check availability excluding current user
       const avail = await checkNicknameAvailability(cleanNickname, currentUser.id);
       if (!avail.available) {
         return { user: null, error: avail.error || 'This nickname is already taken.' };
       }
-
-      authDataUpdates.nickname = cleanNickname;
-      profileUpdates.nickname = cleanNickname;
     }
 
-    const { data, error } = await client.auth.updateUser({
+    // 1. Try calling update_my_profile RPC
+    let profileData: { id?: string; nickname?: string; display_name?: string; avatar_url?: string | null } | null = null;
+    try {
+      const { data: rpcRes, error: rpcErr } = await client.rpc('update_my_profile', {
+        p_nickname: cleanNickname || null,
+        p_display_name: updates.displayName !== undefined ? (updates.displayName.trim() || null) : null,
+        p_avatar_url: updates.avatarUrl !== undefined ? (updates.avatarUrl || null) : null,
+      });
+
+      if (!rpcErr && rpcRes && rpcRes.success && rpcRes.profile) {
+        profileData = rpcRes.profile;
+      } else if (rpcRes && rpcRes.success === false && rpcRes.error) {
+        return { user: null, error: rpcRes.error };
+      }
+    } catch {}
+
+    // 2. Direct table update / upsert fallback
+    if (!profileData) {
+      const dbUpdates: Record<string, unknown> = {
+        updated_at: new Date().toISOString(),
+      };
+      if (updates.displayName !== undefined) dbUpdates.display_name = updates.displayName.trim() || null;
+      if (cleanNickname !== undefined) dbUpdates.nickname = cleanNickname;
+      if (updates.avatarUrl !== undefined) dbUpdates.avatar_url = updates.avatarUrl || null;
+
+      const { data: updateRes, error: updateErr } = await client
+        .from('profiles')
+        .update(dbUpdates)
+        .eq('id', currentUser.id)
+        .select('id, nickname, display_name, avatar_url')
+        .maybeSingle();
+
+      if (updateErr) {
+        if (import.meta.env.DEV) {
+          console.error('[Luno Profiles Update Error]:', updateErr);
+        }
+        return { user: null, error: formatAuthError(updateErr.message) };
+      }
+
+      if (updateRes) {
+        profileData = updateRes;
+      } else {
+        const fullProfile = {
+          id: currentUser.id,
+          nickname: cleanNickname || currentUser.user_metadata?.nickname || (currentUser.email ? currentUser.email.split('@')[0] : 'user'),
+          display_name: updates.displayName !== undefined ? (updates.displayName.trim() || null) : (currentUser.user_metadata?.display_name || null),
+          avatar_url: updates.avatarUrl !== undefined ? (updates.avatarUrl || null) : (currentUser.user_metadata?.avatar_url || null),
+          updated_at: new Date().toISOString(),
+        };
+        const { data: upsertRes, error: upsertErr } = await client
+          .from('profiles')
+          .upsert(fullProfile)
+          .select('id, nickname, display_name, avatar_url')
+          .maybeSingle();
+
+        if (upsertErr) {
+          if (import.meta.env.DEV) {
+            console.error('[Luno Profiles Upsert Error]:', upsertErr);
+          }
+          return { user: null, error: formatAuthError(upsertErr.message) };
+        }
+        profileData = upsertRes || fullProfile;
+      }
+    }
+
+    // 3. Keep auth metadata in sync
+    const authDataUpdates: Record<string, string> = {};
+    if (profileData.display_name !== undefined) {
+      authDataUpdates.display_name = profileData.display_name || '';
+    }
+    if (profileData.nickname !== undefined) {
+      authDataUpdates.nickname = profileData.nickname || '';
+    }
+    if (profileData.avatar_url !== undefined) {
+      authDataUpdates.avatar_url = profileData.avatar_url || '';
+    }
+
+    const { data: authData, error: authErr } = await client.auth.updateUser({
       data: authDataUpdates,
     });
 
-    if (error) {
-      return { user: null, error: formatAuthError(error.message) };
+    if (authErr) {
+      if (import.meta.env.DEV) {
+        console.error('[Luno Auth Metadata Update Error]:', authErr);
+      }
     }
 
-    // Update public.profiles table
-    if (Object.keys(profileUpdates).length > 2) {
-      try {
-        await client.from('profiles').upsert(profileUpdates);
-      } catch {}
-    }
-
-    if (data.user) {
-      return { user: mapSupabaseUser(data.user, profileUpdates as { nickname?: string; display_name?: string; avatar_url?: string | null }), error: null };
-    }
-
-    return { user: null, error: 'Failed to update profile.' };
+    const finalUser = mapSupabaseUser(authData?.user || currentUser, profileData);
+    return { user: finalUser, error: null };
   } catch (err: unknown) {
     const msg = err instanceof Error ? formatAuthError(err.message) : 'Failed to update profile.';
     return { user: null, error: msg };
@@ -748,35 +801,52 @@ export const uploadAvatar = async (
       return { user: null, avatarUrl: null, error: formatAvatarError(uploadError.message) };
     }
 
-    // Get public URL
+    // Get public URL with timestamp cache buster
     const { data: publicUrlData } = client.storage.from('avatars').getPublicUrl(filePath);
-    const publicUrl = publicUrlData.publicUrl;
+    const basePublicUrl = publicUrlData.publicUrl;
+    const publicUrl = `${basePublicUrl}?t=${Date.now()}`;
+
+    // Update public.profiles table
+    let profileData: { nickname?: string; display_name?: string; avatar_url?: string | null } | null = null;
+    try {
+      const { data: rpcRes, error: rpcErr } = await client.rpc('update_my_profile', {
+        p_avatar_url: publicUrl,
+      });
+      if (!rpcErr && rpcRes && rpcRes.success && rpcRes.profile) {
+        profileData = rpcRes.profile;
+      }
+    } catch {}
+
+    if (!profileData) {
+      const { data: updatedProf, error: profErr } = await client
+        .from('profiles')
+        .update({
+          avatar_url: publicUrl,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', user.id)
+        .select('nickname, display_name, avatar_url')
+        .maybeSingle();
+
+      if (profErr) {
+        if (import.meta.env.DEV) {
+          console.error('[Luno Avatar Profiles Direct Update Error]:', profErr);
+        }
+        return { user: null, avatarUrl: null, error: formatAvatarError(profErr.message) };
+      }
+      profileData = updatedProf || { avatar_url: publicUrl };
+    }
 
     // Update user auth metadata
     const { data: updateUserData, error: authUpdateError } = await client.auth.updateUser({
       data: { avatar_url: publicUrl },
     });
 
-    if (authUpdateError) {
-      if (import.meta.env.DEV) {
-        console.error('[Luno Auth Metadata Update Error]:', authUpdateError);
-      }
-      return { user: null, avatarUrl: null, error: formatAvatarError(authUpdateError.message) };
+    if (authUpdateError && import.meta.env.DEV) {
+      console.warn('[Luno Auth Metadata Update Warning]:', authUpdateError);
     }
 
-    // Update public.profiles table
-    try {
-      await client.from('profiles').upsert({
-        id: user.id,
-        avatar_url: publicUrl,
-        updated_at: new Date().toISOString(),
-      });
-    } catch {}
-
-    const mappedUser = updateUserData.user
-      ? mapSupabaseUser(updateUserData.user, { avatar_url: publicUrl })
-      : null;
-
+    const mappedUser = mapSupabaseUser(updateUserData?.user || user, profileData);
     return { user: mappedUser, avatarUrl: publicUrl, error: null };
   } catch (err: unknown) {
     if (import.meta.env.DEV) {
@@ -811,31 +881,47 @@ export const removeAvatar = async (): Promise<{ user: UserProfile | null; error:
       }
     } catch {}
 
+    // Update public.profiles table
+    let profileData: { nickname?: string; display_name?: string; avatar_url?: string | null } | null = null;
+    try {
+      const { data: rpcRes, error: rpcErr } = await client.rpc('update_my_profile', {
+        p_avatar_url: '',
+      });
+      if (!rpcErr && rpcRes && rpcRes.success && rpcRes.profile) {
+        profileData = { ...rpcRes.profile, avatar_url: null };
+      }
+    } catch {}
+
+    if (!profileData) {
+      const { data: updatedProf, error: profErr } = await client
+        .from('profiles')
+        .update({
+          avatar_url: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', user.id)
+        .select('nickname, display_name, avatar_url')
+        .maybeSingle();
+
+      if (profErr) {
+        if (import.meta.env.DEV) {
+          console.error('[Luno Avatar Profiles Remove Error]:', profErr);
+        }
+        return { user: null, error: formatAvatarError(profErr.message) };
+      }
+      profileData = updatedProf || { avatar_url: null };
+    }
+
     // Clear auth metadata
     const { data: updateUserData, error: authUpdateError } = await client.auth.updateUser({
       data: { avatar_url: '' },
     });
 
-    if (authUpdateError) {
-      if (import.meta.env.DEV) {
-        console.error('[Luno Auth Metadata Clear Error]:', authUpdateError);
-      }
-      return { user: null, error: formatAvatarError(authUpdateError.message) };
+    if (authUpdateError && import.meta.env.DEV) {
+      console.warn('[Luno Auth Metadata Clear Warning]:', authUpdateError);
     }
 
-    // Clear profiles table
-    try {
-      await client.from('profiles').upsert({
-        id: user.id,
-        avatar_url: null,
-        updated_at: new Date().toISOString(),
-      });
-    } catch {}
-
-    const mappedUser = updateUserData.user
-      ? mapSupabaseUser(updateUserData.user, { avatar_url: null })
-      : null;
-
+    const mappedUser = mapSupabaseUser(updateUserData?.user || user, { ...profileData, avatar_url: null });
     return { user: mappedUser, error: null };
   } catch (err: unknown) {
     if (import.meta.env.DEV) {
