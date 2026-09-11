@@ -348,4 +348,19 @@ export const saveAtmospherePresets = (presets: AtmospherePreset[]): void => {
   }
 };
 
+export const clearLocalStorageData = (): void => {
+  try {
+    saveTasks([]);
+    localStorage.setItem(SESSIONS_KEY, JSON.stringify([]));
+    saveDailyGoal(DEFAULT_DAILY_GOAL);
+    saveAtmospherePresets([]);
+    saveFavoriteAtmospheres(['tokyo', 'rain', 'soft-ivory']);
+    saveActiveTaskId(null);
+    saveSoundMixerState(DEFAULT_SOUND_MIXER);
+    saveSettings(DEFAULT_SETTINGS);
+  } catch (err) {
+    console.error('Failed to clear local storage data', err);
+  }
+};
+
 

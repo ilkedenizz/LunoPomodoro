@@ -65,6 +65,9 @@ import {
   saveSoundMixerState,
   loadAtmospherePresets,
   saveAtmospherePresets,
+  clearLocalStorageData,
+  DEFAULT_SETTINGS,
+  DEFAULT_SOUND_MIXER,
 } from './utils/storage';
 import { getAtmosphereById } from './utils/backgrounds';
 import { playCompletionChime, ambientEngine } from './utils/sound';
@@ -720,8 +723,19 @@ export function App() {
 
   const handleSignOut = useCallback(async () => {
     await signOut();
+    clearLocalStorageData();
     setUser(null);
     SyncEngine.reset();
+    setSettings(DEFAULT_SETTINGS);
+    setTasks([]);
+    setSessions([]);
+    setDailyGoal(loadDailyGoal());
+    setAtmospherePresets([]);
+    setFavoriteAtmospheres(loadFavoriteAtmospheres());
+    setSoundMixerState(DEFAULT_SOUND_MIXER);
+    setActiveTaskId(null);
+    const targetBg = getAtmosphereById(loadSavedBackground(DEFAULT_SETTINGS.theme), DEFAULT_SETTINGS.theme);
+    setAtmosphere(targetBg);
   }, []);
 
   const handleSyncNow = useCallback(async () => {

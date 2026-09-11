@@ -27,7 +27,8 @@ import {
   checkNicknameAvailability,
 } from '../services/auth';
 import { isSupabaseConfigured } from '../services/supabaseClient';
-import { SyncEngine } from '../services/syncEngine';
+import { SyncEngine, clearPendingQueue, setLastSyncedAt } from '../services/syncEngine';
+import { clearLocalStorageData } from '../utils/storage';
 import type { AppTheme, UserProfile } from '../types';
 
 export type AuthModalMode =
@@ -175,7 +176,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       }
 
       setIsLoading(true);
-      setStatusMessage('Creating account & backing up your local data...');
+      setStatusMessage('Creating your account...');
 
       try {
         const res = await signUp(email, password, nickname);
@@ -195,18 +196,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         }
 
         if (res.user) {
-          setStatusMessage('Backing up your focus history and presets...');
-          const migrationRes = await SyncEngine.migrateLocalDataToAccount(res.user.id);
-          if (!migrationRes.success) {
-            setErrorMessage(migrationRes.error || 'Account created, but cloud migration encountered a problem. Local data is intact.');
-          } else {
-            setSuccessMessage('Account created! Your local data has been safely backed up to the cloud.');
-          }
+          // Fresh account = completely clean start. Discard old local data.
+          clearLocalStorageData();
+          clearPendingQueue();
+          setLastSyncedAt(null);
+          SyncEngine.reset();
 
+          setSuccessMessage('Account created! Welcome to Luno.');
           onAuthSuccess(res.user);
           setTimeout(() => {
             onClose();
-          }, 1400);
+          }, 1000);
         }
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : 'Sign up failed.';
@@ -221,7 +221,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     // 2. SIGN IN FLOW
     if (mode === 'signin') {
       setIsLoading(true);
-      setStatusMessage('Signing in & synchronizing your focus records...');
+      setStatusMessage('Signing in & synchronizing your cloud records...');
 
       try {
         const res = await signIn(email, password);
@@ -232,14 +232,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           return;
         }
 
-        setStatusMessage('Merging cloud and local records...');
+        setStatusMessage('Loading your cloud focus records...');
+        clearPendingQueue();
         await SyncEngine.pullAndMerge(res.user.id);
         setSuccessMessage('Signed in successfully! Your data is synchronized.');
 
         onAuthSuccess(res.user);
         setTimeout(() => {
           onClose();
-        }, 1200);
+        }, 1000);
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : 'Sign in failed.';
         setErrorMessage(msg);

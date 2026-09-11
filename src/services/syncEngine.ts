@@ -688,7 +688,7 @@ export class SyncEngine {
         client.from('atmosphere_presets').select('*').eq('user_id', userId),
       ]);
 
-      // 1. Merge Tasks
+      // 1. Set Tasks from Cloud
       if (tasksRes.data && Array.isArray(tasksRes.data)) {
         const remoteTasks: Task[] = tasksRes.data
           .filter((r: any) => r && typeof r.id === 'string' && typeof r.title === 'string')
@@ -701,11 +701,12 @@ export class SyncEngine {
             completedAt: r.completed_at ? new Date(r.completed_at).getTime() : undefined,
             updatedAt: r.updated_at ? new Date(r.updated_at).getTime() : undefined,
           }));
-        const mergedTasks = mergeTasks(loadTasks(), remoteTasks);
-        saveTasks(mergedTasks);
+        saveTasks(remoteTasks);
+      } else {
+        saveTasks([]);
       }
 
-      // 2. Merge Sessions
+      // 2. Set Sessions from Cloud
       if (sessionsRes.data && Array.isArray(sessionsRes.data)) {
         const remoteSessions: FocusSession[] = sessionsRes.data
           .filter((r: any) => r && typeof r.id === 'string')
@@ -716,39 +717,40 @@ export class SyncEngine {
             durationMinutes: sanitizeDuration(r.duration_minutes, 25),
             taskTitle: r.task_title || undefined,
           }));
-        const mergedSessions = mergeSessions(loadSessions(), remoteSessions);
-        saveSessionsDirectly(mergedSessions);
+        saveSessionsDirectly(remoteSessions);
+      } else {
+        saveSessionsDirectly([]);
       }
 
-      // 3. Merge Settings
+      // 3. Set Settings from Cloud
       if (settingsRes.data) {
         const remoteSettings = settingsRes.data;
         const current = loadSettings();
         const updated: TimerSettings = {
           ...current,
-          pomodoroDuration: sanitizeDuration(remoteSettings.pomodoro_duration, current.pomodoroDuration),
-          shortBreakDuration: sanitizeDuration(remoteSettings.short_break_duration, current.shortBreakDuration),
-          longBreakDuration: sanitizeDuration(remoteSettings.long_break_duration, current.longBreakDuration),
-          autoStartBreaks: typeof remoteSettings.auto_start_breaks === 'boolean' ? remoteSettings.auto_start_breaks : current.autoStartBreaks,
-          autoStartPomodoros: typeof remoteSettings.auto_start_pomodoros === 'boolean' ? remoteSettings.auto_start_pomodoros : current.autoStartPomodoros,
-          soundEnabled: typeof remoteSettings.sound_enabled === 'boolean' ? remoteSettings.sound_enabled : current.soundEnabled,
-          soundVolume: typeof remoteSettings.sound_volume === 'number' ? Math.max(0, Math.min(1, remoteSettings.sound_volume)) : current.soundVolume,
-          notificationsEnabled: typeof remoteSettings.notifications_enabled === 'boolean' ? remoteSettings.notifications_enabled : current.notificationsEnabled,
-          theme: sanitizeTheme(remoteSettings.theme, current.theme),
-          timerColor: sanitizeTimerColor(remoteSettings.timer_color, current.timerColor),
+          pomodoroDuration: sanitizeDuration(remoteSettings.pomodoro_duration, 25),
+          shortBreakDuration: sanitizeDuration(remoteSettings.short_break_duration, 5),
+          longBreakDuration: sanitizeDuration(remoteSettings.long_break_duration, 15),
+          autoStartBreaks: typeof remoteSettings.auto_start_breaks === 'boolean' ? remoteSettings.auto_start_breaks : false,
+          autoStartPomodoros: typeof remoteSettings.auto_start_pomodoros === 'boolean' ? remoteSettings.auto_start_pomodoros : false,
+          soundEnabled: typeof remoteSettings.sound_enabled === 'boolean' ? remoteSettings.sound_enabled : true,
+          soundVolume: typeof remoteSettings.sound_volume === 'number' ? Math.max(0, Math.min(1, remoteSettings.sound_volume)) : 0.8,
+          notificationsEnabled: typeof remoteSettings.notifications_enabled === 'boolean' ? remoteSettings.notifications_enabled : true,
+          theme: sanitizeTheme(remoteSettings.theme, 'dark'),
+          timerColor: sanitizeTimerColor(remoteSettings.timer_color, 'default'),
         };
         saveSettings(updated);
 
         if (Array.isArray(remoteSettings.favorite_atmospheres)) {
-          const mergedFavs = Array.from(new Set([...loadFavoriteAtmospheres(), ...remoteSettings.favorite_atmospheres]));
-          saveFavoriteAtmospheres(mergedFavs);
+          saveFavoriteAtmospheres(remoteSettings.favorite_atmospheres);
         }
       } else {
-        // Initial setup for freshly registered account or first cloud sync
+        // Initial clean setup for new account in cloud
+        saveSettings(loadSettings());
         await this.pushSettings(loadSettings(), loadFavoriteAtmospheres(), userId);
       }
 
-      // 4. Merge Goal
+      // 4. Set Daily Goal from Cloud
       if (goalRes.data) {
         const mergedGoal: DailyGoal = {
           targetPomodoros: typeof goalRes.data.target_pomodoros === 'number' ? goalRes.data.target_pomodoros : 4,
@@ -757,22 +759,24 @@ export class SyncEngine {
         saveDailyGoal(mergedGoal);
       } else {
         // Initial setup for daily goal in cloud
+        saveDailyGoal(loadDailyGoal());
         await this.pushDailyGoal(loadDailyGoal(), userId);
       }
 
-      // 5. Merge Presets
+      // 5. Set Presets from Cloud
       if (presetsRes.data && Array.isArray(presetsRes.data)) {
         const remotePresets: AtmospherePreset[] = presetsRes.data
           .filter((r: any) => r && typeof r.id === 'string' && typeof r.name === 'string')
           .map((r: any) => ({
             id: r.id,
             name: r.name,
-            atmosphereId: r.atmosphere_id || 'lofi_room',
-            soundMixer: r.sound_mixer || {},
+            atmosphereId: r.atmosphere_id || 'tokyo',
+            soundMixer: r.sound_mixer || { masterVolume: 0.8, tracks: {} },
             createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
           }));
-        const merged = mergePresets(loadAtmospherePresets(), remotePresets);
-        saveAtmospherePresets(merged);
+        saveAtmospherePresets(remotePresets);
+      } else {
+        saveAtmospherePresets([]);
       }
 
       this.lastSyncedAt = Date.now();
