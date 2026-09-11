@@ -46,7 +46,7 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({
         </div>
         <div>
           <div className="font-timer text-xl sm:text-2xl font-bold text-white">
-            {formatDuration(totalMinutes)}
+            {formatDuration(totalMinutes, language)}
           </div>
           <span className="text-[10px] text-white/50">{t.focusedTime}</span>
         </div>
@@ -89,7 +89,7 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({
             {bestDayDisplay}
           </div>
           <span className="text-[10px] text-white/50">
-            {bestDay ? `${formatDuration(bestDay.minutes)} ${t.todayFocused}` : t.noSessionsYet}
+            {bestDay ? `${formatDuration(bestDay.minutes, language)} ${t.todayFocused}` : t.noSessionsYet}
           </span>
         </div>
       </div>

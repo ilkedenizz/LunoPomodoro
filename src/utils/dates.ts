@@ -1,3 +1,6 @@
+import type { AppLanguage } from '../types';
+import { formatDuration as formatDurationLocalized } from './translations';
+
 export const isToday = (timestamp: number): boolean => {
   const date = new Date(timestamp);
   const today = new Date();
@@ -45,19 +48,16 @@ export const formatTime = (timestamp: number): string => {
   return `${hours}:${minutes}`;
 };
 
-export const formatDateLabel = (timestamp: number): string => {
-  if (isToday(timestamp)) return 'Today';
-  if (isYesterday(timestamp)) return 'Yesterday';
+export const formatDateLabel = (timestamp: number, lang: AppLanguage = 'en'): string => {
+  if (isToday(timestamp)) return lang === 'tr' ? 'Bugün' : 'Today';
+  if (isYesterday(timestamp)) return lang === 'tr' ? 'Dün' : 'Yesterday';
   const d = new Date(timestamp);
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return d.toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US', { month: 'short', day: 'numeric' });
 };
 
-export const formatDuration = (totalMinutes: number): string => {
-  const hrs = Math.floor(totalMinutes / 60);
-  const mins = totalMinutes % 60;
-  if (hrs === 0) return `${mins}m`;
-  if (mins === 0) return `${hrs}h`;
-  return `${hrs}h ${mins}m`;
+export const formatDuration = (totalMinutes: number, lang: AppLanguage = 'en'): string => {
+  return formatDurationLocalized(totalMinutes, lang);
 };
+
 
  

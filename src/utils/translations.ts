@@ -899,15 +899,49 @@ export const getTranslations = (lang: AppLanguage = 'en'): Translations => {
   return TRANSLATIONS[lang] || TRANSLATIONS.en;
 };
 
-export const formatDurationHoursMinutes = (totalMinutes: number, lang: AppLanguage = 'en'): string => {
-  const hrs = Math.floor(totalMinutes / 60);
-  const mins = totalMinutes % 60;
+export const formatDuration = (totalMinutes: number, lang: AppLanguage = 'en'): string => {
+  const rounded = Math.max(0, Math.round(totalMinutes));
+  const hrs = Math.floor(rounded / 60);
+  const mins = rounded % 60;
+
   if (lang === 'tr') {
     if (hrs === 0) return `${mins} dk`;
     if (mins === 0) return `${hrs} saat`;
     return `${hrs} saat ${mins} dk`;
   }
-  if (hrs === 0) return `${mins}m`;
-  if (mins === 0) return `${hrs}h`;
-  return `${hrs}h ${mins}m`;
+
+  // English
+  if (hrs === 0) return `${mins} min`;
+  if (mins === 0) return hrs === 1 ? '1 hour' : `${hrs} hours`;
+  return `${hrs} hr ${mins} min`;
 };
+
+export const formatDurationVerbose = (totalMinutes: number, lang: AppLanguage = 'en'): string => {
+  const rounded = Math.max(0, Math.round(totalMinutes));
+  const hrs = Math.floor(rounded / 60);
+  const mins = rounded % 60;
+
+  if (lang === 'tr') {
+    if (hrs === 0) return `${mins} dakika`;
+    if (mins === 0) return `${hrs} saat`;
+    return `${hrs} saat ${mins} dakika`;
+  }
+
+  // English
+  if (hrs === 0) return mins === 1 ? '1 minute' : `${mins} minutes`;
+  if (mins === 0) return hrs === 1 ? '1 hour' : `${hrs} hours`;
+  return `${hrs} ${hrs === 1 ? 'hour' : 'hours'} ${mins} ${mins === 1 ? 'minute' : 'minutes'}`;
+};
+
+export const formatSecondsDuration = (seconds: number, lang: AppLanguage = 'en'): string => {
+  const rounded = Math.max(0, Math.round(seconds));
+  if (lang === 'tr') {
+    return `${rounded} saniye`;
+  }
+  return rounded === 1 ? '1 second' : `${rounded} seconds`;
+};
+
+export const formatDurationHoursMinutes = (totalMinutes: number, lang: AppLanguage = 'en'): string => {
+  return formatDuration(totalMinutes, lang);
+};
+

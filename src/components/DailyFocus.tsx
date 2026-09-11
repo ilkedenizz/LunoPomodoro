@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Target, CheckCircle2, Edit2, Check } from 'lucide-react';
 import type { DailyGoal, AppTheme, AppLanguage } from '../types';
-import { getTranslations } from '../utils/translations';
+import { getTranslations, formatDuration } from '../utils/translations';
 
 interface DailyFocusProps {
   todayPomodoros: number;
@@ -133,15 +133,15 @@ export const DailyFocus: React.FC<DailyFocusProps> = React.memo(({
               </span>
               <span className={`text-xs ${isLight ? 'text-slate-400' : 'text-white/50'}`}>/</span>
               <span className={`font-timer text-sm ${isLight ? 'text-slate-600' : 'text-white/70'}`}>
-                {dailyGoal.targetPomodoros} {language === 'tr' ? 'oturum' : 'sessions'}
+                {dailyGoal.targetPomodoros} {dailyGoal.targetPomodoros === 1 ? t.sessionSingle : t.sessionPlural}
               </span>
             </div>
 
             <div className={`text-xs ${isLight ? 'text-slate-600' : 'text-white/70'}`}>
               <span className={`font-semibold ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                {todayMinutes} {t.min}
+                {formatDuration(todayMinutes, language)}
               </span>
-              <span className={isLight ? 'text-slate-400' : 'text-white/40'}> {language === 'tr' ? 'odaklanıldı' : 'focused'}</span>
+              <span className={isLight ? 'text-slate-400' : 'text-white/40'}> {t.todayFocused}</span>
             </div>
           </div>
 

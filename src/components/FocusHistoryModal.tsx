@@ -40,9 +40,9 @@ export const FocusHistoryModal: React.FC<FocusHistoryModalProps> = ({
   const totalMinutes = getTotalFocusMinutes(sessions);
   const totalPomodoros = getPomodoroCount(sessions);
   const currentStreak = getCurrentStreak(sessions);
-  const bestDay = getBestDay(sessions);
+  const bestDay = getBestDay(sessions, language);
 
-  const weeklyStats = getWeeklyStats(sessions);
+  const weeklyStats = getWeeklyStats(sessions, language);
   const monthlyStats = getMonthlyStats(sessions);
   const allTimeStats = getAllTimeStats(sessions);
   const groupedSessions = getGroupedRecentSessions(sessions, language);
@@ -144,7 +144,7 @@ export const FocusHistoryModal: React.FC<FocusHistoryModalProps> = ({
                       {t.totalFocus}
                     </span>
                     <span className="font-timer text-lg font-bold text-white">
-                      {formatDuration(allTimeStats.totalMinutes)}
+                      {formatDuration(allTimeStats.totalMinutes, language)}
                     </span>
                   </div>
 
@@ -171,7 +171,7 @@ export const FocusHistoryModal: React.FC<FocusHistoryModalProps> = ({
                       {t.avgPerFocusDay}
                     </span>
                     <span className="font-timer text-lg font-bold text-white">
-                      {allTimeStats.avgMinutesPerFocusDay}{t.min}
+                      {formatDuration(allTimeStats.avgMinutesPerFocusDay, language)}
                     </span>
                   </div>
                 </div>

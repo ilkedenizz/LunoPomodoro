@@ -33,7 +33,7 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ groupedSessions,
               <span className="text-white/90 font-semibold">{group.dateLabel}</span>
               <span>
                 {group.pomodoros} {group.pomodoros === 1 ? t.sessionSingle : t.sessionPlural} •{' '}
-                {formatDuration(group.totalMinutes)}
+                {formatDuration(group.totalMinutes, language)}
               </span>
             </div>
 

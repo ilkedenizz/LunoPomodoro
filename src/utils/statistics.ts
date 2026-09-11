@@ -1,5 +1,6 @@
 import type { FocusSession, AppLanguage } from '../types';
 import { isToday, isYesterday, isSameDay, getStartOfWeek } from './dates';
+import { formatDuration } from './translations';
 
 export const getPomodoroSessions = (sessions: FocusSession[]): FocusSession[] => {
   return sessions.filter((s) => s.mode === 'pomodoro');
@@ -9,19 +10,10 @@ export const getTotalFocusMinutes = (sessions: FocusSession[]): number => {
   return getPomodoroSessions(sessions).reduce((acc, s) => acc + s.durationMinutes, 0);
 };
 
-export const formatTotalFocusTime = (totalMinutes: number, lang: 'en' | 'tr' = 'en'): string => {
-  const rounded = Math.max(0, Math.round(totalMinutes));
-  const hrs = Math.floor(rounded / 60);
-  const mins = rounded % 60;
-  if (lang === 'tr') {
-    if (hrs === 0) return `${mins} dk`;
-    if (mins === 0) return `${hrs} saat`;
-    return `${hrs} saat ${mins} dk`;
-  }
-  if (hrs === 0) return `${mins}m`;
-  if (mins === 0) return `${hrs}h`;
-  return `${hrs}h ${mins}m`;
+export const formatTotalFocusTime = (totalMinutes: number, lang: AppLanguage = 'en'): string => {
+  return formatDuration(totalMinutes, lang);
 };
+
 
 export const getPomodoroCount = (sessions: FocusSession[]): number => {
   return getPomodoroSessions(sessions).length;
@@ -103,7 +95,7 @@ export interface BestDayResult {
   pomodoros: number;
 }
 
-export const getBestDay = (sessions: FocusSession[]): BestDayResult | null => {
+export const getBestDay = (sessions: FocusSession[], lang: AppLanguage = 'en'): BestDayResult | null => {
   const poms = getPomodoroSessions(sessions);
   if (poms.length === 0) return null;
 
@@ -131,8 +123,9 @@ export const getBestDay = (sessions: FocusSession[]): BestDayResult | null => {
     }
   }
 
-  const dayName = best.fullDate.toLocaleDateString('en-US', { weekday: 'long' });
-  const dateLabel = best.fullDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const locale = lang === 'tr' ? 'tr-TR' : 'en-US';
+  const dayName = best.fullDate.toLocaleDateString(locale, { weekday: 'long' });
+  const dateLabel = best.fullDate.toLocaleDateString(locale, { month: 'short', day: 'numeric' });
 
   return {
     dayName,
@@ -150,11 +143,13 @@ export interface DayWeeklyStat {
   isToday: boolean;
 }
 
-export const getWeeklyStats = (sessions: FocusSession[]): DayWeeklyStat[] => {
+export const getWeeklyStats = (sessions: FocusSession[], lang: AppLanguage = 'en'): DayWeeklyStat[] => {
   const poms = getPomodoroSessions(sessions);
   const startOfWeek = getStartOfWeek();
   const days: DayWeeklyStat[] = [];
-  const dayLabels = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+  const dayLabels = lang === 'tr'
+    ? ['PZT', 'SAL', 'ÇAR', 'PER', 'CUM', 'CTS', 'PAZ']
+    : ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
 
   for (let i = 0; i < 7; i++) {
     const d = new Date(startOfWeek);

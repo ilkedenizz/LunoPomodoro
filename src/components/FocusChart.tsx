@@ -41,7 +41,7 @@ export const FocusChart: React.FC<FocusChartProps> = ({
             {hoveredWeekItem ? (
               <span>
                 {hoveredWeekItem.fullDate.toLocaleDateString(locale, { weekday: 'long' })}: {' '}
-                <strong className="text-white">{hoveredWeekItem.pomodoros} {t.pomodoro}</strong> ({formatDuration(hoveredWeekItem.minutes)})
+                <strong className="text-white">{hoveredWeekItem.pomodoros} {t.pomodoro}</strong> ({formatDuration(hoveredWeekItem.minutes, language)})
               </span>
             ) : (
               <span className="text-white/40">{t.hoverForDetailsWeek}</span>
@@ -62,7 +62,7 @@ export const FocusChart: React.FC<FocusChartProps> = ({
                 onMouseLeave={() => setHoveredWeekItem(null)}
                 className="flex-1 flex flex-col items-center h-full justify-end group cursor-pointer"
                 tabIndex={0}
-                aria-label={`${dayLabel}: ${item.pomodoros} pomodoros, ${formatDuration(item.minutes)} focused`}
+                aria-label={`${dayLabel}: ${item.pomodoros} pomodoros, ${formatDuration(item.minutes, language)} focused`}
               >
                 {/* Bar Element */}
                 <div className="w-full max-w-[36px] flex flex-col items-center justify-end h-full relative">
@@ -113,7 +113,7 @@ export const FocusChart: React.FC<FocusChartProps> = ({
           {hoveredMonthItem ? (
             <span>
               {hoveredMonthItem.fullDate.toLocaleDateString(locale, { month: 'short', day: 'numeric' })}: {' '}
-              <strong className="text-white">{hoveredMonthItem.pomodoros} {t.pomodoro}</strong> ({formatDuration(hoveredMonthItem.minutes)})
+              <strong className="text-white">{hoveredMonthItem.pomodoros} {t.pomodoro}</strong> ({formatDuration(hoveredMonthItem.minutes, language)})
             </span>
           ) : (
             <span className="text-white/40">{t.hoverForDetailsMonth}</span>
@@ -135,7 +135,7 @@ export const FocusChart: React.FC<FocusChartProps> = ({
               onMouseEnter={() => setHoveredMonthItem(item)}
               onMouseLeave={() => setHoveredMonthItem(null)}
               className={`aspect-square rounded-xl flex items-center justify-center text-xs transition-all border hover:scale-110 focus:outline-none ${bgClass}`}
-              aria-label={`Day ${item.dateNumber}: ${item.pomodoros} pomodoros, ${formatDuration(item.minutes)}`}
+              aria-label={`Day ${item.dateNumber}: ${item.pomodoros} pomodoros, ${formatDuration(item.minutes, language)}`}
             >
               {item.dateNumber}
             </button>

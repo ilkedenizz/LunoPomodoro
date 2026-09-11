@@ -71,6 +71,7 @@ interface DurationInputProps {
   onChange: (newValue: number) => void;
   isLight: boolean;
   unit?: string;
+  language?: AppLanguage;
 }
 
 const DurationInput: React.FC<DurationInputProps> = ({
@@ -80,6 +81,7 @@ const DurationInput: React.FC<DurationInputProps> = ({
   onChange,
   isLight,
   unit = 'min',
+  language = 'en',
 }) => {
   const [localText, setLocalText] = useState<string | null>(null);
 
@@ -143,7 +145,7 @@ const DurationInput: React.FC<DurationInputProps> = ({
           onChange={handleInputChange}
           onBlur={commitValue}
           onKeyDown={handleKeyDown}
-          aria-label={`${label} in minutes`}
+          aria-label={language === 'tr' ? `${label} (dakika)` : `${label} in minutes`}
           className={`w-16 h-10 px-2 text-center font-timer font-bold text-lg sm:text-xl rounded-xl border transition-all focus:outline-none focus:ring-2 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
             isLight
               ? 'bg-white border-slate-300 text-slate-900 focus:border-indigo-600 focus:ring-indigo-500/20 shadow-sm'
@@ -801,6 +803,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     onChange={(val) => handleChange('pomodoroDuration', val)}
                     isLight={isLight}
                     unit={t.min}
+                    language={language}
                   />
 
                   <DurationInput
@@ -810,6 +813,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     onChange={(val) => handleChange('shortBreakDuration', val)}
                     isLight={isLight}
                     unit={t.min}
+                    language={language}
                   />
 
                   <DurationInput
@@ -819,6 +823,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     onChange={(val) => handleChange('longBreakDuration', val)}
                     isLight={isLight}
                     unit={t.min}
+                    language={language}
                   />
                 </div>
               </div>
