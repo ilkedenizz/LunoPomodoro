@@ -703,7 +703,9 @@ export const formatAvatarError = (rawError: string): string => {
     lower.includes('violates row-level security') ||
     lower.includes('permission denied') ||
     lower.includes('unauthorized') ||
-    lower.includes('security policy')
+    lower.includes('security policy') ||
+    lower.includes('forbidden') ||
+    lower.includes('access denied')
   ) {
     return 'Upload permission denied by Supabase Storage security policies. Please verify Storage RLS policies in Supabase.';
   }

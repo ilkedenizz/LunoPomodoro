@@ -827,4 +827,94 @@ GRANT EXECUTE ON FUNCTION public.get_incoming_friend_requests() TO authenticated
 GRANT EXECUTE ON FUNCTION public.get_outgoing_friend_requests() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.send_friend_request(UUID) TO authenticated;
 
+-- ==============================================================================
+-- 10. STORAGE BUCKET & RLS POLICIES FOR AVATARS
+-- ==============================================================================
+
+-- Create public 'avatars' storage bucket if it does not exist
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'avatars',
+  'avatars',
+  true,
+  5242880, -- 5 MB
+  ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/jpg']::text[]
+)
+ON CONFLICT (id) DO UPDATE
+SET
+  public = true,
+  file_size_limit = 5242880,
+  allowed_mime_types = ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/jpg']::text[];
+
+-- Enable RLS on storage.objects
+ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
+
+-- Clean up existing avatar storage policies to ensure idempotent runs
+DROP POLICY IF EXISTS "Avatars Public Access" ON storage.objects;
+DROP POLICY IF EXISTS "Avatars are publicly accessible" ON storage.objects;
+DROP POLICY IF EXISTS "Public avatars are viewable by everyone" ON storage.objects;
+DROP POLICY IF EXISTS "Users can upload their own avatar" ON storage.objects;
+DROP POLICY IF EXISTS "Users can update their own avatar" ON storage.objects;
+DROP POLICY IF EXISTS "Users can delete their own avatar" ON storage.objects;
+DROP POLICY IF EXISTS "Authenticated users can upload avatar" ON storage.objects;
+DROP POLICY IF EXISTS "Authenticated users can update own avatar" ON storage.objects;
+DROP POLICY IF EXISTS "Authenticated users can delete own avatar" ON storage.objects;
+DROP POLICY IF EXISTS "Authenticated users can delete avatar" ON storage.objects;
+DROP POLICY IF EXISTS "Give users access to own folder" ON storage.objects;
+DROP POLICY IF EXISTS "Allow authenticated uploads" ON storage.objects;
+DROP POLICY IF EXISTS "Allow individual insert" ON storage.objects;
+DROP POLICY IF EXISTS "Allow individual update" ON storage.objects;
+DROP POLICY IF EXISTS "Allow individual delete" ON storage.objects;
+DROP POLICY IF EXISTS "Allow individual read" ON storage.objects;
+
+-- Policy 1: Everyone (anon and authenticated) can view/read avatars
+CREATE POLICY "Public avatars are viewable by everyone"
+ON storage.objects FOR SELECT
+USING (bucket_id = 'avatars');
+
+-- Policy 2: Authenticated users can upload their own avatar into their user folder
+CREATE POLICY "Users can upload their own avatar"
+ON storage.objects FOR INSERT
+TO authenticated
+WITH CHECK (
+  bucket_id = 'avatars'
+  AND (
+    (storage.foldername(name))[1] = auth.uid()::text
+    OR split_part(name, '/', 1) = auth.uid()::text
+  )
+);
+
+-- Policy 3: Authenticated users can update their own avatar
+CREATE POLICY "Users can update their own avatar"
+ON storage.objects FOR UPDATE
+TO authenticated
+USING (
+  bucket_id = 'avatars'
+  AND (
+    (storage.foldername(name))[1] = auth.uid()::text
+    OR split_part(name, '/', 1) = auth.uid()::text
+  )
+)
+WITH CHECK (
+  bucket_id = 'avatars'
+  AND (
+    (storage.foldername(name))[1] = auth.uid()::text
+    OR split_part(name, '/', 1) = auth.uid()::text
+  )
+);
+
+-- Policy 4: Authenticated users can delete their own avatar
+CREATE POLICY "Users can delete their own avatar"
+ON storage.objects FOR DELETE
+TO authenticated
+USING (
+  bucket_id = 'avatars'
+  AND (
+    (storage.foldername(name))[1] = auth.uid()::text
+    OR split_part(name, '/', 1) = auth.uid()::text
+  )
+);
+
+
+
 
