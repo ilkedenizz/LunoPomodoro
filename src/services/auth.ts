@@ -11,6 +11,50 @@ export interface AuthResponse {
 const UNCONFIGURED_AUTH_ERROR =
   'Cloud synchronization is not configured. Add Supabase credentials in .env to enable accounts, or continue using Luno locally in Guest Mode.';
 
+// Robust RFC 5322 compatible email validation
+export const isValidEmail = (email: string): boolean => {
+  if (!email || typeof email !== 'string') return false;
+  const trimmed = email.trim().toLowerCase();
+  if (trimmed.length < 5 || trimmed.length > 254) return false;
+
+  const emailRegex =
+    /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
+  if (!emailRegex.test(trimmed)) return false;
+
+  const parts = trimmed.split('@');
+  if (parts.length !== 2) return false;
+  const domain = parts[1];
+  const domainParts = domain.split('.');
+  const tld = domainParts[domainParts.length - 1];
+  if (!tld || tld.length < 2 || !/^[a-zA-Z]+$/.test(tld)) return false;
+
+  return true;
+};
+
+// In-flight locking & throttle tracker to prevent duplicate concurrent email/auth dispatches
+const inFlightRequests = new Set<string>();
+const recentEmailTimestamps = new Map<string, number>();
+
+export const isAuthActionInFlight = (actionKey: string): boolean => {
+  return inFlightRequests.has(actionKey);
+};
+
+export const isEmailActionThrottled = (
+  action: string,
+  email: string,
+  minIntervalMs = 6000
+): boolean => {
+  const key = `${action}:${email.trim().toLowerCase()}`;
+  const now = Date.now();
+  const last = recentEmailTimestamps.get(key) || 0;
+  return now - last < minIntervalMs;
+};
+
+export const recordEmailActionSent = (action: string, email: string): void => {
+  const key = `${action}:${email.trim().toLowerCase()}`;
+  recentEmailTimestamps.set(key, Date.now());
+};
+
 const formatAuthError = (message: string): string => {
   const lower = message.toLowerCase();
   if (
@@ -44,15 +88,26 @@ const formatAuthError = (message: string): string => {
   if (
     lower.includes('rate limit') ||
     lower.includes('too many requests') ||
-    lower.includes('over_email_send_rate_limit')
+    lower.includes('over_email_send_rate_limit') ||
+    lower.includes('email_rate_limit')
   ) {
-    return 'Too many requests. Please wait a moment before trying again.';
+    return 'Email rate limit reached. Please wait a few minutes before requesting another email.';
+  }
+  if (
+    lower.includes('bounce') ||
+    lower.includes('bounced') ||
+    lower.includes('smtp') ||
+    lower.includes('recipient address rejected') ||
+    lower.includes('invalid email')
+  ) {
+    return 'Unable to deliver email to this address. Please ensure the email address is active and correctly typed.';
   }
   if (lower.includes('failed to fetch') || lower.includes('network error')) {
     return 'Unable to reach the authentication server. Please check your internet connection.';
   }
   return message;
 };
+
 
 export const validateNickname = (
   nickname: string
@@ -310,17 +365,36 @@ export const signUp = async (
   password: string,
   nickname?: string
 ): Promise<AuthResponse> => {
-  const trimmedEmail = email.trim().toLowerCase();
-  if (!trimmedEmail || !trimmedEmail.includes('@')) {
-    return { user: null, error: 'Please provide a valid email address.' };
+  const trimmedEmail = email ? email.trim().toLowerCase() : '';
+  if (!isValidEmail(trimmedEmail)) {
+    return {
+      user: null,
+      error: 'Please provide a valid email address (e.g. name@example.com).',
+    };
   }
   if (!password || password.length < 6) {
     return { user: null, error: 'Password must be at least 6 characters long.' };
   }
 
+  // Prevent concurrent duplicate signup requests for the same email
+  const lockKey = `signup:${trimmedEmail}`;
+  if (inFlightRequests.has(lockKey)) {
+    return {
+      user: null,
+      error: 'Sign up request is already in progress. Please wait a moment.',
+    };
+  }
+
+  if (isEmailActionThrottled('signup', trimmedEmail, 6000)) {
+    return {
+      user: null,
+      error: 'Please wait a few seconds before trying to create an account again.',
+    };
+  }
+
   // Validate nickname if provided
   let cleanNickname = '';
-  if (nickname) {
+  if (nickname && nickname.trim()) {
     const val = validateNickname(nickname);
     if (!val.valid) {
       return { user: null, error: val.error };
@@ -345,6 +419,9 @@ export const signUp = async (
   if (!client) {
     return { user: null, error: UNCONFIGURED_AUTH_ERROR };
   }
+
+  inFlightRequests.add(lockKey);
+  recordEmailActionSent('signup', trimmedEmail);
 
   try {
     const redirectUrl = getAuthRedirectUrl();
@@ -397,16 +474,23 @@ export const signUp = async (
   } catch (err: unknown) {
     const msg = err instanceof Error ? formatAuthError(err.message) : 'Sign up encountered an unexpected error.';
     return { user: null, error: msg };
+  } finally {
+    inFlightRequests.delete(lockKey);
   }
 };
 
 export const signIn = async (email: string, password: string): Promise<AuthResponse> => {
-  const trimmedEmail = email.trim().toLowerCase();
-  if (!trimmedEmail || !trimmedEmail.includes('@')) {
-    return { user: null, error: 'Please provide a valid email address.' };
+  const trimmedEmail = email ? email.trim().toLowerCase() : '';
+  if (!isValidEmail(trimmedEmail)) {
+    return { user: null, error: 'Please provide a valid email address (e.g. name@example.com).' };
   }
   if (!password) {
     return { user: null, error: 'Please enter your password.' };
+  }
+
+  const lockKey = `signin:${trimmedEmail}`;
+  if (inFlightRequests.has(lockKey)) {
+    return { user: null, error: 'Sign in is currently processing. Please wait.' };
   }
 
   if (!isSupabaseConfigured()) {
@@ -417,6 +501,8 @@ export const signIn = async (email: string, password: string): Promise<AuthRespo
   if (!client) {
     return { user: null, error: UNCONFIGURED_AUTH_ERROR };
   }
+
+  inFlightRequests.add(lockKey);
 
   try {
     const { data, error } = await client.auth.signInWithPassword({
@@ -437,13 +523,24 @@ export const signIn = async (email: string, password: string): Promise<AuthRespo
   } catch (err: unknown) {
     const msg = err instanceof Error ? formatAuthError(err.message) : 'Sign in encountered an unexpected error.';
     return { user: null, error: msg };
+  } finally {
+    inFlightRequests.delete(lockKey);
   }
 };
 
 export const resetPasswordForEmail = async (email: string): Promise<{ success: boolean; error: string | null }> => {
-  const trimmedEmail = email.trim().toLowerCase();
-  if (!trimmedEmail || !trimmedEmail.includes('@')) {
+  const trimmedEmail = email ? email.trim().toLowerCase() : '';
+  if (!isValidEmail(trimmedEmail)) {
     return { success: false, error: 'Please provide a valid email address.' };
+  }
+
+  const lockKey = `reset:${trimmedEmail}`;
+  if (inFlightRequests.has(lockKey)) {
+    return { success: false, error: 'Password reset request already in progress.' };
+  }
+
+  if (isEmailActionThrottled('reset', trimmedEmail, 10000)) {
+    return { success: false, error: 'Please wait at least 10 seconds before requesting another reset email.' };
   }
 
   if (!isSupabaseConfigured()) {
@@ -454,6 +551,9 @@ export const resetPasswordForEmail = async (email: string): Promise<{ success: b
   if (!client) {
     return { success: false, error: UNCONFIGURED_AUTH_ERROR };
   }
+
+  inFlightRequests.add(lockKey);
+  recordEmailActionSent('reset', trimmedEmail);
 
   try {
     const redirectUrl = getAuthRedirectUrl();
@@ -469,6 +569,8 @@ export const resetPasswordForEmail = async (email: string): Promise<{ success: b
   } catch (err: unknown) {
     const msg = err instanceof Error ? formatAuthError(err.message) : 'Failed to send password reset email.';
     return { success: false, error: msg };
+  } finally {
+    inFlightRequests.delete(lockKey);
   }
 };
 
@@ -503,9 +605,18 @@ export const updateUserPassword = async (newPassword: string): Promise<{ success
 };
 
 export const resendConfirmationEmail = async (email: string): Promise<{ success: boolean; error: string | null }> => {
-  const trimmedEmail = email.trim().toLowerCase();
-  if (!trimmedEmail || !trimmedEmail.includes('@')) {
+  const trimmedEmail = email ? email.trim().toLowerCase() : '';
+  if (!isValidEmail(trimmedEmail)) {
     return { success: false, error: 'Please provide a valid email address.' };
+  }
+
+  const lockKey = `resend:${trimmedEmail}`;
+  if (inFlightRequests.has(lockKey)) {
+    return { success: false, error: 'Confirmation email is already being sent. Please wait.' };
+  }
+
+  if (isEmailActionThrottled('resend', trimmedEmail, 10000)) {
+    return { success: false, error: 'Please wait at least 10 seconds before requesting another confirmation email.' };
   }
 
   if (!isSupabaseConfigured()) {
@@ -516,6 +627,9 @@ export const resendConfirmationEmail = async (email: string): Promise<{ success:
   if (!client) {
     return { success: false, error: UNCONFIGURED_AUTH_ERROR };
   }
+
+  inFlightRequests.add(lockKey);
+  recordEmailActionSent('resend', trimmedEmail);
 
   try {
     const redirectUrl = getAuthRedirectUrl();
@@ -535,8 +649,11 @@ export const resendConfirmationEmail = async (email: string): Promise<{ success:
   } catch (err: unknown) {
     const msg = err instanceof Error ? formatAuthError(err.message) : 'Failed to resend confirmation email.';
     return { success: false, error: msg };
+  } finally {
+    inFlightRequests.delete(lockKey);
   }
 };
+
 
 export const signOut = async (): Promise<{ error: string | null }> => {
   const client = getSupabaseClient();

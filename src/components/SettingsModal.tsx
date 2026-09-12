@@ -314,8 +314,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   // Resend Email Verification State
   const [isResendingEmail, setIsResendingEmail] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
   const [resendSuccess, setResendSuccess] = useState<string | null>(null);
   const [resendError, setResendError] = useState<string | null>(null);
+
+  // Active Resend Cooldown Timer
+  React.useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setResendCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [resendCooldown]);
 
   // Sync now feedback state
   const [isManualSyncing, setIsManualSyncing] = useState(false);
@@ -519,7 +529,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   // Handle Resend Email Confirmation
   const handleResendEmail = async () => {
-    if (!user?.email || isResendingEmail) return;
+    if (!user?.email || isResendingEmail || resendCooldown > 0) return;
 
     setIsResendingEmail(true);
     setResendError(null);
@@ -530,6 +540,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       if (res.error) {
         setResendError(res.error);
       } else {
+        setResendCooldown(60);
         setResendSuccess(t.resendSuccess);
         setTimeout(() => setResendSuccess(null), 4000);
       }
@@ -1034,10 +1045,26 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                               <span>{language === 'tr' ? 'E-posta doğrulandı' : 'Email verified'}</span>
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                              <AlertCircle className="w-3 h-3" />
-                              <span>{language === 'tr' ? 'E-posta doğrulanmadı' : 'Email unverified'}</span>
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                                <AlertCircle className="w-3 h-3" />
+                                <span>{language === 'tr' ? 'E-posta doğrulanmadı' : 'Email unverified'}</span>
+                              </span>
+                              <button
+                                type="button"
+                                onClick={handleResendEmail}
+                                disabled={isResendingEmail || resendCooldown > 0}
+                                className={`text-[11px] font-medium underline transition-opacity disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer ${
+                                  isLight ? 'text-indigo-600 hover:text-indigo-800' : 'text-indigo-300 hover:text-indigo-200'
+                                }`}
+                              >
+                                {isResendingEmail
+                                  ? (language === 'tr' ? 'Gönderiliyor...' : 'Sending...')
+                                  : resendCooldown > 0
+                                  ? (language === 'tr' ? `Tekrar Gönder (${resendCooldown}s)` : `Resend (${resendCooldown}s)`)
+                                  : (language === 'tr' ? 'Doğrulama Gönder' : 'Resend Verification')}
+                              </button>
+                            </div>
                           )}
 
                           <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-medium bg-white/5 text-white/70 border border-white/10">
@@ -1089,6 +1116,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       </button>
                     </div>
                   </div>
+
+                  {/* Feedback Alerts for Resend Verification */}
+                  {resendError && (
+                    <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-400 text-xs flex items-center gap-2 animate-in fade-in">
+                      <AlertCircle className="w-4 h-4 shrink-0" />
+                      <span>{resendError}</span>
+                    </div>
+                  )}
+                  {resendSuccess && (
+                    <div className="p-3 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs flex items-center gap-2 animate-in fade-in">
+                      <CheckCircle2 className="w-4 h-4 shrink-0" />
+                      <span>{resendSuccess}</span>
+                    </div>
+                  )}
 
                   {/* Feedback Alerts for Avatar changes */}
                   {avatarError && (

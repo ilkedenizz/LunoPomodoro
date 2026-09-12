@@ -27,6 +27,7 @@ import {
   resendConfirmationEmail,
   validateNickname,
   checkNicknameAvailability,
+  isValidEmail,
 } from '../services/auth';
 import { isSupabaseConfigured } from '../services/supabaseClient';
 import { SyncEngine } from '../services/syncEngine';
@@ -81,9 +82,28 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   const [isLoading, setIsLoading] = useState(false);
   const [isResending, setIsResending] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [resetCooldown, setResetCooldown] = useState(0);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(initialError || null);
   const [successMessage, setSuccessMessage] = useState<string | null>(initialSuccess || null);
+
+  // Active Cooldown Countdown Timers
+  React.useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setResendCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [resendCooldown]);
+
+  React.useEffect(() => {
+    if (resetCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setResetCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [resetCooldown]);
 
   const handleNicknameChange = (val: string) => {
     const cleanVal = val.toLowerCase().replace(/\s+/g, '');
@@ -166,6 +186,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
     // 1. SIGN UP FLOW
     if (mode === 'signup') {
+      if (!isValidEmail(email)) {
+        setErrorMessage(
+          language === 'tr'
+            ? 'Lütfen geçerli bir e-posta adresi girin (örnek: ad@alanadi.com).'
+            : 'Please enter a valid email address (e.g. name@example.com).'
+        );
+        return;
+      }
+
       if (nickname.trim()) {
         const valRes = validateNickname(nickname);
         if (!valRes.valid) {
@@ -204,6 +233,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
         if (res.confirmationRequired) {
           setPendingConfirmationEmailState(email.trim().toLowerCase());
+          setResendCooldown(60);
           setMode('email-confirmation-pending');
           setSuccessMessage(res.message || (language === 'tr' ? 'Hesap oluşturuldu! Lütfen e-postanızı doğrulayın.' : 'Account created! Please verify your email.'));
           setIsLoading(false);
@@ -233,6 +263,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
     // 2. SIGN IN FLOW
     if (mode === 'signin') {
+      if (!isValidEmail(email)) {
+        setErrorMessage(
+          language === 'tr'
+            ? 'Lütfen geçerli bir e-posta adresi girin (örnek: ad@alanadi.com).'
+            : 'Please enter a valid email address (e.g. name@example.com).'
+        );
+        return;
+      }
+
       setIsLoading(true);
       setStatusMessage(language === 'tr' ? 'Giriş yapılıyor ve verileriniz eşitleniyor...' : 'Signing in & synchronizing your cloud records...');
 
@@ -265,6 +304,24 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
     // 3. FORGOT PASSWORD FLOW
     if (mode === 'forgot-password') {
+      if (!isValidEmail(email)) {
+        setErrorMessage(
+          language === 'tr'
+            ? 'Lütfen geçerli bir e-posta adresi girin (örnek: ad@alanadi.com).'
+            : 'Please enter a valid email address (e.g. name@example.com).'
+        );
+        return;
+      }
+
+      if (resetCooldown > 0) {
+        setErrorMessage(
+          language === 'tr'
+            ? `Lütfen tekrar denemeden önce ${resetCooldown} saniye bekleyin.`
+            : `Please wait ${resetCooldown} seconds before requesting another reset email.`
+        );
+        return;
+      }
+
       setIsLoading(true);
       setStatusMessage(language === 'tr' ? 'Şifre sıfırlama talimatları gönderiliyor...' : 'Sending password recovery instructions...');
 
@@ -273,6 +330,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         if (!res.success) {
           setErrorMessage(res.error || (language === 'tr' ? 'Şifre sıfırlama e-postası gönderilemedi.' : 'Failed to send password reset email.'));
         } else {
+          setResetCooldown(60);
           setSuccessMessage(
             language === 'tr'
               ? `Şifre sıfırlama bağlantısı ${email} adresine gönderildi. Lütfen gelen kutunuzu kontrol edin.`
@@ -327,6 +385,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     const targetEmail = pendingConfirmationEmailState || email;
     if (!targetEmail) return;
 
+    if (!isValidEmail(targetEmail)) {
+      setErrorMessage(language === 'tr' ? 'Lütfen geçerli bir e-posta adresi girin.' : 'Please enter a valid email address.');
+      return;
+    }
+
+    if (resendCooldown > 0 || isResending) {
+      setErrorMessage(
+        language === 'tr'
+          ? `Lütfen tekrar e-posta göndermeden önce ${resendCooldown} saniye bekleyin.`
+          : `Please wait ${resendCooldown} seconds before resending another confirmation email.`
+      );
+      return;
+    }
+
     setIsResending(true);
     clearMessages();
 
@@ -335,6 +407,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       if (res.error) {
         setErrorMessage(res.error);
       } else {
+        setResendCooldown(60);
         setSuccessMessage(
           language === 'tr'
             ? `Doğrulama e-postası ${targetEmail} adresine yeniden gönderildi. Lütfen gelen kutunuzu kontrol edin.`
@@ -347,6 +420,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setIsResending(false);
     }
   };
+
 
   return (
     <div
@@ -559,8 +633,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <button
                   type="button"
                   onClick={handleResendConfirmation}
-                  disabled={isResending}
-                  className={`w-full py-2 rounded-xl text-xs font-medium border transition-all flex items-center justify-center space-x-1.5 min-h-[40px] cursor-pointer disabled:opacity-50 ${
+                  disabled={isResending || resendCooldown > 0}
+                  className={`w-full py-2 rounded-xl text-xs font-medium border transition-all flex items-center justify-center space-x-1.5 min-h-[40px] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
                     isLight
                       ? 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
                       : 'bg-white/5 border-white/10 text-white/80 hover:bg-white/10'
@@ -570,6 +644,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     <>
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
                       <span>{language === 'tr' ? 'E-posta yeniden gönderiliyor...' : 'Resending email...'}</span>
+                    </>
+                  ) : resendCooldown > 0 ? (
+                    <>
+                      <RotateCw className="w-3.5 h-3.5 text-indigo-400" />
+                      <span>
+                        {language === 'tr'
+                          ? `Yeniden Gönder (${resendCooldown}s)`
+                          : `Resend Email (${resendCooldown}s)`}
+                      </span>
                     </>
                   ) : (
                     <>
@@ -878,8 +961,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               {/* Submit Button */}
               <button
                 type="submit"
-                disabled={isLoading}
-                className={`w-full py-3 rounded-xl font-semibold text-sm transition-all duration-200 flex items-center justify-center space-x-2 cursor-pointer shadow-lg disabled:opacity-50 min-h-[44px] ${
+                disabled={isLoading || (mode === 'forgot-password' && resetCooldown > 0)}
+                className={`w-full py-3 rounded-xl font-semibold text-sm transition-all duration-200 flex items-center justify-center space-x-2 cursor-pointer shadow-lg disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] ${
                   isLight
                     ? 'bg-slate-900 text-white hover:bg-slate-800'
                     : 'bg-white text-black hover:bg-white/90'
@@ -903,7 +986,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 ) : mode === 'forgot-password' ? (
                   <>
                     <Send className="w-4 h-4" />
-                    <span>{t.sendResetLink}</span>
+                    <span>
+                      {resetCooldown > 0
+                        ? (language === 'tr' ? `Tekrar Gönder (${resetCooldown}s)` : `Resend in (${resetCooldown}s)`)
+                        : t.sendResetLink}
+                    </span>
                   </>
                 ) : (
                   <>
