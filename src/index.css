@@ -27,8 +27,15 @@
     overflow-x: hidden;
     user-select: none;
     -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
     margin: 0;
     padding: 0;
+  }
+
+  button, a, input, select, textarea {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
   }
 
   #root {
@@ -42,6 +49,20 @@
     padding-left: var(--sal);
     padding-right: var(--sar);
   }
+}
+
+/* Mobile-first touch and scroll helpers */
+.safe-bottom {
+  padding-bottom: max(1rem, var(--sab));
+}
+
+.safe-top {
+  padding-top: max(0.5rem, var(--sat));
+}
+
+.overscroll-contain {
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .font-timer {

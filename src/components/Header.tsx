@@ -64,10 +64,10 @@ export const Header: React.FC<HeaderProps> = React.memo(({
   const t = getTranslations(language);
 
   return (
-    <header className="relative z-20 w-full px-4 md:px-8 py-3 sm:py-3.5 flex items-center justify-between shrink-0">
+    <header className="relative z-20 w-full px-3 sm:px-6 md:px-8 py-2.5 sm:py-3.5 flex items-center justify-between shrink-0">
       {/* Brand & Atmosphere Title */}
-      <div className="flex items-center space-x-3">
-        <div className="relative flex items-center justify-center w-9 h-9 rounded-xl glass-panel p-1.5 shadow-sm">
+      <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 shrink">
+        <div className="relative flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-xl glass-panel p-1.5 shadow-sm shrink-0">
           <svg className="w-full h-full" viewBox="0 0 64 64" fill="none" aria-hidden="true">
             <circle
               cx="32"
@@ -90,13 +90,13 @@ export const Header: React.FC<HeaderProps> = React.memo(({
             <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-400 rounded-full animate-ping" />
           )}
         </div>
-        <div>
-          <h1 className={`text-base font-bold tracking-wider uppercase font-sans ${
+        <div className="min-w-0">
+          <h1 className={`text-sm sm:text-base font-bold tracking-wider uppercase font-sans leading-none sm:leading-tight ${
             isLight ? 'text-slate-900' : 'text-white'
           }`}>
             Luno
           </h1>
-          <p className={`text-xs font-medium line-clamp-1 ${
+          <p className={`text-[10px] sm:text-xs font-medium truncate max-w-[75px] xs:max-w-[120px] sm:max-w-[200px] ${
             isLight ? 'text-slate-600' : 'text-white/60'
           }`}>
             {currentAtmosphere.name}
@@ -127,20 +127,20 @@ export const Header: React.FC<HeaderProps> = React.memo(({
       </button>
 
       {/* Action Control Buttons */}
-      <div className="flex items-center space-x-1.5 sm:space-x-2">
+      <div className="flex items-center space-x-1 xs:space-x-1.5 sm:space-x-2 shrink-0">
         {/* Quick Theme Switcher Button */}
         {onToggleTheme && (
           <button
             onClick={onToggleTheme}
             aria-label={isLight ? t.themeDark : t.themeLight}
-            className={`p-2.5 rounded-xl glass-panel glass-panel-hover transition-all focus:outline-none focus-visible:ring-2 ${
+            className={`p-2 sm:p-2.5 rounded-xl glass-panel glass-panel-hover transition-all focus:outline-none focus-visible:ring-2 flex items-center justify-center min-w-[34px] min-h-[34px] sm:min-w-[40px] sm:min-h-[40px] ${
               isLight
                 ? 'text-amber-600 hover:text-amber-700 focus-visible:ring-slate-400'
                 : 'text-white/80 hover:text-white focus-visible:ring-white/50'
             }`}
             title={isLight ? t.themeDark : t.themeLight}
           >
-            {isLight ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            {isLight ? <Sun className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <Moon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
           </button>
         )}
 
@@ -148,21 +148,21 @@ export const Header: React.FC<HeaderProps> = React.memo(({
         <button
           onClick={onOpenHistory}
           aria-label={t.focusHistoryTooltip}
-          className={`p-2.5 rounded-xl glass-panel glass-panel-hover transition-all focus:outline-none focus-visible:ring-2 ${
+          className={`p-2 sm:p-2.5 rounded-xl glass-panel glass-panel-hover transition-all focus:outline-none focus-visible:ring-2 flex items-center justify-center min-w-[34px] min-h-[34px] sm:min-w-[40px] sm:min-h-[40px] ${
             isLight
               ? 'text-slate-700 hover:text-slate-900 focus-visible:ring-slate-400'
               : 'text-white/80 hover:text-white focus-visible:ring-white/50'
           }`}
           title={t.focusHistoryTooltip}
         >
-          <TrendingUp className="w-4 h-4" />
+          <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
         </button>
 
         {/* Ambient Studio / Sound Mixer Toggle Button */}
         <button
           onClick={onOpenAudio}
           aria-label={t.soundMixerTooltip}
-          className={`relative p-2.5 rounded-xl glass-panel glass-panel-hover transition-all focus:outline-none focus-visible:ring-2 ${
+          className={`relative p-2 sm:p-2.5 rounded-xl glass-panel glass-panel-hover transition-all focus:outline-none focus-visible:ring-2 flex items-center justify-center min-w-[34px] min-h-[34px] sm:min-w-[40px] sm:min-h-[40px] ${
             isAudioPlaying
               ? isLight
                 ? 'ring-1 ring-indigo-500 bg-indigo-50 text-indigo-600'
@@ -173,7 +173,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
           }`}
           title={t.soundMixerTooltip}
         >
-          <Music className="w-4 h-4" />
+          <Music className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           {isAudioPlaying && (
             <span className="absolute -top-1 -right-1 w-2 h-2 bg-indigo-500 rounded-full animate-pulse" />
           )}
@@ -183,21 +183,21 @@ export const Header: React.FC<HeaderProps> = React.memo(({
         <button
           onClick={onOpenBackgrounds}
           aria-label={t.atmosphereStudioTooltip}
-          className={`p-2.5 rounded-xl glass-panel glass-panel-hover transition-all focus:outline-none focus-visible:ring-2 ${
+          className={`p-2 sm:p-2.5 rounded-xl glass-panel glass-panel-hover transition-all focus:outline-none focus-visible:ring-2 flex items-center justify-center min-w-[34px] min-h-[34px] sm:min-w-[40px] sm:min-h-[40px] ${
             isLight
               ? 'text-slate-700 hover:text-slate-900 focus-visible:ring-slate-400'
               : 'text-white/80 hover:text-white focus-visible:ring-white/50'
           }`}
           title={t.atmosphereStudioTooltip}
         >
-          <ImageIcon className="w-4 h-4" />
+          <ImageIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
         </button>
 
-        {/* Shortcuts Button */}
+        {/* Shortcuts Button - Hidden on mobile */}
         <button
           onClick={onOpenShortcuts}
           aria-label={t.shortcutsTooltip}
-          className={`hidden sm:flex p-2.5 rounded-xl glass-panel glass-panel-hover transition-all focus:outline-none focus-visible:ring-2 ${
+          className={`hidden md:flex p-2.5 rounded-xl glass-panel glass-panel-hover transition-all focus:outline-none focus-visible:ring-2 items-center justify-center min-w-[40px] min-h-[40px] ${
             isLight
               ? 'text-slate-700 hover:text-slate-900 focus-visible:ring-slate-400'
               : 'text-white/80 hover:text-white focus-visible:ring-white/50'
@@ -211,7 +211,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
         <button
           onClick={onOpenFriends}
           aria-label={`${t.friendsCommunityTooltip} ${incomingRequestsCount > 0 ? `(${incomingRequestsCount})` : ''}`}
-          className={`relative p-2.5 rounded-xl glass-panel glass-panel-hover transition-all focus:outline-none focus-visible:ring-2 cursor-pointer ${
+          className={`relative p-2 sm:p-2.5 rounded-xl glass-panel glass-panel-hover transition-all focus:outline-none focus-visible:ring-2 cursor-pointer flex items-center justify-center min-w-[34px] min-h-[34px] sm:min-w-[40px] sm:min-h-[40px] ${
             incomingRequestsCount > 0
               ? isLight
                 ? 'text-indigo-600 bg-indigo-50/80 border-indigo-200'
@@ -222,9 +222,9 @@ export const Header: React.FC<HeaderProps> = React.memo(({
           }`}
           title={incomingRequestsCount > 0 ? `${t.friendsCommunityTooltip} (${incomingRequestsCount} ${t.newRequest})` : t.friendsCommunityTooltip}
         >
-          <Users className="w-4 h-4" />
+          <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           {incomingRequestsCount > 0 && (
-            <span className="absolute -top-1 -right-1 flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-indigo-500 text-[10px] font-bold text-white shadow-md animate-pulse">
+            <span className="absolute -top-1 -right-1 flex h-3.5 min-w-3.5 px-0.5 sm:h-4 sm:min-w-4 sm:px-1 items-center justify-center rounded-full bg-indigo-500 text-[9px] sm:text-[10px] font-bold text-white shadow-md animate-pulse">
               {incomingRequestsCount}
             </span>
           )}
@@ -234,7 +234,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
         <button
           onClick={onOpenAuth}
           aria-label={user ? `${t.account} (${user.nickname ? `@${user.nickname}` : user.email})` : t.signIn}
-          className={`relative flex items-center space-x-1.5 px-2.5 py-2 sm:px-3 sm:py-2.5 rounded-xl glass-panel glass-panel-hover transition-all focus:outline-none focus-visible:ring-2 ${
+          className={`relative flex items-center space-x-1 sm:space-x-1.5 px-2 py-1.5 sm:px-3 sm:py-2.5 rounded-xl glass-panel glass-panel-hover transition-all focus:outline-none focus-visible:ring-2 min-h-[34px] sm:min-h-[40px] ${
             user
               ? isLight
                 ? 'text-indigo-600 bg-indigo-50/80 border-indigo-200 hover:bg-indigo-100/70'
@@ -261,13 +261,13 @@ export const Header: React.FC<HeaderProps> = React.memo(({
                 <img
                   src={user.avatarUrl}
                   alt="Profile"
-                  className="w-4 h-4 rounded-full object-cover shrink-0 border border-white/20"
+                  className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full object-cover shrink-0 border border-white/20"
                   onError={(e) => {
                     (e.target as HTMLImageElement).style.display = 'none';
                   }}
                 />
               ) : (
-                <div className="w-4 h-4 rounded-full bg-indigo-500/30 flex items-center justify-center text-[9px] font-bold uppercase shrink-0">
+                <div className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full bg-indigo-500/30 flex items-center justify-center text-[8px] sm:text-[9px] font-bold uppercase shrink-0">
                   {(user.nickname || user.displayName || user.email).slice(0, 1)}
                 </div>
               )}
@@ -275,7 +275,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
                 {user.nickname ? `@${user.nickname}` : user.displayName || user.email.split('@')[0]}
               </span>
               <span
-                className={`w-2 h-2 rounded-full shrink-0 ${
+                className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full shrink-0 ${
                   syncStatus?.state === 'syncing'
                     ? 'bg-amber-400 animate-spin'
                     : syncStatus?.state === 'offline'
@@ -288,8 +288,8 @@ export const Header: React.FC<HeaderProps> = React.memo(({
             </>
           ) : (
             <>
-              <Cloud className="w-4 h-4 shrink-0" />
-              <span className="hidden sm:inline text-xs font-medium">{t.signIn}</span>
+              <Cloud className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+              <span className="hidden md:inline text-xs font-medium">{t.signIn}</span>
             </>
           )}
         </button>
@@ -298,21 +298,21 @@ export const Header: React.FC<HeaderProps> = React.memo(({
         <button
           onClick={onOpenSettings}
           aria-label={t.settings}
-          className={`p-2.5 rounded-xl glass-panel glass-panel-hover transition-all focus:outline-none focus-visible:ring-2 ${
+          className={`p-2 sm:p-2.5 rounded-xl glass-panel glass-panel-hover transition-all focus:outline-none focus-visible:ring-2 flex items-center justify-center min-w-[34px] min-h-[34px] sm:min-w-[40px] sm:min-h-[40px] ${
             isLight
               ? 'text-slate-700 hover:text-slate-900 focus-visible:ring-slate-400'
               : 'text-white/80 hover:text-white focus-visible:ring-white/50'
           }`}
           title={t.settings}
         >
-          <Settings className="w-4 h-4" />
+          <Settings className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
         </button>
 
-        {/* Fullscreen Button */}
+        {/* Fullscreen Button - Hidden on mobile */}
         <button
           onClick={onToggleFullscreen}
           aria-label={t.toggleFullscreen}
-          className={`hidden sm:flex p-2.5 rounded-xl glass-panel glass-panel-hover transition-all focus:outline-none focus-visible:ring-2 ${
+          className={`hidden md:flex p-2.5 rounded-xl glass-panel glass-panel-hover transition-all focus:outline-none focus-visible:ring-2 items-center justify-center min-w-[40px] min-h-[40px] ${
             isLight
               ? 'text-slate-700 hover:text-slate-900 focus-visible:ring-slate-400'
               : 'text-white/80 hover:text-white focus-visible:ring-white/50'

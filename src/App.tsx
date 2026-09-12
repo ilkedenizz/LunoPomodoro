@@ -1032,7 +1032,7 @@ export function App() {
       />
 
       {/* 3. Main Center Focus Workspace (True 3-Column Desktop Layout) */}
-      <main className="relative z-10 flex-1 w-full max-w-7xl 2xl:max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-1 sm:py-2 flex flex-col justify-center my-auto overflow-visible">
+      <main className="relative z-10 flex-1 w-full max-w-7xl 2xl:max-w-[1600px] mx-auto px-3 sm:px-6 lg:px-8 py-1 sm:py-2 flex flex-col justify-center my-auto overflow-visible">
         <div className="w-full grid grid-cols-1 md:grid-cols-2 xl:grid-cols-[300px_1fr_300px] 2xl:grid-cols-[340px_1fr_340px] gap-6 lg:gap-8 items-center">
           {/* Left Column: Daily Focus (Desktop Left) */}
           <div className="order-2 md:order-2 xl:order-1 md:col-span-1 xl:col-span-1 w-full max-w-md xl:max-w-none mx-auto flex flex-col justify-center">
@@ -1103,10 +1103,10 @@ export function App() {
       </main>
 
       {/* 4. Minimal Footer / Mobile Stats Badge */}
-      <footer className="relative z-10 w-full py-2.5 sm:py-3 px-6 text-center flex flex-col sm:flex-row items-center justify-between text-xs space-y-2 sm:space-y-0 shrink-0">
+      <footer className="relative z-10 w-full py-2.5 sm:py-3 px-4 sm:px-6 text-center flex flex-col sm:flex-row items-center justify-between text-xs space-y-2 sm:space-y-0 shrink-0 pb-[max(0.75rem,var(--sab))]">
         <button
           onClick={handleOpenHistory}
-          className={`md:hidden flex items-center space-x-2 px-3 py-1 rounded-full glass-pill cursor-pointer ${
+          className={`md:hidden flex items-center space-x-2 px-3.5 py-1.5 rounded-full glass-pill min-h-[36px] cursor-pointer ${
             isLight ? 'text-slate-800' : 'text-white/80'
           }`}
         >

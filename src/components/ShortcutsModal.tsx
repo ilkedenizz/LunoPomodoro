@@ -24,11 +24,11 @@ export const ShortcutsModal: React.FC<ShortcutsModalProps> = ({ isOpen, onClose,
   return (
     <div
       onClick={onClose}
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-md transition-opacity cursor-pointer"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-md transition-opacity cursor-pointer overscroll-contain"
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="relative w-full max-w-sm p-5 sm:p-7 rounded-t-3xl sm:rounded-3xl glass-modal text-white shadow-2xl border border-white/15 animate-in fade-in zoom-in-95 duration-200 flex flex-col cursor-default"
+        className="relative w-full max-w-sm p-4 sm:p-7 rounded-t-3xl sm:rounded-3xl glass-modal text-white shadow-2xl border border-white/15 animate-in fade-in zoom-in-95 duration-200 flex flex-col cursor-default pb-[max(1.25rem,var(--sab))]"
         role="dialog"
         aria-modal="true"
         aria-labelledby="shortcuts-title"

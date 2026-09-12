@@ -341,11 +341,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   return (
     <div
       onClick={onClose}
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-md transition-opacity cursor-pointer"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-md transition-opacity cursor-pointer overscroll-contain"
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className={`relative w-full max-w-md p-5 sm:p-7 rounded-t-3xl sm:rounded-3xl glass-modal shadow-2xl animate-in fade-in zoom-in-95 duration-200 max-h-[92vh] flex flex-col cursor-default ${
+        className={`relative w-full max-w-md p-4 sm:p-7 rounded-t-3xl sm:rounded-3xl glass-modal shadow-2xl animate-in fade-in zoom-in-95 duration-200 max-h-[92dvh] flex flex-col cursor-default pb-[max(1.25rem,var(--sab))] ${
           isLight ? 'text-slate-900 border-slate-200/80' : 'text-white border-white/15'
         }`}
         role="dialog"
