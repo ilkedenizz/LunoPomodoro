@@ -712,7 +712,7 @@ export class SyncEngine {
         }
       }
 
-      // 3. Sessions
+      // 3. Sessions (with partial session tracking support)
       if (localSessions.length > 0) {
         const sessionPayload = localSessions.map((s) => ({
           id: s.id,
@@ -720,10 +720,28 @@ export class SyncEngine {
           timestamp: new Date(s.timestamp).toISOString(),
           mode: sanitizeTimerMode(s.mode),
           duration_minutes: s.durationMinutes,
+          target_duration_minutes: s.targetDurationMinutes || s.durationMinutes,
+          actual_duration_seconds: s.actualDurationSeconds || (s.durationMinutes * 60),
+          completed: s.completed !== false,
           task_title: s.taskTitle || null,
         }));
         const { error: sessErr } = await client.from('focus_sessions').upsert(sessionPayload);
-        if (sessErr && import.meta.env.DEV) {
+        if (sessErr && (
+          sessErr.code === 'PGRST204' ||
+          sessErr.message?.includes('completed') ||
+          sessErr.message?.includes('target_duration_minutes') ||
+          sessErr.message?.includes('actual_duration_seconds')
+        )) {
+          const fallbackPayload = localSessions.map((s) => ({
+            id: s.id,
+            user_id: userId,
+            timestamp: new Date(s.timestamp).toISOString(),
+            mode: sanitizeTimerMode(s.mode),
+            duration_minutes: s.durationMinutes,
+            task_title: s.taskTitle || null,
+          }));
+          await client.from('focus_sessions').upsert(fallbackPayload);
+        } else if (sessErr && import.meta.env.DEV) {
           console.error('[Luno Sync Engine Error in migrateLocalDataToAccount sessions]:', sessErr);
         }
       }

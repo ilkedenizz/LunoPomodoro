@@ -102,22 +102,22 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     const valRes = validateNickname(cleanVal);
     if (!valRes.valid) {
       setNicknameStatus('invalid');
-      setNicknameMessage(valRes.error || 'Nickname must be 3-20 letters, numbers, or underscores.');
+      setNicknameMessage(valRes.error || t.nicknameInvalid);
       return;
     }
 
     setNicknameStatus('checking');
-    setNicknameMessage('Checking availability...');
+    setNicknameMessage(t.nicknameChecking);
 
     debounceRef.current = setTimeout(async () => {
       try {
         const avail = await checkNicknameAvailability(cleanVal);
         if (avail.available) {
           setNicknameStatus('available');
-          setNicknameMessage('Nickname is available!');
+          setNicknameMessage(t.nicknameAvailable);
         } else {
           setNicknameStatus('taken');
-          setNicknameMessage(avail.error || 'This nickname is already taken.');
+          setNicknameMessage(avail.error || t.nicknameTaken);
         }
       } catch {
         setNicknameStatus('idle');
@@ -335,10 +335,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       if (res.error) {
         setErrorMessage(res.error);
       } else {
-        setSuccessMessage(`Confirmation email resent to ${targetEmail}. Please check your inbox.`);
+        setSuccessMessage(
+          language === 'tr'
+            ? `Doğrulama e-postası ${targetEmail} adresine yeniden gönderildi. Lütfen gelen kutunuzu kontrol edin.`
+            : `Confirmation email resent to ${targetEmail}. Please check your inbox.`
+        );
       }
     } catch {
-      setErrorMessage('Failed to resend confirmation email. Please try again later.');
+      setErrorMessage(language === 'tr' ? 'Doğrulama e-postası yeniden gönderilemedi. Lütfen daha sonra tekrar deneyin.' : 'Failed to resend confirmation email. Please try again later.');
     } finally {
       setIsResending(false);
     }
