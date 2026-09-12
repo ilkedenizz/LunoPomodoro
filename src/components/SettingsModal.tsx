@@ -265,12 +265,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       if (res.error) {
         setAvatarError(res.error);
       } else if (res.user) {
-        setAvatarSuccess('Profile photo updated successfully!');
+        setAvatarSuccess(language === 'tr' ? 'Profil fotoğrafı başarıyla güncellendi!' : 'Profile photo updated successfully!');
         onUserUpdate?.(res.user);
         setTimeout(() => setAvatarSuccess(null), 3500);
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to upload profile photo.';
+      const msg = err instanceof Error ? err.message : (language === 'tr' ? 'Profil fotoğrafı yüklenemedi.' : 'Failed to upload profile photo.');
       setAvatarError(msg);
       if (import.meta.env.DEV) {
         console.error('[Luno Avatar Error]:', err);
@@ -292,12 +292,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       if (res.error) {
         setAvatarError(res.error);
       } else if (res.user) {
-        setAvatarSuccess('Profile photo removed.');
+        setAvatarSuccess(language === 'tr' ? 'Profil fotoğrafı kaldırıldı.' : 'Profile photo removed.');
         onUserUpdate?.(res.user);
         setTimeout(() => setAvatarSuccess(null), 3000);
       }
     } catch {
-      setAvatarError('Failed to remove profile photo.');
+      setAvatarError(language === 'tr' ? 'Profil fotoğrafı kaldırılamadı.' : 'Failed to remove profile photo.');
     } finally {
       setIsRemovingAvatar(false);
     }
@@ -349,7 +349,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
     if (!cleanVal) {
       setNicknameStatus('invalid');
-      setNicknameMessage('Nickname is required.');
+      setNicknameMessage(language === 'tr' ? 'Kullanıcı adı gereklidir.' : 'Nickname is required.');
       return;
     }
 
@@ -362,22 +362,22 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     const valRes = validateNickname(cleanVal);
     if (!valRes.valid) {
       setNicknameStatus('invalid');
-      setNicknameMessage(valRes.error || 'Nickname must be 3-20 letters, numbers, or underscores.');
+      setNicknameMessage(valRes.error || (language === 'tr' ? 'Kullanıcı adı 3-20 harf, rakam veya alt çizgi içermelidir.' : 'Nickname must be 3-20 letters, numbers, or underscores.'));
       return;
     }
 
     setNicknameStatus('checking');
-    setNicknameMessage('Checking availability...');
+    setNicknameMessage(language === 'tr' ? 'Kullanılabilirlik kontrol ediliyor...' : 'Checking availability...');
 
     nicknameDebounceRef.current = setTimeout(async () => {
       try {
         const avail = await checkNicknameAvailability(cleanVal, user?.id);
         if (avail.available) {
           setNicknameStatus('available');
-          setNicknameMessage('Nickname is available!');
+          setNicknameMessage(language === 'tr' ? 'Kullanıcı adı uygun!' : 'Nickname is available!');
         } else {
           setNicknameStatus('taken');
-          setNicknameMessage(avail.error || 'This nickname is already taken.');
+          setNicknameMessage(avail.error || (language === 'tr' ? 'Bu kullanıcı adı zaten alınmış.' : 'This nickname is already taken.'));
         }
       } catch {
         setNicknameStatus('idle');

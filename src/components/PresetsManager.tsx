@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { AtmospherePreset, AtmosphereTheme, SoundMixerState, AppLanguage } from '../types';
-import { Bookmark, Plus, Trash2, Check, Sparkles } from 'lucide-react';
+import { Bookmark, Plus, Trash2, Check } from 'lucide-react';
 import { getTranslations } from '../utils/translations';
 import { getAtmosphereDisplayName } from '../utils/backgrounds';
 
@@ -107,12 +107,24 @@ export const PresetsManager: React.FC<PresetsManagerProps> = ({
 
       {/* Preset List */}
       {presets.length === 0 ? (
-        <div className="p-6 text-center rounded-xl bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10">
-          <Sparkles className="w-8 h-8 opacity-30 mx-auto mb-2" />
-          <p className="text-xs opacity-60">{t.noPresetsYet}</p>
-          <p className="text-[11px] opacity-40 mt-1">
+        <div className="p-8 text-center rounded-2xl bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 flex flex-col items-center justify-center space-y-2.5">
+          <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center mb-1">
+            <Bookmark className="w-6 h-6 stroke-[1.5]" />
+          </div>
+          <p className="text-sm font-semibold">{t.noPresetsYet}</p>
+          <p className="text-xs opacity-60 max-w-xs leading-relaxed">
             {t.noPresetsHint}
           </p>
+          {!isCreating && (
+            <button
+              type="button"
+              onClick={() => setIsCreating(true)}
+              className="mt-2 px-4 py-2 rounded-xl text-xs font-semibold bg-indigo-500 hover:bg-indigo-600 text-white transition-all cursor-pointer shadow-sm flex items-center gap-1.5 active:scale-95"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>{t.saveCurrentSetup}</span>
+            </button>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

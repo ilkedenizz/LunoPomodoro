@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ListTodo, Plus, CheckCircle2 } from 'lucide-react';
+import { ListTodo, Plus } from 'lucide-react';
 import { TaskItem } from './TaskItem';
 import { TaskInput } from './TaskInput';
 import type { Task, AppTheme, AppLanguage } from '../types';
@@ -169,12 +169,30 @@ export const TaskList: React.FC<TaskListProps> = React.memo(({
               isLight ? 'text-slate-400' : 'text-white/40'
             }`}
           >
-            <CheckCircle2 className="w-8 h-8 mb-2 stroke-1" />
-            <p className="text-xs">
+            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-3 ${
+              isLight ? 'bg-slate-100 text-slate-400' : 'bg-white/5 text-white/30 border border-white/10'
+            }`}>
+              <ListTodo className="w-6 h-6 stroke-[1.5]" />
+            </div>
+            <p className="text-xs max-w-[220px] leading-relaxed mb-3">
               {tasks.length === 0
-                ? (language === 'tr' ? 'Henüz görev eklenmedi. Odaklanmaya başlamak için bir görev ekleyin!' : 'No tasks added yet. Add a task to start focusing!')
-                : (language === 'tr' ? 'Bu görünümde görev yok.' : 'No tasks in this view.')}
+                ? (language === 'tr' ? 'Henüz görev eklenmedi. Odaklanmak istediğiniz görevi ekleyin.' : 'No tasks added yet. Add a task to start focusing.')
+                : (language === 'tr' ? 'Bu görünümde görev bulunmuyor.' : 'No tasks in this view.')}
             </p>
+            {tasks.length === 0 && !isAdding && (
+              <button
+                type="button"
+                onClick={() => setIsAdding(true)}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm ${
+                  isLight
+                    ? 'bg-slate-900 text-white hover:bg-slate-800'
+                    : 'bg-white/15 text-white hover:bg-white/25 border border-white/20'
+                }`}
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>{t.addTask}</span>
+              </button>
+            )}
           </div>
         ) : (
           displayedTasks.map((t) => (

@@ -279,14 +279,26 @@ export const BackgroundSelectorModal: React.FC<BackgroundSelectorModalProps> = (
 
             {/* Grid */}
             {displayedAtmospheres.length === 0 && (categoryFilter === 'favorites' || !customImage) ? (
-              <div className={`p-8 text-center rounded-2xl border ${
+              <div className={`p-8 text-center rounded-2xl border flex flex-col items-center justify-center ${
                 isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'
               }`}>
-                <Heart className="w-8 h-8 text-rose-400/40 mx-auto mb-2" />
-                <p className={`text-sm ${isLight ? 'text-slate-700' : 'text-white/70'}`}>{t.noFavoritesYet}</p>
-                <p className={`text-xs mt-1 ${isLight ? 'text-slate-400' : 'text-white/40'}`}>
+                <div className="w-12 h-12 rounded-2xl bg-rose-500/10 text-rose-400 flex items-center justify-center mb-2">
+                  <Heart className="w-6 h-6 stroke-[1.5]" />
+                </div>
+                <p className={`text-sm font-semibold ${isLight ? 'text-slate-700' : 'text-white/80'}`}>{t.noFavoritesYet}</p>
+                <p className={`text-xs mt-1 max-w-xs ${isLight ? 'text-slate-400' : 'text-white/40'}`}>
                   {t.noFavoritesHint}
                 </p>
+                {categoryFilter === 'favorites' && (
+                  <button
+                    type="button"
+                    onClick={() => setCategoryFilter('all')}
+                    className="mt-3 px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-indigo-500 hover:bg-indigo-600 text-white transition-all cursor-pointer shadow-sm inline-flex items-center gap-1.5 active:scale-95"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>{language === 'tr' ? 'Tüm Atmosferleri Keşfet' : 'Explore All Atmospheres'}</span>
+                  </button>
+                )}
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">

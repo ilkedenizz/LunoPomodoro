@@ -162,29 +162,29 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       if (nickname.trim()) {
         const valRes = validateNickname(nickname);
         if (!valRes.valid) {
-          setErrorMessage(valRes.error || 'Invalid nickname.');
+          setErrorMessage(valRes.error || (language === 'tr' ? 'Geçersiz kullanıcı adı.' : 'Invalid nickname.'));
           return;
         }
         if (nicknameStatus === 'taken') {
-          setErrorMessage('This nickname is already taken. Please choose another.');
+          setErrorMessage(language === 'tr' ? 'Bu kullanıcı adı zaten alınmış. Lütfen başka bir ad seçin.' : 'This nickname is already taken. Please choose another.');
           return;
         }
       } else {
-        setErrorMessage('Please choose a nickname.');
+        setErrorMessage(language === 'tr' ? 'Lütfen bir kullanıcı adı belirleyin.' : 'Please choose a nickname.');
         return;
       }
 
       if (password !== confirmPassword) {
-        setErrorMessage('Passwords do not match. Please re-enter your password.');
+        setErrorMessage(language === 'tr' ? 'Şifreler eşleşmiyor. Lütfen şifrenizi tekrar girin.' : 'Passwords do not match. Please re-enter your password.');
         return;
       }
       if (password.length < 6) {
-        setErrorMessage('Password must be at least 6 characters long.');
+        setErrorMessage(language === 'tr' ? 'Şifre en az 6 karakter uzunluğunda olmalıdır.' : 'Password must be at least 6 characters long.');
         return;
       }
 
       setIsLoading(true);
-      setStatusMessage('Creating your account...');
+      setStatusMessage(language === 'tr' ? 'Hesabınız oluşturuluyor...' : 'Creating your account...');
 
       try {
         const res = await signUp(email, password, nickname);
@@ -198,7 +198,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         if (res.confirmationRequired) {
           setPendingConfirmationEmailState(email.trim().toLowerCase());
           setMode('email-confirmation-pending');
-          setSuccessMessage(res.message || 'Account created! Please verify your email.');
+          setSuccessMessage(res.message || (language === 'tr' ? 'Hesap oluşturuldu! Lütfen e-postanızı doğrulayın.' : 'Account created! Please verify your email.'));
           setIsLoading(false);
           return;
         }
@@ -210,14 +210,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           setLastSyncedAt(null);
           SyncEngine.reset();
 
-          setSuccessMessage('Account created! Welcome to Luno.');
+          setSuccessMessage(language === 'tr' ? "Hesap oluşturuldu! Luno'ya hoş geldiniz." : 'Account created! Welcome to Luno.');
           onAuthSuccess(res.user);
           setTimeout(() => {
             onClose();
           }, 1000);
         }
       } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : 'Sign up failed.';
+        const msg = err instanceof Error ? err.message : (language === 'tr' ? 'Kayıt başarısız oldu.' : 'Sign up failed.');
         setErrorMessage(msg);
       } finally {
         setIsLoading(false);
@@ -229,28 +229,28 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     // 2. SIGN IN FLOW
     if (mode === 'signin') {
       setIsLoading(true);
-      setStatusMessage('Signing in & synchronizing your cloud records...');
+      setStatusMessage(language === 'tr' ? 'Giriş yapılıyor ve verileriniz eşitleniyor...' : 'Signing in & synchronizing your cloud records...');
 
       try {
         const res = await signIn(email, password);
 
         if (res.error || !res.user) {
-          setErrorMessage(res.error || 'Failed to sign in.');
+          setErrorMessage(res.error || (language === 'tr' ? 'Giriş yapılamadı.' : 'Failed to sign in.'));
           setIsLoading(false);
           return;
         }
 
-        setStatusMessage('Loading your cloud focus records...');
+        setStatusMessage(language === 'tr' ? 'Bulut odak kayıtlarınız yükleniyor...' : 'Loading your cloud focus records...');
         clearPendingQueue();
         await SyncEngine.pullAndMerge(res.user.id);
-        setSuccessMessage('Signed in successfully! Your data is synchronized.');
+        setSuccessMessage(language === 'tr' ? 'Giriş başarılı! Verileriniz senkronize edildi.' : 'Signed in successfully! Your data is synchronized.');
 
         onAuthSuccess(res.user);
         setTimeout(() => {
           onClose();
         }, 1000);
       } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : 'Sign in failed.';
+        const msg = err instanceof Error ? err.message : (language === 'tr' ? 'Giriş başarısız oldu.' : 'Sign in failed.');
         setErrorMessage(msg);
       } finally {
         setIsLoading(false);
@@ -262,19 +262,21 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     // 3. FORGOT PASSWORD FLOW
     if (mode === 'forgot-password') {
       setIsLoading(true);
-      setStatusMessage('Sending password recovery instructions...');
+      setStatusMessage(language === 'tr' ? 'Şifre sıfırlama talimatları gönderiliyor...' : 'Sending password recovery instructions...');
 
       try {
         const res = await resetPasswordForEmail(email);
         if (!res.success) {
-          setErrorMessage(res.error || 'Failed to send password reset email.');
+          setErrorMessage(res.error || (language === 'tr' ? 'Şifre sıfırlama e-postası gönderilemedi.' : 'Failed to send password reset email.'));
         } else {
           setSuccessMessage(
-            `Password reset link sent to ${email}. Please check your inbox and click the link to choose a new password.`
+            language === 'tr'
+              ? `Şifre sıfırlama bağlantısı ${email} adresine gönderildi. Lütfen gelen kutunuzu kontrol edin.`
+              : `Password reset link sent to ${email}. Please check your inbox and click the link to choose a new password.`
           );
         }
       } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : 'Failed to send password recovery link.';
+        const msg = err instanceof Error ? err.message : (language === 'tr' ? 'Şifre kurtarma bağlantısı gönderilemedi.' : 'Failed to send password recovery link.');
         setErrorMessage(msg);
       } finally {
         setIsLoading(false);
@@ -286,29 +288,29 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     // 4. UPDATE PASSWORD FLOW (Password Recovery Link clicked)
     if (mode === 'update-password') {
       if (newPassword !== confirmNewPassword) {
-        setErrorMessage('New passwords do not match. Please re-enter your password.');
+        setErrorMessage(language === 'tr' ? 'Yeni şifreler eşleşmiyor. Lütfen şifrenizi tekrar girin.' : 'New passwords do not match. Please re-enter your password.');
         return;
       }
       if (newPassword.length < 6) {
-        setErrorMessage('Password must be at least 6 characters long.');
+        setErrorMessage(language === 'tr' ? 'Şifre en az 6 karakter uzunluğunda olmalıdır.' : 'Password must be at least 6 characters long.');
         return;
       }
 
       setIsLoading(true);
-      setStatusMessage('Updating your password...');
+      setStatusMessage(language === 'tr' ? 'Şifreniz güncelleniyor...' : 'Updating your password...');
 
       try {
         const res = await updateUserPassword(newPassword);
         if (!res.success) {
-          setErrorMessage(res.error || 'Failed to update password.');
+          setErrorMessage(res.error || (language === 'tr' ? 'Şifre güncellenemedi.' : 'Failed to update password.'));
         } else {
-          setSuccessMessage('Password updated successfully! You can now use your new password.');
+          setSuccessMessage(language === 'tr' ? 'Şifreniz başarıyla güncellendi! Yeni şifrenizle giriş yapabilirsiniz.' : 'Password updated successfully! You can now use your new password.');
           setTimeout(() => {
             handleModeChange('signin');
           }, 1800);
         }
       } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : 'Failed to update password.';
+        const msg = err instanceof Error ? err.message : (language === 'tr' ? 'Şifre güncellenemedi.' : 'Failed to update password.');
         setErrorMessage(msg);
       } finally {
         setIsLoading(false);
