@@ -31,26 +31,40 @@ DROP POLICY IF EXISTS "Users can view their own profile" ON public.profiles;
 DROP POLICY IF EXISTS "Public profiles are viewable by authenticated users" ON public.profiles;
 DROP POLICY IF EXISTS "Public profiles are viewable by everyone" ON public.profiles;
 DROP POLICY IF EXISTS "Profiles are viewable by everyone" ON public.profiles;
+DROP POLICY IF EXISTS "Users can view their own profile and connected friends" ON public.profiles;
 DROP POLICY IF EXISTS "Users can insert their own profile" ON public.profiles;
 DROP POLICY IF EXISTS "Users can update their own profile" ON public.profiles;
 DROP POLICY IF EXISTS "Users can delete their own profile" ON public.profiles;
 
--- Allow everyone (authenticated and anonymous) to view profiles for search and friends
-CREATE POLICY "Profiles are viewable by everyone"
+-- Allow authenticated users to view only their own profile and connected friends/requests
+-- Prevents mass enumeration/scraping while preserving all app social features
+CREATE POLICY "Users can view their own profile and connected friends"
   ON public.profiles
   FOR SELECT
-  USING (true);
+  TO authenticated
+  USING (
+    auth.uid() = id
+    OR EXISTS (
+      SELECT 1 FROM public.friendships
+      WHERE (
+        (requester_id = auth.uid() AND addressee_id = public.profiles.id)
+        OR (addressee_id = auth.uid() AND requester_id = public.profiles.id)
+      )
+    )
+  );
 
 -- Allow users to insert their own profile
 CREATE POLICY "Users can insert their own profile"
   ON public.profiles
   FOR INSERT
+  TO authenticated
   WITH CHECK (auth.uid() = id);
 
 -- Allow users to update their own profile
 CREATE POLICY "Users can update their own profile"
   ON public.profiles
   FOR UPDATE
+  TO authenticated
   USING (auth.uid() = id)
   WITH CHECK (auth.uid() = id);
 
@@ -58,10 +72,11 @@ CREATE POLICY "Users can update their own profile"
 CREATE POLICY "Users can delete their own profile"
   ON public.profiles
   FOR DELETE
+  TO authenticated
   USING (auth.uid() = id);
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.profiles TO authenticated;
-GRANT SELECT ON TABLE public.profiles TO anon;
+REVOKE ALL ON TABLE public.profiles FROM anon;
 
 
 CREATE OR REPLACE FUNCTION public.check_nickname_available(username text, exclude_user_id uuid DEFAULT NULL)
@@ -580,38 +595,50 @@ CREATE INDEX IF NOT EXISTS idx_friendships_status ON public.friendships(status);
 
 ALTER TABLE public.friendships ENABLE ROW LEVEL SECURITY;
 
-DO $$ BEGIN
-  CREATE POLICY "Users can view friendships they are part of"
-    ON public.friendships
-    FOR SELECT
-    USING (auth.uid() = requester_id OR auth.uid() = addressee_id);
-EXCEPTION WHEN duplicate_object THEN NULL;
-END $$;
+-- Clean up existing friendship policies for idempotent execution
+DROP POLICY IF EXISTS "Users can view friendships they are part of" ON public.friendships;
+DROP POLICY IF EXISTS "Users can send friend requests" ON public.friendships;
+DROP POLICY IF EXISTS "Users can update friendships they are part of" ON public.friendships;
+DROP POLICY IF EXISTS "Addressees can update friendship status" ON public.friendships;
+DROP POLICY IF EXISTS "Users can remove friendships they are part of" ON public.friendships;
 
-DO $$ BEGIN
-  CREATE POLICY "Users can send friend requests"
-    ON public.friendships
-    FOR INSERT
-    WITH CHECK (auth.uid() = requester_id AND requester_id != addressee_id);
-EXCEPTION WHEN duplicate_object THEN NULL;
-END $$;
+-- Policy 1: Users can view friendships where they are either the requester or addressee
+CREATE POLICY "Users can view friendships they are part of"
+  ON public.friendships
+  FOR SELECT
+  TO authenticated
+  USING (auth.uid() = requester_id OR auth.uid() = addressee_id);
 
-DO $$ BEGIN
-  CREATE POLICY "Users can update friendships they are part of"
-    ON public.friendships
-    FOR UPDATE
-    USING (auth.uid() = requester_id OR auth.uid() = addressee_id)
-    WITH CHECK (auth.uid() = requester_id OR auth.uid() = addressee_id);
-EXCEPTION WHEN duplicate_object THEN NULL;
-END $$;
+-- Policy 2: Users can send friend requests only as requester with initial 'pending' status
+CREATE POLICY "Users can send friend requests"
+  ON public.friendships
+  FOR INSERT
+  TO authenticated
+  WITH CHECK (
+    auth.uid() = requester_id 
+    AND requester_id != addressee_id 
+    AND status = 'pending'
+  );
 
-DO $$ BEGIN
-  CREATE POLICY "Users can remove friendships they are part of"
-    ON public.friendships
-    FOR DELETE
-    USING (auth.uid() = requester_id OR auth.uid() = addressee_id);
-EXCEPTION WHEN duplicate_object THEN NULL;
-END $$;
+-- Policy 3: Only the recipient (addressee) can update friendship status (accept or reject)
+-- Prevents requester from unilaterally escalating/accepting their own request
+CREATE POLICY "Addressees can update friendship status"
+  ON public.friendships
+  FOR UPDATE
+  TO authenticated
+  USING (auth.uid() = addressee_id)
+  WITH CHECK (
+    auth.uid() = addressee_id 
+    AND status IN ('accepted', 'rejected')
+  );
+
+-- Policy 4: Either party can remove/cancel a friendship or friend request
+CREATE POLICY "Users can remove friendships they are part of"
+  ON public.friendships
+  FOR DELETE
+  TO authenticated
+  USING (auth.uid() = requester_id OR auth.uid() = addressee_id);
+
 
 -- 8. SECURE FRIENDSHIP RPC FUNCTIONS
 
