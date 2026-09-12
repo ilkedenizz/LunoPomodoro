@@ -79,7 +79,7 @@ import {
   markDailyGoalPending,
   markSessionPending,
 } from './services/syncEngine';
-import { getTranslations } from './utils/translations';
+import { getTranslations, formatDurationHoursMinutes } from './utils/translations';
 
 export function App() {
   // 1. Settings & Persistence
@@ -1217,13 +1217,14 @@ export function App() {
       <footer className="relative z-10 w-full py-2.5 sm:py-3 px-4 sm:px-6 text-center flex flex-col sm:flex-row items-center justify-between text-xs space-y-2 sm:space-y-0 shrink-0 pb-[max(0.75rem,var(--sab))]">
         <button
           onClick={handleOpenHistory}
-          className={`md:hidden flex items-center space-x-2 px-3.5 py-1.5 rounded-full glass-pill min-h-[36px] cursor-pointer ${
-            isLight ? 'text-slate-800' : 'text-white/80'
+          aria-label={t.focusHistoryTooltip}
+          className={`md:hidden flex items-center space-x-2 px-3.5 py-1.5 rounded-full glass-pill min-h-[36px] cursor-pointer focus:outline-none focus-visible:ring-2 ${
+            isLight ? 'text-slate-800 focus-visible:ring-slate-400' : 'text-white/80 focus-visible:ring-white/50'
           }`}
         >
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
           <span>
-            {t.today}: {todayPomodorosCount} {todayPomodorosCount === 1 ? t.todayPomodoroSingle : t.todayPomodoroPlural} ({todayTotalMinutes}{t.min} {t.todayFocused})
+            {t.today}: <strong className={isLight ? 'text-slate-900' : 'text-white'}>{todayPomodorosCount} {todayPomodorosCount === 1 ? t.todayPomodoroSingle : t.todayPomodoroPlural}</strong> • {formatDurationHoursMinutes(todayTotalMinutes, settings.language || 'en')} {t.todayFocused}
           </span>
         </button>
         <div
