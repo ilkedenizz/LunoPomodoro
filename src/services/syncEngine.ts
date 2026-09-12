@@ -374,6 +374,9 @@ export class SyncEngine {
         timestamp: new Date(session.timestamp).toISOString(),
         mode: sanitizeTimerMode(session.mode),
         duration_minutes: session.durationMinutes,
+        target_duration_minutes: session.targetDurationMinutes || session.durationMinutes,
+        actual_duration_seconds: session.actualDurationSeconds || (session.durationMinutes * 60),
+        completed: session.completed !== false,
         task_title: session.taskTitle || null,
       });
 
@@ -789,6 +792,9 @@ export class SyncEngine {
             timestamp: r.timestamp ? new Date(r.timestamp).getTime() : Date.now(),
             mode: sanitizeTimerMode(r.mode),
             durationMinutes: sanitizeDuration(r.duration_minutes, 25),
+            targetDurationMinutes: typeof r.target_duration_minutes === 'number' ? r.target_duration_minutes : undefined,
+            actualDurationSeconds: typeof r.actual_duration_seconds === 'number' ? r.actual_duration_seconds : undefined,
+            completed: r.completed !== false,
             taskTitle: r.task_title || undefined,
           }));
         saveSessionsDirectly(remoteSessions);

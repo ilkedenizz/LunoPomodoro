@@ -117,10 +117,15 @@ export const loadSessions = (): FocusSession[] => {
     if (!data) return [];
     const parsed = JSON.parse(data);
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter(
-      (s): s is FocusSession =>
-        Boolean(s && typeof s === 'object' && typeof s.id === 'string' && typeof s.timestamp === 'number')
-    );
+    return parsed
+      .filter(
+        (s): s is FocusSession =>
+          Boolean(s && typeof s === 'object' && typeof s.id === 'string' && typeof s.timestamp === 'number')
+      )
+      .map((s) => ({
+        ...s,
+        completed: s.completed !== false,
+      }));
   } catch (err) {
     console.error('Failed to load sessions', err);
     return [];

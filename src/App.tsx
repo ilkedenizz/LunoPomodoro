@@ -149,6 +149,15 @@ export function App() {
   const expectedEndRef = useRef<number | null>(null);
   const isCompletingRef = useRef<boolean>(false);
   const autoStartTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sessionStartedAtRef = useRef<number | null>(null);
+  const sessionTargetSecondsRef = useRef<number>(0);
+
+  // Synchronization refs for beforeunload
+  const modeRef = useRef(mode);
+  const timerStateRef = useRef(timerState);
+  const timeLeftRef = useRef(timeLeft);
+  const activeTaskTitleRef = useRef<string | null>(null);
+  const userRef = useRef(user);
 
   // Preload lazy modals during browser idle time for zero-delay modal opening
   useEffect(() => {
@@ -372,13 +381,17 @@ export function App() {
 
   // Today Statistics Calculation (memoized)
   const todaySessions = useMemo(() => sessions.filter((s) => isToday(s.timestamp)), [sessions]);
-  const todayPomodorosCount = useMemo(
-    () => todaySessions.filter((s) => s.mode === 'pomodoro').length,
+  const todayFocusSessions = useMemo(
+    () => todaySessions.filter((s) => s.mode === 'pomodoro'),
     [todaySessions]
   );
+  const todayPomodorosCount = useMemo(
+    () => todayFocusSessions.filter((s) => s.completed !== false).length,
+    [todayFocusSessions]
+  );
   const todayTotalMinutes = useMemo(
-    () => todaySessions.reduce((acc, s) => acc + s.durationMinutes, 0),
-    [todaySessions]
+    () => todayFocusSessions.reduce((acc, s) => acc + s.durationMinutes, 0),
+    [todayFocusSessions]
   );
 
   // Active Task (memoized)
@@ -387,6 +400,15 @@ export function App() {
     [tasks, activeTaskId]
   );
   const activeTaskTitle = activeTask ? activeTask.title : null;
+
+  // Keep refs updated for beforeunload handler
+  useEffect(() => {
+    modeRef.current = mode;
+    timerStateRef.current = timerState;
+    timeLeftRef.current = timeLeft;
+    activeTaskTitleRef.current = activeTaskTitle;
+    userRef.current = user;
+  });
 
   // Check if any ambient track is actively playing
   const isAudioPlaying = useMemo(
@@ -502,6 +524,45 @@ export function App() {
     }
   }, [user]);
 
+  // Record Partial Session on Early Interruption (Reset, Skip, Mode Change, Unload)
+  const recordPartialSession = useCallback(() => {
+    if (mode !== 'pomodoro') return;
+    if (timerState !== 'running' && timerState !== 'paused') return;
+    if (sessionTargetSecondsRef.current <= 0) return;
+
+    let currentRemaining = timeLeft;
+    if (timerState === 'running' && expectedEndRef.current) {
+      const remainingMs = Math.max(0, expectedEndRef.current - Date.now());
+      currentRemaining = Math.max(0, Math.ceil(remainingMs / 1000));
+    }
+
+    const elapsedSeconds = Math.max(0, sessionTargetSecondsRef.current - currentRemaining);
+    // Minimum threshold: at least 60 seconds (1 minute) of meaningful focused work
+    if (elapsedSeconds < 60) return;
+
+    const targetMinutes = Math.max(1, Math.round(sessionTargetSecondsRef.current / 60));
+    const elapsedMinutes = Math.min(targetMinutes, Math.max(1, Math.round(elapsedSeconds / 60)));
+
+    const partialSession: FocusSession = {
+      id: Math.random().toString(36).substring(2, 9),
+      timestamp: sessionStartedAtRef.current || Date.now(),
+      mode: 'pomodoro',
+      durationMinutes: elapsedMinutes,
+      targetDurationMinutes: targetMinutes,
+      actualDurationSeconds: elapsedSeconds,
+      completed: false,
+      taskTitle: activeTaskTitle || undefined,
+    };
+
+    const updatedSessions = saveSession(partialSession);
+    setSessions(updatedSessions);
+
+    if (user) {
+      markSessionPending(partialSession.id);
+      SyncEngine.pushSession(partialSession, user.id);
+    }
+  }, [mode, timerState, timeLeft, activeTaskTitle, user]);
+
   // Handle Session Completion (Strictly Idempotent)
   const handleSessionComplete = useCallback(() => {
     if (isCompletingRef.current) return;
@@ -536,13 +597,20 @@ export function App() {
 
     // Handle Pomodoro session log & celebration
     if (mode === 'pomodoro') {
+      const targetMins = settings.pomodoroDuration;
       const newSession: FocusSession = {
         id: Math.random().toString(36).substring(2, 9),
-        timestamp: Date.now(),
+        timestamp: sessionStartedAtRef.current || Date.now(),
         mode: 'pomodoro',
-        durationMinutes: settings.pomodoroDuration,
+        durationMinutes: targetMins,
+        targetDurationMinutes: targetMins,
+        actualDurationSeconds: targetMins * 60,
+        completed: true,
         taskTitle: activeTaskTitle || undefined,
       };
+      sessionStartedAtRef.current = null;
+      sessionTargetSecondsRef.current = 0;
+
       const updatedSessions = saveSession(newSession);
       setSessions(updatedSessions);
 
@@ -594,12 +662,19 @@ export function App() {
       }
     } else {
       // Break completion: log break session
+      const breakMins = mode === 'shortBreak' ? settings.shortBreakDuration : settings.longBreakDuration;
       const breakSession: FocusSession = {
         id: Math.random().toString(36).substring(2, 9),
-        timestamp: Date.now(),
+        timestamp: sessionStartedAtRef.current || Date.now(),
         mode: mode,
-        durationMinutes: mode === 'shortBreak' ? settings.shortBreakDuration : settings.longBreakDuration,
+        durationMinutes: breakMins,
+        targetDurationMinutes: breakMins,
+        actualDurationSeconds: breakMins * 60,
+        completed: true,
       };
+      sessionStartedAtRef.current = null;
+      sessionTargetSecondsRef.current = 0;
+
       const updatedSessions = saveSession(breakSession);
       setSessions(updatedSessions);
 
@@ -685,6 +760,45 @@ export function App() {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [timerState, handleSessionComplete]);
 
+  // Window beforeunload listener: save partial session if user closes tab or navigates away
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (
+        modeRef.current === 'pomodoro' &&
+        (timerStateRef.current === 'running' || timerStateRef.current === 'paused') &&
+        sessionTargetSecondsRef.current > 0
+      ) {
+        let currentRemaining = timeLeftRef.current;
+        if (timerStateRef.current === 'running' && expectedEndRef.current) {
+          const remainingMs = Math.max(0, expectedEndRef.current - Date.now());
+          currentRemaining = Math.max(0, Math.ceil(remainingMs / 1000));
+        }
+        const elapsed = Math.max(0, sessionTargetSecondsRef.current - currentRemaining);
+        if (elapsed >= 60) {
+          const targetMins = Math.max(1, Math.round(sessionTargetSecondsRef.current / 60));
+          const elapsedMins = Math.min(targetMins, Math.max(1, Math.round(elapsed / 60)));
+          const partialSession: FocusSession = {
+            id: Math.random().toString(36).substring(2, 9),
+            timestamp: sessionStartedAtRef.current || Date.now(),
+            mode: 'pomodoro',
+            durationMinutes: elapsedMins,
+            targetDurationMinutes: targetMins,
+            actualDurationSeconds: elapsed,
+            completed: false,
+            taskTitle: activeTaskTitleRef.current || undefined,
+          };
+          saveSession(partialSession);
+          if (userRef.current) {
+            markSessionPending(partialSession.id);
+          }
+        }
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []);
+
   // Timer Controls
   const handleStart = useCallback(() => {
     if (autoStartTimeoutRef.current) {
@@ -693,6 +807,10 @@ export function App() {
     }
     isCompletingRef.current = false;
     const targetDuration = timeLeft <= 0 ? getModeDurationSeconds(mode) : timeLeft;
+    if (sessionStartedAtRef.current === null) {
+      sessionStartedAtRef.current = Date.now();
+      sessionTargetSecondsRef.current = targetDuration;
+    }
     setTimeLeft(targetDuration);
     expectedEndRef.current = Date.now() + targetDuration * 1000;
     setTimerState('running');
@@ -702,6 +820,10 @@ export function App() {
     if (autoStartTimeoutRef.current) {
       clearTimeout(autoStartTimeoutRef.current);
       autoStartTimeoutRef.current = null;
+    }
+    if (expectedEndRef.current) {
+      const remainingMs = Math.max(0, expectedEndRef.current - Date.now());
+      setTimeLeft(Math.max(0, Math.ceil(remainingMs / 1000)));
     }
     setTimerState('paused');
     expectedEndRef.current = null;
@@ -713,6 +835,10 @@ export function App() {
       autoStartTimeoutRef.current = null;
     }
     isCompletingRef.current = false;
+    if (sessionStartedAtRef.current === null) {
+      sessionStartedAtRef.current = Date.now();
+      sessionTargetSecondsRef.current = timeLeft;
+    }
     expectedEndRef.current = Date.now() + timeLeft * 1000;
     setTimerState('running');
   }, [timeLeft]);
@@ -722,18 +848,24 @@ export function App() {
       clearTimeout(autoStartTimeoutRef.current);
       autoStartTimeoutRef.current = null;
     }
+    recordPartialSession();
     isCompletingRef.current = false;
+    sessionStartedAtRef.current = null;
+    sessionTargetSecondsRef.current = 0;
     setTimerState('idle');
     expectedEndRef.current = null;
     setTimeLeft(getModeDurationSeconds(mode));
-  }, [mode, getModeDurationSeconds]);
+  }, [mode, getModeDurationSeconds, recordPartialSession]);
 
   const handleSkip = useCallback(() => {
     if (autoStartTimeoutRef.current) {
       clearTimeout(autoStartTimeoutRef.current);
       autoStartTimeoutRef.current = null;
     }
+    recordPartialSession();
     isCompletingRef.current = false;
+    sessionStartedAtRef.current = null;
+    sessionTargetSecondsRef.current = 0;
     setTimerState('idle');
     expectedEndRef.current = null;
     if (mode === 'pomodoro') {
@@ -745,7 +877,7 @@ export function App() {
       setMode('pomodoro');
       setTimeLeft(getModeDurationSeconds('pomodoro'));
     }
-  }, [mode, todayPomodorosCount, getModeDurationSeconds]);
+  }, [mode, todayPomodorosCount, getModeDurationSeconds, recordPartialSession]);
 
   // Action: User explicitly chooses to take a break after Pomodoro
   const handleStartBreak = useCallback(() => {
@@ -773,6 +905,8 @@ export function App() {
     setMode('pomodoro');
     const focusDuration = getModeDurationSeconds('pomodoro');
     setTimeLeft(focusDuration);
+    sessionStartedAtRef.current = Date.now();
+    sessionTargetSecondsRef.current = focusDuration;
     expectedEndRef.current = Date.now() + focusDuration * 1000;
     setTimerState('running');
   }, [getModeDurationSeconds]);
@@ -784,13 +918,16 @@ export function App() {
     }
     setMode((prevMode) => {
       if (newMode === prevMode && timerState !== 'completed') return prevMode;
+      recordPartialSession();
       isCompletingRef.current = false;
+      sessionStartedAtRef.current = null;
+      sessionTargetSecondsRef.current = 0;
       setTimerState('idle');
       expectedEndRef.current = null;
       setTimeLeft(getModeDurationSeconds(newMode));
       return newMode;
     });
-  }, [timerState, getModeDurationSeconds]);
+  }, [timerState, getModeDurationSeconds, recordPartialSession]);
 
   // Keyboard Shortcuts Listener
   useEffect(() => {

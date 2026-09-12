@@ -47,7 +47,7 @@ export const FocusHistoryModal: React.FC<FocusHistoryModalProps> = React.memo(({
 
   if (!isOpen) return null;
 
-  const hasHistory = totalPomodoros > 0;
+  const hasHistory = totalMinutes > 0 || totalPomodoros > 0;
 
   return (
     <div

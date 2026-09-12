@@ -34,6 +34,9 @@ export interface FocusSession {
   timestamp: number;
   mode: TimerMode;
   durationMinutes: number;
+  targetDurationMinutes?: number;
+  actualDurationSeconds?: number;
+  completed?: boolean;
   taskTitle?: string;
 }
 

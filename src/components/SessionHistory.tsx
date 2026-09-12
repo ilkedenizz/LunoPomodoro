@@ -39,25 +39,41 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ groupedSessions,
 
             {/* Day's Sessions */}
             <div className="space-y-1.5">
-              {group.sessions.map((session) => (
-                <div
-                  key={session.id}
-                  className="flex items-center justify-between p-2.5 rounded-xl bg-white/5 border border-white/10 text-xs text-white/80 hover:bg-white/10 transition-all"
-                >
-                  <div className="flex items-center space-x-2.5">
-                    <Clock className="w-3.5 h-3.5 text-white/40" />
-                    <span className="font-mono text-white/60">{formatTime(session.timestamp)}</span>
-                    <span className="text-white/90 font-medium truncate max-w-[200px] sm:max-w-xs">
-                      {session.taskTitle || t.focusSessionDefault}
-                    </span>
-                  </div>
+              {group.sessions.map((session) => {
+                const isPartial = session.completed === false;
+                return (
+                  <div
+                    key={session.id}
+                    className="flex items-center justify-between p-2.5 rounded-xl bg-white/5 border border-white/10 text-xs text-white/80 hover:bg-white/10 transition-all gap-2"
+                  >
+                    <div className="flex items-center space-x-2.5 min-w-0">
+                      <Clock className="w-3.5 h-3.5 text-white/40 shrink-0" />
+                      <span className="font-mono text-white/60 shrink-0">{formatTime(session.timestamp)}</span>
+                      <span className="text-white/90 font-medium truncate max-w-[150px] sm:max-w-xs">
+                        {session.taskTitle || t.focusSessionDefault}
+                      </span>
+                      {isPartial && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-300 font-medium border border-amber-500/25 shrink-0">
+                          {t.sessionIncomplete}
+                        </span>
+                      )}
+                    </div>
 
-                  <div className="flex items-center space-x-2 shrink-0 text-white/60 font-mono text-[11px]">
-                    <CheckCircle className="w-3.5 h-3.5 text-emerald-400/80" />
-                    <span>{session.durationMinutes} {t.min}</span>
+                    <div className="flex items-center space-x-1.5 shrink-0 text-white/60 font-mono text-[11px]">
+                      {!isPartial ? (
+                        <CheckCircle className="w-3.5 h-3.5 text-emerald-400/90" />
+                      ) : (
+                        <Clock className="w-3.5 h-3.5 text-amber-400/90" />
+                      )}
+                      <span>
+                        {isPartial && session.targetDurationMinutes && session.targetDurationMinutes > session.durationMinutes
+                          ? `${session.durationMinutes}/${session.targetDurationMinutes} ${t.min}`
+                          : `${session.durationMinutes} ${t.min}`}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         ))}

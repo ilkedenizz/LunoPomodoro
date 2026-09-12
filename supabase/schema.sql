@@ -427,10 +427,18 @@ CREATE TABLE IF NOT EXISTS public.focus_sessions (
   timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
   mode TEXT NOT NULL CHECK (mode IN ('pomodoro', 'shortBreak', 'longBreak')),
   duration_minutes INTEGER NOT NULL CHECK (duration_minutes >= 1 AND duration_minutes <= 180),
+  target_duration_minutes INTEGER CHECK (target_duration_minutes IS NULL OR (target_duration_minutes >= 1 AND target_duration_minutes <= 180)),
+  actual_duration_seconds INTEGER CHECK (actual_duration_seconds IS NULL OR actual_duration_seconds >= 0),
+  completed BOOLEAN NOT NULL DEFAULT TRUE,
   task_title TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
   PRIMARY KEY (id, user_id)
 );
+
+-- Idempotent column additions for partial/interrupted session tracking
+ALTER TABLE public.focus_sessions ADD COLUMN IF NOT EXISTS completed BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE public.focus_sessions ADD COLUMN IF NOT EXISTS target_duration_minutes INTEGER;
+ALTER TABLE public.focus_sessions ADD COLUMN IF NOT EXISTS actual_duration_seconds INTEGER;
 
 ALTER TABLE public.focus_sessions ENABLE ROW LEVEL SECURITY;
 

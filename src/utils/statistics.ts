@@ -16,7 +16,7 @@ export const formatTotalFocusTime = (totalMinutes: number, lang: AppLanguage = '
 
 
 export const getPomodoroCount = (sessions: FocusSession[]): number => {
-  return getPomodoroSessions(sessions).length;
+  return getPomodoroSessions(sessions).filter((s) => s.completed !== false).length;
 };
 
 // Returns unique YYYY-MM-DD date strings sorted ascending
@@ -225,7 +225,7 @@ export const getAllTimeStats = (sessions: FocusSession[]): AllTimeStats => {
 
   return {
     totalMinutes,
-    totalPomodoros: poms.length,
+    totalPomodoros: poms.filter((s) => s.completed !== false).length,
     daysFocused,
     avgMinutesPerFocusDay,
   };

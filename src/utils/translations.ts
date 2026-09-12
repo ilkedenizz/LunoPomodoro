@@ -296,6 +296,8 @@ export interface Translations {
   sessionPlural: string;
   focusSessionDefault: string;
   noSessions: string;
+  sessionCompleted: string;
+  sessionIncomplete: string;
 }
 
 export const TRANSLATIONS: Record<AppLanguage, Translations> = {
@@ -595,6 +597,8 @@ export const TRANSLATIONS: Record<AppLanguage, Translations> = {
     sessionPlural: 'sessions',
     focusSessionDefault: 'Focus Session',
     noSessions: 'No focus sessions recorded yet.',
+    sessionCompleted: 'Completed',
+    sessionIncomplete: 'Incomplete',
   },
   tr: {
     // Common
@@ -892,6 +896,8 @@ export const TRANSLATIONS: Record<AppLanguage, Translations> = {
     sessionPlural: 'oturum',
     focusSessionDefault: 'Odak Oturumu',
     noSessions: 'Henüz kaydedilmiş çalışma oturumu yok.',
+    sessionCompleted: 'Tamamlandı',
+    sessionIncomplete: 'Yarıda bırakıldı',
   },
 };
 
