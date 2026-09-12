@@ -13,7 +13,6 @@ import {
   User,
   Cloud,
   LogOut,
-  Mail,
   Lock,
   AlertCircle,
   CheckCircle2,
@@ -22,8 +21,6 @@ import {
   Award,
   Calendar,
   Loader2,
-  TrendingUp,
-  ShieldCheck,
   Send,
   AtSign,
   Camera,
@@ -33,6 +30,9 @@ import {
   Trash2,
   Upload,
   Globe,
+  Copy,
+  Heart,
+  Target,
 } from 'lucide-react';
 import type {
   TimerSettings,
@@ -340,6 +340,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     setNicknameInput(user?.nickname || '');
   }
 
+  // Email copy state
+  const [copiedEmail, setCopiedEmail] = useState(false);
+  const handleCopyEmail = (email: string) => {
+    if (!email) return;
+    navigator.clipboard.writeText(email);
+    setCopiedEmail(true);
+    setTimeout(() => setCopiedEmail(false), 2000);
+  };
+
   const handleNicknameChange = (val: string) => {
     const cleanVal = val.toLowerCase().replace(/\s+/g, '');
     setNicknameInput(cleanVal);
@@ -558,8 +567,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className={`relative w-full max-w-xl sm:max-w-2xl p-5 sm:p-8 rounded-t-3xl sm:rounded-3xl glass-modal overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200 max-h-[90dvh] flex flex-col cursor-default pb-[max(1.5rem,var(--sab))] ${
-          isLight ? 'text-slate-900 border-slate-200/80 bg-white/95' : 'text-white border-white/15 bg-slate-950/90'
+        className={`relative w-full max-w-2xl sm:max-w-[760px] p-5 sm:p-7 rounded-t-3xl sm:rounded-[28px] glass-modal overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200 max-h-[88dvh] flex flex-col cursor-default pb-[max(1.25rem,var(--sab))] ${
+          isLight ? 'text-slate-900 border-slate-200/90 bg-white/95' : 'text-white border-white/10 bg-[#12141a]/95'
         }`}
         role="dialog"
         aria-modal="true"
@@ -571,15 +580,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         }`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2.5">
-              <div className={`p-2 rounded-xl border ${
-                isLight ? 'bg-slate-100 text-slate-700 border-slate-200' : 'bg-white/10 text-white border-white/15'
+              <div className={`w-9 h-9 rounded-xl border flex items-center justify-center ${
+                isLight ? 'bg-slate-100 text-slate-700 border-slate-200' : 'bg-white/5 text-white/90 border-white/10'
               }`}>
                 {activeTab === 'preferences' ? <Sliders className="w-4 h-4" /> : <User className="w-4 h-4" />}
               </div>
               <h2 id="settings-title" className={`text-lg sm:text-xl font-bold tracking-tight ${
                 isLight ? 'text-slate-900' : 'text-white'
               }`}>
-                {activeTab === 'preferences' ? t.settingsPreferences : t.profileHub}
+                {activeTab === 'preferences' ? t.settingsPreferences : (language === 'tr' ? 'Profil' : 'Profile')}
               </h2>
             </div>
 
@@ -598,40 +607,23 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           {/* Tab Switcher */}
           <div className={`grid grid-cols-2 gap-1.5 p-1 rounded-2xl border ${
-            isLight ? 'bg-slate-100 border-slate-200' : 'bg-white/5 border-white/10'
+            isLight ? 'bg-slate-100 border-slate-200' : 'bg-black/30 border-white/5'
           }`}>
             <button
               type="button"
-              onClick={() => setActiveTab('preferences')}
-              className={`flex items-center justify-center gap-2 py-2 px-4 rounded-xl text-xs sm:text-sm font-semibold transition-all min-h-[38px] ${
-                activeTab === 'preferences'
-                  ? isLight
-                    ? 'bg-white text-slate-900 shadow-sm border border-slate-200'
-                    : 'bg-white/20 text-white shadow-md border border-white/20'
-                  : isLight
-                  ? 'text-slate-600 hover:text-slate-900'
-                  : 'text-white/60 hover:text-white'
-              }`}
-            >
-              <Sliders className="w-4 h-4" />
-              <span>{t.preferences}</span>
-            </button>
-
-            <button
-              type="button"
               onClick={() => setActiveTab('account')}
-              className={`flex items-center justify-center gap-2 py-2 px-4 rounded-xl text-xs sm:text-sm font-semibold transition-all min-h-[38px] ${
+              className={`flex items-center justify-center gap-2 py-2 px-4 rounded-xl text-xs sm:text-sm font-medium transition-all min-h-[38px] ${
                 activeTab === 'account'
                   ? isLight
-                    ? 'bg-white text-slate-900 shadow-sm border border-slate-200'
-                    : 'bg-white/20 text-white shadow-md border border-white/20'
+                    ? 'bg-white text-slate-900 shadow-sm border border-slate-200 font-semibold'
+                    : 'bg-white/10 text-white shadow-sm border border-white/10 font-semibold'
                   : isLight
                   ? 'text-slate-600 hover:text-slate-900'
-                  : 'text-white/60 hover:text-white'
+                  : 'text-white/50 hover:text-white/80'
               }`}
             >
               <User className="w-4 h-4" />
-              <span>{t.profileHub}</span>
+              <span>{language === 'tr' ? 'Profil Merkezi' : 'Profile Center'}</span>
               {user && (
                 <span className={`w-2 h-2 rounded-full ml-1 ${
                   syncStatus?.state === 'syncing'
@@ -642,11 +634,28 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 }`} />
               )}
             </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('preferences')}
+              className={`flex items-center justify-center gap-2 py-2 px-4 rounded-xl text-xs sm:text-sm font-medium transition-all min-h-[38px] ${
+                activeTab === 'preferences'
+                  ? isLight
+                    ? 'bg-white text-slate-900 shadow-sm border border-slate-200 font-semibold'
+                    : 'bg-white/10 text-white shadow-sm border border-white/10 font-semibold'
+                  : isLight
+                  ? 'text-slate-600 hover:text-slate-900'
+                  : 'text-white/50 hover:text-white/80'
+              }`}
+            >
+              <Sliders className="w-4 h-4" />
+              <span>{language === 'tr' ? 'Tercihler' : 'Preferences'}</span>
+            </button>
           </div>
         </div>
 
         {/* Modal Body Content */}
-        <div className="space-y-6 py-4 overflow-y-auto pr-1 flex-1">
+        <div className="space-y-5 py-4 overflow-y-auto pr-1 flex-1">
           {activeTab === 'preferences' ? (
             /* ==========================================================
                TAB 1: PREFERENCES & TIMER SETTINGS
@@ -920,188 +929,187 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </>
           ) : (
             /* ==========================================================
-               TAB 2: PROFILE HUB & ACCOUNT EXPERIENCE (REDESIGNED)
+               TAB 2: PROFILE HUB & ACCOUNT EXPERIENCE (VISUAL REFERENCE)
                ========================================================== */
             <>
               {user ? (
                 <div className="space-y-5">
-                  {/* 1. Hero Identity Card */}
-                  <div className={`p-5 sm:p-6 rounded-3xl border relative overflow-hidden transition-all ${
-                    isLight
-                      ? 'bg-gradient-to-br from-slate-50/90 via-white to-indigo-50/20 border-slate-200/90 shadow-sm'
-                      : 'bg-gradient-to-br from-white/10 via-white/5 to-indigo-950/20 border-white/15 shadow-xl'
-                  }`}>
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5">
-                      <div className="flex items-center space-x-4 sm:space-x-5 min-w-0">
-                        {/* Avatar with Ring, Hover Camera, and Async Loader */}
-                        <div className="relative group shrink-0">
-                          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 text-white flex items-center justify-center font-bold text-xl sm:text-2xl shadow-xl overflow-hidden ring-4 ring-white/15 relative">
-                            {user.avatarUrl && !isAvatarFailed ? (
-                              <img
-                                src={user.avatarUrl}
-                                alt={user.displayName || user.nickname || 'Avatar'}
-                                className="w-full h-full object-cover rounded-full"
-                                onError={(e) => {
-                                  if (import.meta.env.DEV) {
-                                    console.warn('[Luno Profile Avatar Load Failed]:', {
-                                      avatarUrl: user.avatarUrl,
-                                      error: e,
-                                    });
-                                  }
-                                  setFailedAvatarUrl(user.avatarUrl || null);
-                                }}
-                              />
-                            ) : (
-                              <span className="font-timer tracking-wide">{avatarInitials}</span>
-                            )}
+                  {/* 1. Open Profile Hero Section */}
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5 px-1 py-1">
+                    <div className="flex items-center space-x-4 sm:space-x-5 min-w-0">
+                      {/* Avatar with Subtle Ring & Status Dot */}
+                      <div className="relative group shrink-0">
+                        <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 text-white flex items-center justify-center font-bold text-2xl sm:text-3xl shadow-xl overflow-hidden ring-2 ring-indigo-500/30 relative">
+                          {user.avatarUrl && !isAvatarFailed ? (
+                            <img
+                              src={user.avatarUrl}
+                              alt={user.displayName || user.nickname || 'Avatar'}
+                              className="w-full h-full object-cover rounded-full"
+                              onError={(e) => {
+                                if (import.meta.env.DEV) {
+                                  console.warn('[Luno Profile Avatar Load Failed]:', {
+                                    avatarUrl: user.avatarUrl,
+                                    error: e,
+                                  });
+                                }
+                                setFailedAvatarUrl(user.avatarUrl || null);
+                              }}
+                            />
+                          ) : (
+                            <span className="font-timer tracking-wide">{avatarInitials}</span>
+                          )}
 
-                            {/* Upload / Remove Loader Overlay */}
-                            {(isUploadingAvatar || isRemovingAvatar) && (
-                              <div className="absolute inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center text-white z-10 rounded-full">
-                                <Loader2 className="w-5 h-5 animate-spin" />
-                              </div>
-                            )}
-
-                            {/* Hover Camera Action */}
-                            {!isUploadingAvatar && !isRemovingAvatar && (
-                              <button
-                                type="button"
-                                onClick={() => avatarFileInputRef.current?.click()}
-                                aria-label={user.avatarUrl ? t.changePhoto : t.uploadPhoto}
-                                className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity flex flex-col items-center justify-center text-white text-[10px] font-medium cursor-pointer z-10 rounded-full"
-                              >
-                                <Camera className="w-4 h-4 mb-0.5" />
-                                <span>{user.avatarUrl ? (language === 'tr' ? 'Değiştir' : 'Change') : (language === 'tr' ? 'Yükle' : 'Upload')}</span>
-                              </button>
-                            )}
-                          </div>
-
-                          <input
-                            ref={avatarFileInputRef}
-                            type="file"
-                            accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp,image/jpg"
-                            onChange={handleAvatarFileChange}
-                            className="hidden"
-                          />
-                        </div>
-
-                        {/* Identity & Status */}
-                        <div className="min-w-0 flex-1">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <h3 className={`text-lg sm:text-xl font-bold tracking-tight truncate ${
-                              isLight ? 'text-slate-900' : 'text-white'
-                            }`}>
-                              {user.nickname ? `@${user.nickname}` : (user.displayName || user.email.split('@')[0])}
-                            </h3>
-                            {user.displayName && (
-                              <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium ${
-                                isLight ? 'bg-slate-200/80 text-slate-700' : 'bg-white/10 text-white/80'
-                              }`}>
-                                {user.displayName}
-                              </span>
-                            )}
-                          </div>
-
-                          <div className="flex flex-wrap items-center gap-2 mt-1.5">
-                            <div className="flex items-center space-x-1.5">
-                              <Mail className={`w-3.5 h-3.5 shrink-0 ${isLight ? 'text-slate-400' : 'text-white/40'}`} />
-                              <p className={`text-xs truncate max-w-[170px] sm:max-w-[240px] ${isLight ? 'text-slate-600' : 'text-white/60'}`}>
-                                {user.email}
-                              </p>
+                          {/* Upload / Remove Loader Overlay */}
+                          {(isUploadingAvatar || isRemovingAvatar) && (
+                            <div className="absolute inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center text-white z-10 rounded-full">
+                              <Loader2 className="w-5 h-5 animate-spin" />
                             </div>
-                            {user.emailVerified ? (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                                <ShieldCheck className="w-3 h-3" />
-                                <span>{t.verified}</span>
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/15 text-amber-400 border border-amber-500/30">
-                                <AlertCircle className="w-3 h-3" />
-                                <span>{t.unverified}</span>
-                              </span>
-                            )}
-                          </div>
+                          )}
 
-                          <div className="flex items-center gap-2 mt-2">
-                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-medium border ${
-                              syncStatus?.state === 'syncing'
-                                ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
-                                : syncStatus?.state === 'offline'
-                                ? 'bg-slate-500/15 text-slate-400 border-slate-500/30'
-                                : (syncStatus?.pendingCount ?? 0) > 0
-                                ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
-                                : 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
-                            }`}>
-                              <Cloud className="w-3 h-3" />
-                              <span>
-                                {syncStatus?.state === 'syncing'
-                                  ? t.syncing
-                                  : syncStatus?.state === 'offline'
-                                  ? t.offline
-                                  : (syncStatus?.pendingCount ?? 0) > 0
-                                  ? t.savedLocally
-                                  : t.cloudSynced}
-                              </span>
-                            </span>
-                          </div>
+                          {/* Hover Camera Action */}
+                          {!isUploadingAvatar && !isRemovingAvatar && (
+                            <button
+                              type="button"
+                              onClick={() => avatarFileInputRef.current?.click()}
+                              aria-label={user.avatarUrl ? t.changePhoto : t.uploadPhoto}
+                              className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity flex flex-col items-center justify-center text-white text-[10px] font-medium cursor-pointer z-10 rounded-full"
+                            >
+                              <Camera className="w-4 h-4 mb-0.5" />
+                              <span>{user.avatarUrl ? (language === 'tr' ? 'Değiştir' : 'Change') : (language === 'tr' ? 'Yükle' : 'Upload')}</span>
+                            </button>
+                          )}
                         </div>
+
+                        {/* Online / Active indicator dot */}
+                        <span className="w-3.5 h-3.5 rounded-full bg-emerald-400 ring-2 ring-[#12141a] absolute bottom-1 right-1" />
+
+                        <input
+                          ref={avatarFileInputRef}
+                          type="file"
+                          accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp,image/jpg"
+                          onChange={handleAvatarFileChange}
+                          className="hidden"
+                        />
                       </div>
 
-                      {/* Header Actions */}
-                      <div className="flex sm:flex-col items-center gap-2 w-full sm:w-auto shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => setIsEditingProfile((prev) => !prev)}
-                          className={`flex-1 sm:flex-none px-4 py-2 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-sm min-h-[36px] ${
-                            isEditingProfile
-                              ? isLight
-                                ? 'bg-indigo-600 text-white shadow-indigo-500/20'
-                                : 'bg-indigo-500 text-white shadow-indigo-500/30'
-                              : isLight
-                              ? 'bg-slate-100 text-slate-800 hover:bg-slate-200 border border-slate-200'
-                              : 'bg-white/10 text-white hover:bg-white/15 border border-white/15'
-                          }`}
-                        >
-                          <Edit3 className="w-3.5 h-3.5" />
-                          <span>{isEditingProfile ? t.closeEdit : t.editProfile}</span>
-                        </button>
+                      {/* Identity Details & Badges */}
+                      <div className="min-w-0 flex-1 space-y-1.5">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className={`text-xl sm:text-2xl font-bold tracking-tight truncate ${
+                            isLight ? 'text-slate-900' : 'text-white'
+                          }`}>
+                            {user.nickname ? `@${user.nickname}` : (user.displayName || user.email.split('@')[0])}
+                          </h3>
+                          {user.displayName && (
+                            <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium ${
+                              isLight ? 'bg-slate-200/80 text-slate-700' : 'bg-white/10 text-white/80'
+                            }`}>
+                              {user.displayName}
+                            </span>
+                          )}
+                        </div>
 
-                        <button
-                          type="button"
-                          onClick={onSignOut}
-                          className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer min-h-[36px] ${
-                            isLight
-                              ? 'text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200'
-                              : 'text-rose-400 hover:bg-rose-500/15 border border-transparent hover:border-rose-500/25'
-                          }`}
-                        >
-                          <LogOut className="w-3.5 h-3.5" />
-                          <span>{t.signOut}</span>
-                        </button>
+                        {/* Email row with Copy button */}
+                        <div className="flex items-center space-x-1.5 text-xs text-white/60">
+                          <span className={`truncate max-w-[200px] sm:max-w-[260px] ${isLight ? 'text-slate-600' : 'text-white/60'}`}>
+                            {user.email}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleCopyEmail(user.email)}
+                            title={language === 'tr' ? 'E-postayı kopyala' : 'Copy email'}
+                            className={`p-1 rounded-md transition-colors ${
+                              isLight ? 'hover:bg-slate-200 text-slate-400 hover:text-slate-700' : 'hover:bg-white/10 text-white/40 hover:text-white/80'
+                            }`}
+                          >
+                            {copiedEmail ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                          </button>
+                        </div>
+
+                        {/* Status Pills */}
+                        <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                          {user.emailVerified ? (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                              <Check className="w-3 h-3" />
+                              <span>{language === 'tr' ? 'E-posta doğrulandı' : 'Email verified'}</span>
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                              <AlertCircle className="w-3 h-3" />
+                              <span>{language === 'tr' ? 'E-posta doğrulanmadı' : 'Email unverified'}</span>
+                            </span>
+                          )}
+
+                          <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-medium bg-white/5 text-white/70 border border-white/10">
+                            <Cloud className="w-3 h-3 text-white/50" />
+                            <span>
+                              {syncStatus?.state === 'syncing'
+                                ? (language === 'tr' ? 'Senkronize ediliyor...' : 'Syncing...')
+                                : syncStatus?.state === 'offline'
+                                ? (language === 'tr' ? 'Çevrimdışı' : 'Offline')
+                                : (syncStatus?.pendingCount ?? 0) > 0
+                                ? (language === 'tr' ? 'Yerel kaydedildi' : 'Saved locally')
+                                : (language === 'tr' ? 'Bulut senkronize' : 'Cloud synced')}
+                            </span>
+                          </span>
+                        </div>
                       </div>
                     </div>
 
-                    {/* Quick Avatar Feedback Alerts */}
-                    {avatarError && (
-                      <div className="mt-3.5 p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-400 text-xs flex items-center gap-2 animate-in fade-in">
-                        <AlertCircle className="w-4 h-4 shrink-0" />
-                        <span>{avatarError}</span>
-                      </div>
-                    )}
-                    {avatarSuccess && (
-                      <div className="mt-3.5 p-3 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs flex items-center gap-2 animate-in fade-in">
-                        <CheckCircle2 className="w-4 h-4 shrink-0" />
-                        <span>{avatarSuccess}</span>
-                      </div>
-                    )}
+                    {/* Actions on the Right */}
+                    <div className="flex sm:flex-col items-center gap-2 w-full sm:w-auto shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setIsEditingProfile((prev) => !prev)}
+                        className={`flex-1 sm:flex-none px-4 py-2 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs min-h-[36px] ${
+                          isEditingProfile
+                            ? isLight
+                              ? 'bg-indigo-600 text-white shadow-indigo-500/20'
+                              : 'bg-indigo-500 text-white shadow-indigo-500/30'
+                            : isLight
+                            ? 'bg-slate-100 text-slate-800 hover:bg-slate-200 border border-slate-200'
+                            : 'bg-white/10 text-white hover:bg-white/15 border border-white/10'
+                        }`}
+                      >
+                        <Edit3 className="w-3.5 h-3.5" />
+                        <span>{isEditingProfile ? t.closeEdit : (language === 'tr' ? 'Profili Düzenle' : 'Edit Profile')}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={onSignOut}
+                        className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer min-h-[36px] ${
+                          isLight
+                            ? 'bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200'
+                            : 'text-rose-300 hover:text-rose-200 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20'
+                        }`}
+                      >
+                        <LogOut className="w-3.5 h-3.5" />
+                        <span>{language === 'tr' ? 'Çıkış Yap' : 'Sign Out'}</span>
+                      </button>
+                    </div>
                   </div>
 
-                  {/* 2. Collapsible Edit Profile Panel */}
+                  {/* Feedback Alerts for Avatar changes */}
+                  {avatarError && (
+                    <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-400 text-xs flex items-center gap-2 animate-in fade-in">
+                      <AlertCircle className="w-4 h-4 shrink-0" />
+                      <span>{avatarError}</span>
+                    </div>
+                  )}
+                  {avatarSuccess && (
+                    <div className="p-3 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs flex items-center gap-2 animate-in fade-in">
+                      <CheckCircle2 className="w-4 h-4 shrink-0" />
+                      <span>{avatarSuccess}</span>
+                    </div>
+                  )}
+
+                  {/* Collapsible Edit Profile Drawer */}
                   {isEditingProfile && (
-                    <div className={`p-5 rounded-3xl border space-y-4 animate-in fade-in zoom-in-95 duration-200 ${
+                    <div className={`p-5 rounded-2xl border space-y-4 animate-in fade-in zoom-in-95 duration-200 ${
                       isLight
                         ? 'bg-white border-indigo-200 shadow-lg ring-1 ring-indigo-500/10'
-                        : 'bg-slate-900/90 border-indigo-500/40 shadow-2xl ring-1 ring-indigo-500/20'
+                        : 'bg-[#181a22] border-indigo-500/40 shadow-2xl ring-1 ring-indigo-500/20'
                     }`}>
                       <div className="flex items-center justify-between border-b pb-3 border-dashed border-white/10">
                         <div className="flex items-center gap-2">
@@ -1120,7 +1128,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       </div>
 
                       {/* Photo Actions Row */}
-                      <div className={`p-3.5 rounded-2xl border flex flex-col sm:flex-row items-center justify-between gap-3 ${
+                      <div className={`p-3.5 rounded-xl border flex flex-col sm:flex-row items-center justify-between gap-3 ${
                         isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'
                       }`}>
                         <div className="flex items-center gap-3">
@@ -1183,7 +1191,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
                       {/* Nickname & Display Name Form */}
                       <form onSubmit={handleSaveProfile} className="space-y-4">
-                        {/* Nickname Input */}
                         <div>
                           <div className="flex items-center justify-between mb-1.5">
                             <label
@@ -1247,7 +1254,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           )}
                         </div>
 
-                        {/* Display Name Input */}
                         <div>
                           <label
                             htmlFor="edit-account-display-name"
@@ -1270,7 +1276,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           />
                         </div>
 
-                        {/* Password Section Toggle inside Edit Panel */}
                         <div className="pt-2.5 border-t border-dashed border-white/10">
                           {!isChangingPassword ? (
                             <button
@@ -1345,7 +1350,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           )}
                         </div>
 
-                        {/* Error and Form Action Buttons */}
                         <div className="flex items-center justify-between pt-2">
                           {profileSaveError ? (
                             <p className="text-[11px] text-rose-400 flex items-center gap-1">
@@ -1399,243 +1403,291 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     </div>
                   )}
 
-                  {/* 3. Focus Analytics Overview (Clean Apple/Linear Layout) */}
-                  <div className={`p-5 rounded-3xl border space-y-4 ${
-                    isLight ? 'bg-slate-50/90 border-slate-200' : 'bg-white/5 border-white/10'
+                  {/* 2. Focus Overview Section (Odaklanma Özeti) */}
+                  <div className={`p-5 sm:p-6 rounded-2xl border space-y-4 ${
+                    isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/[0.03] border-white/[0.08]'
                   }`}>
                     <div className="flex items-center justify-between">
-                      <h3 className={`text-[11px] font-mono font-semibold uppercase tracking-wider flex items-center gap-1.5 ${
-                        isLight ? 'text-slate-500' : 'text-white/50'
-                      }`}>
-                        <TrendingUp className="w-3.5 h-3.5" /> {t.focusStatistics}
-                      </h3>
-                      <span className={`text-[10px] font-mono ${isLight ? 'text-slate-400' : 'text-white/40'}`}>
+                      <div className="flex items-center gap-2">
+                        <Target className="w-4 h-4 text-rose-400" />
+                        <h3 className={`text-sm font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                          {language === 'tr' ? 'Odaklanma Özeti' : 'Focus Overview'}
+                        </h3>
+                      </div>
+                      <span className={`text-xs ${isLight ? 'text-slate-400' : 'text-white/40'}`}>
                         {sessions.length} {language === 'tr' ? 'oturum' : 'sessions'}
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-                      {/* Total Focus Time */}
-                      <div className={`p-4 rounded-2xl border flex flex-col justify-between transition-all ${
-                        isLight
-                          ? 'bg-white border-slate-200 shadow-xs'
-                          : 'bg-white/5 border-white/10 shadow-xs'
-                      }`}>
-                        <div className="flex items-center justify-between text-indigo-400 mb-2">
-                          <Clock className="w-4 h-4" />
-                          <span className={`text-[9px] font-mono font-semibold uppercase ${isLight ? 'text-slate-400' : 'text-white/40'}`}>
-                            {language === 'tr' ? 'Toplam' : 'Total'}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-0 sm:divide-x divide-white/[0.06]">
+                      {/* Metric 1: Total Focus */}
+                      <div className="sm:pr-4">
+                        <div className="flex items-center gap-1.5 text-xs mb-1.5">
+                          <Clock className={`w-3.5 h-3.5 ${isLight ? 'text-indigo-600' : 'text-indigo-400'}`} />
+                          <span className={`font-medium ${isLight ? 'text-slate-600' : 'text-white/60'}`}>
+                            {language === 'tr' ? 'Toplam Odaklanma Süresi' : 'Total Focus Time'}
                           </span>
                         </div>
-                        <div>
-                          <div className={`text-lg sm:text-xl font-bold font-timer tracking-tight ${
-                            isLight ? 'text-indigo-900' : 'text-indigo-300'
-                          }`}>
-                            {formatTotalFocusTime(totalFocusMinutes, language)}
-                          </div>
-                          <div className={`text-[11px] font-medium mt-0.5 ${isLight ? 'text-slate-500' : 'text-white/60'}`}>
-                            {t.totalFocusTime}
-                          </div>
+                        <div className={`text-2xl sm:text-3xl font-bold font-timer tracking-tight ${
+                          isLight ? 'text-slate-900' : 'text-white'
+                        }`}>
+                          {formatTotalFocusTime(totalFocusMinutes, language)}
+                        </div>
+                        <div className="text-xs text-emerald-400 font-medium mt-1">
+                          ↑ +{formatTotalFocusTime(todayFocusMinutes, language)} {language === 'tr' ? 'bugün' : 'today'}
                         </div>
                       </div>
 
-                      {/* Completed Pomodoros */}
-                      <div className={`p-4 rounded-2xl border flex flex-col justify-between ${
-                        isLight ? 'bg-white border-slate-200 shadow-xs' : 'bg-white/5 border-white/10 shadow-xs'
-                      }`}>
-                        <div className="flex items-center justify-between text-purple-400 mb-2">
-                          <Award className="w-4 h-4" />
-                          <span className={`text-[9px] font-mono font-semibold uppercase ${isLight ? 'text-slate-400' : 'text-white/40'}`}>
-                            {t.pomos}
+                      {/* Metric 2: Completed Pomodoros */}
+                      <div className="sm:px-4">
+                        <div className="flex items-center gap-1.5 text-xs mb-1.5">
+                          <Award className={`w-3.5 h-3.5 ${isLight ? 'text-rose-600' : 'text-rose-400'}`} />
+                          <span className={`font-medium ${isLight ? 'text-slate-600' : 'text-white/60'}`}>
+                            {language === 'tr' ? 'Tamamlanan Pomodoro' : 'Completed Pomodoros'}
                           </span>
                         </div>
-                        <div>
-                          <div className="text-lg sm:text-xl font-bold font-timer">{completedPomodoros}</div>
-                          <div className={`text-[11px] font-medium mt-0.5 ${isLight ? 'text-slate-500' : 'text-white/60'}`}>
-                            {t.completed}
-                          </div>
+                        <div className={`text-2xl sm:text-3xl font-bold font-timer tracking-tight ${
+                          isLight ? 'text-slate-900' : 'text-white'
+                        }`}>
+                          {completedPomodoros}
+                        </div>
+                        <div className={`text-xs mt-1 ${isLight ? 'text-slate-500' : 'text-white/40'}`}>
+                          {language === 'tr' ? 'Bu hafta' : 'This week'}
                         </div>
                       </div>
 
-                      {/* Today's Focus */}
-                      <div className={`p-4 rounded-2xl border flex flex-col justify-between ${
-                        isLight ? 'bg-white border-slate-200 shadow-xs' : 'bg-white/5 border-white/10 shadow-xs'
-                      }`}>
-                        <div className="flex items-center justify-between text-emerald-400 mb-2">
-                          <TrendingUp className="w-4 h-4" />
-                          <span className={`text-[9px] font-mono font-semibold uppercase ${isLight ? 'text-slate-400' : 'text-white/40'}`}>
+                      {/* Metric 3: Today's Focus */}
+                      <div className="sm:px-4">
+                        <div className="flex items-center gap-1.5 text-xs mb-1.5">
+                          <Sun className={`w-3.5 h-3.5 ${isLight ? 'text-amber-600' : 'text-amber-400'}`} />
+                          <span className={`font-medium ${isLight ? 'text-slate-600' : 'text-white/60'}`}>
                             {language === 'tr' ? 'Bugün' : 'Today'}
                           </span>
                         </div>
-                        <div>
-                          <div className="text-lg sm:text-xl font-bold font-timer">
-                            {formatTotalFocusTime(todayFocusMinutes, language)}
-                          </div>
-                          <div className={`text-[11px] font-medium mt-0.5 ${isLight ? 'text-slate-500' : 'text-white/60'}`}>
-                            {t.todayFocus}
-                          </div>
+                        <div className={`text-2xl sm:text-3xl font-bold font-timer tracking-tight ${
+                          isLight ? 'text-slate-900' : 'text-white'
+                        }`}>
+                          {formatTotalFocusTime(todayFocusMinutes, language)}
+                        </div>
+                        <div className={`text-xs mt-1 ${isLight ? 'text-slate-500' : 'text-white/40'}`}>
+                          {language === 'tr' ? 'Odak süresi' : 'Focus time'}
                         </div>
                       </div>
 
-                      {/* Current Streak */}
-                      <div className={`p-4 rounded-2xl border flex flex-col justify-between ${
-                        isLight ? 'bg-white border-slate-200 shadow-xs' : 'bg-white/5 border-white/10 shadow-xs'
-                      }`}>
-                        <div className="flex items-center justify-between text-amber-400 mb-2">
-                          <Flame className="w-4 h-4" />
-                          <span className={`text-[9px] font-mono font-semibold uppercase ${isLight ? 'text-slate-400' : 'text-white/40'}`}>
-                            {t.streak}
+                      {/* Metric 4: Current Streak */}
+                      <div className="sm:pl-4">
+                        <div className="flex items-center gap-1.5 text-xs mb-1.5">
+                          <Flame className={`w-3.5 h-3.5 ${isLight ? 'text-orange-600' : 'text-orange-400'}`} />
+                          <span className={`font-medium ${isLight ? 'text-slate-600' : 'text-white/60'}`}>
+                            {language === 'tr' ? 'Seri' : 'Streak'}
                           </span>
                         </div>
-                        <div>
-                          <div className="text-lg sm:text-xl font-bold font-timer">
-                            {currentStreakDays} {currentStreakDays === 1 ? t.day : t.days}
-                          </div>
-                          <div className={`text-[11px] font-medium mt-0.5 ${isLight ? 'text-slate-500' : 'text-white/60'}`}>
-                            {t.activeStreak}
-                          </div>
+                        <div className={`text-2xl sm:text-3xl font-bold font-timer tracking-tight ${
+                          isLight ? 'text-slate-900' : 'text-white'
+                        }`}>
+                          {currentStreakDays} {currentStreakDays === 1 ? t.day : t.days}
+                        </div>
+                        <div className={`text-xs mt-1 ${isLight ? 'text-slate-500' : 'text-white/40'}`}>
+                          {language === 'tr' ? 'Aktif seri' : 'Active streak'}
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* 4. Friends & Community Row */}
-                  {onOpenFriends && (
-                    <div className={`p-4 sm:p-5 rounded-3xl border flex items-center justify-between gap-4 transition-all ${
-                      isLight
-                        ? 'bg-gradient-to-r from-indigo-50/80 via-white to-purple-50/80 border-indigo-200/80 hover:border-indigo-300'
-                        : 'bg-gradient-to-r from-indigo-500/10 via-white/5 to-purple-500/10 border-indigo-500/25 hover:border-indigo-500/40'
-                    }`}>
-                      <div className="flex items-center gap-3.5 min-w-0">
-                        <div className="p-3 rounded-2xl bg-indigo-500/20 text-indigo-400 shrink-0">
-                          <Users className="w-5 h-5" />
-                        </div>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <h4 className="text-xs sm:text-sm font-bold truncate">{language === 'tr' ? 'Arkadaşlar & Topluluk' : 'Friends & Community'}</h4>
+                  {/* 3. Balanced 2-Column Bottom Layout (Friends & Account) */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Left Column: Friends & Community + Motivational Strip */}
+                    <div className="space-y-4 flex flex-col justify-between">
+                      {/* Friends Card */}
+                      <div className={`p-5 rounded-2xl border flex flex-col justify-between space-y-4 flex-1 ${
+                        isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/[0.03] border-white/[0.08]'
+                      }`}>
+                        <div>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Users className={`w-4 h-4 ${isLight ? 'text-indigo-600' : 'text-indigo-400'}`} />
+                              <h4 className={`text-sm font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                                {language === 'tr' ? 'Arkadaşlar & Topluluk' : 'Friends & Community'}
+                              </h4>
+                            </div>
                             {incomingRequestsCount > 0 && (
                               <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500 text-white animate-pulse">
                                 {incomingRequestsCount} {t.newRequest}
                               </span>
                             )}
                           </div>
-                          <p className={`text-[11px] truncate mt-0.5 ${isLight ? 'text-slate-600' : 'text-white/70'}`}>
-                            {t.friendsCommunityDesc}
+                          <p className={`text-xs mt-1 leading-relaxed ${isLight ? 'text-slate-500' : 'text-white/50'}`}>
+                            {language === 'tr' ? 'Çalışma arkadaşlarınla bağlantıda kal.' : 'Stay connected with study partners.'}
                           </p>
                         </div>
+
+                        <div className="flex items-center justify-between pt-1">
+                          <div className="flex items-center space-x-2 text-xs">
+                            <div className="flex -space-x-1.5 overflow-hidden">
+                              <div className="inline-block w-6 h-6 rounded-full ring-2 ring-[#12141a] bg-indigo-500/30 text-[10px] flex items-center justify-center font-bold text-indigo-300">
+                                L
+                              </div>
+                              <div className="inline-block w-6 h-6 rounded-full ring-2 ring-[#12141a] bg-purple-500/30 text-[10px] flex items-center justify-center font-bold text-purple-300">
+                                U
+                              </div>
+                              <div className="inline-block w-6 h-6 rounded-full ring-2 ring-[#12141a] bg-pink-500/30 text-[10px] flex items-center justify-center font-bold text-pink-300">
+                                N
+                              </div>
+                            </div>
+                            <span className={`text-[11px] ${isLight ? 'text-slate-500' : 'text-white/60'}`}>
+                              {language === 'tr' ? 'Çalışma Topluluğu' : 'Study Community'}
+                            </span>
+                          </div>
+
+                          {onOpenFriends && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                onClose();
+                                onOpenFriends();
+                              }}
+                              className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold border flex items-center gap-1 cursor-pointer transition-all shadow-xs ${
+                                isLight
+                                  ? 'bg-white hover:bg-slate-100 text-slate-800 border-slate-300'
+                                  : 'bg-white/10 hover:bg-white/15 text-white border-white/10'
+                              }`}
+                            >
+                              <span>{language === 'tr' ? 'Arkadaşları Aç' : 'Open Friends'}</span>
+                              <ChevronRight className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Motivational Element Strip */}
+                      <div className={`p-3.5 rounded-2xl border flex items-center gap-3 ${
+                        isLight ? 'bg-emerald-50/60 border-emerald-200/70' : 'bg-white/[0.02] border-white/[0.06]'
+                      }`}>
+                        <Sparkles className="w-4 h-4 text-emerald-400 shrink-0" />
+                        <div>
+                          <p className="text-xs font-semibold text-emerald-400">
+                            {language === 'tr' ? 'Daha iyi bir sen için' : 'For a better you'}
+                          </p>
+                          <p className={`text-[11px] mt-0.5 ${isLight ? 'text-slate-600' : 'text-white/60'}`}>
+                            {language === 'tr' ? 'Her odaklanma, daha büyük hedeflere bir adımdır. ✨' : 'Every focus session is a step towards your bigger goals. ✨'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Right Column: Account & Cloud Sync Card */}
+                    <div className={`p-5 rounded-2xl border flex flex-col justify-between space-y-4 ${
+                      isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/[0.03] border-white/[0.08]'
+                    }`}>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <Cloud className={`w-4 h-4 ${isLight ? 'text-indigo-600' : 'text-indigo-400'}`} />
+                          <h4 className={`text-sm font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                            {language === 'tr' ? 'Hesap' : 'Account'}
+                          </h4>
+                        </div>
+                        <p className={`text-xs mt-1 ${isLight ? 'text-slate-500' : 'text-white/50'}`}>
+                          {language === 'tr' ? 'Bulut senkronizasyonu ve hesap bilgileri' : 'Cloud synchronization and account details'}
+                        </p>
+                      </div>
+
+                      <div className="space-y-3 text-xs">
+                        <div className="flex items-center justify-between">
+                          <div className={`flex items-center space-x-2 ${isLight ? 'text-slate-600' : 'text-white/60'}`}>
+                            <Cloud className="w-3.5 h-3.5 opacity-60" />
+                            <span>{language === 'tr' ? 'Bulut senkronizasyonu' : 'Cloud synchronization'}</span>
+                          </div>
+                          <div className="flex items-center space-x-1.5">
+                            <span className={`font-mono text-[11px] ${isLight ? 'text-slate-600' : 'text-white/70'}`}>
+                              {language === 'tr' ? 'Son senk: ' : 'Synced: '}{formatLastSynced(syncStatus?.lastSyncedAt ?? null)}
+                            </span>
+                            <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-2 border-t border-dashed border-white/10">
+                          <div className={`flex items-center space-x-2 ${isLight ? 'text-slate-600' : 'text-white/60'}`}>
+                            <Calendar className="w-3.5 h-3.5 opacity-60" />
+                            <span>{language === 'tr' ? 'Üyelik tarihi' : 'Member since'}</span>
+                          </div>
+                          <span className={`font-medium ${isLight ? 'text-slate-700' : 'text-white/80'}`}>
+                            {new Date(user.createdAt).toLocaleDateString(language === 'tr' ? 'tr-TR' : 'en-US', {
+                              day: 'numeric',
+                              month: 'long',
+                              year: 'numeric',
+                            })}
+                          </span>
+                        </div>
+
+                        {/* Email Verification Row (if unverified) */}
+                        {!user.emailVerified && (
+                          <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 space-y-1.5">
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="font-medium text-amber-300 flex items-center gap-1.5">
+                                <AlertCircle className="w-3.5 h-3.5 shrink-0" /> {t.emailUnverified}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={handleResendEmail}
+                                disabled={isResendingEmail}
+                                className="text-amber-300 hover:text-amber-200 text-xs font-semibold underline flex items-center gap-1 shrink-0 cursor-pointer disabled:opacity-50"
+                              >
+                                {isResendingEmail ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
+                                <span>{t.resendEmail}</span>
+                              </button>
+                            </div>
+                            {resendSuccess && (
+                              <p className="text-[11px] text-emerald-400 flex items-center gap-1">
+                                <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                                <span>{resendSuccess}</span>
+                              </p>
+                            )}
+                            {resendError && (
+                              <p className="text-[11px] text-rose-400 flex items-center gap-1">
+                                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                                <span>{resendError}</span>
+                              </p>
+                            )}
+                          </div>
+                        )}
+
+                        {(syncStatus?.pendingCount ?? 0) > 0 && (
+                          <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs flex items-center justify-between">
+                            <span>{syncStatus?.pendingCount} {t.unsyncedChanges}</span>
+                            <span className="text-[10px] opacity-80">{t.autoRetrying}</span>
+                          </div>
+                        )}
                       </div>
 
                       <button
                         type="button"
-                        onClick={() => {
-                          onClose();
-                          onOpenFriends();
-                        }}
-                        className={`px-4 py-2 rounded-xl text-xs font-semibold shrink-0 flex items-center gap-1 cursor-pointer transition-all ${
+                        onClick={handleTriggerSync}
+                        disabled={isManualSyncing || syncStatus?.state === 'syncing'}
+                        className={`w-full py-2.5 rounded-xl text-xs font-semibold border flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 shadow-xs ${
                           isLight
-                            ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm'
-                            : 'bg-indigo-500 text-white hover:bg-indigo-600 shadow-md'
+                            ? 'bg-white hover:bg-slate-100 border-slate-300 text-slate-800'
+                            : 'bg-white/10 hover:bg-white/15 border-white/10 text-white'
                         }`}
                       >
-                        <span>{t.openFriends}</span>
-                        <ChevronRight className="w-3.5 h-3.5" />
+                        <RefreshCw className={`w-3.5 h-3.5 ${isManualSyncing || syncStatus?.state === 'syncing' ? 'animate-spin' : ''}`} />
+                        <span>{isManualSyncing || syncStatus?.state === 'syncing' ? t.syncingRecords : (language === 'tr' ? 'Şimdi Senkronize Et' : 'Sync Now')}</span>
                       </button>
                     </div>
-                  )}
-
-                  {/* 5. Cloud Sync & Security Details */}
-                  <div className={`p-5 rounded-3xl border space-y-3.5 ${
-                    isLight ? 'bg-slate-50/90 border-slate-200' : 'bg-white/5 border-white/10'
-                  }`}>
-                    <div className="flex items-center justify-between text-xs">
-                      <div className="flex items-center space-x-2">
-                        <Cloud className={`w-3.5 h-3.5 ${isLight ? 'text-slate-400' : 'text-white/40'}`} />
-                        <span className={isLight ? 'text-slate-600' : 'text-white/70'}>{t.lastCloudSync}</span>
-                      </div>
-                      <span className="font-semibold font-mono text-[11px]">
-                        {formatLastSynced(syncStatus?.lastSyncedAt ?? null)}
-                      </span>
-                    </div>
-
-                    <div className="pt-2.5 border-t border-dashed border-white/10 flex items-center justify-between text-xs">
-                      <div className="flex items-center space-x-2">
-                        <Calendar className={`w-3.5 h-3.5 ${isLight ? 'text-slate-400' : 'text-white/40'}`} />
-                        <span className={isLight ? 'text-slate-600' : 'text-white/70'}>{t.memberSince}</span>
-                      </div>
-                      <span className="font-medium">
-                        {new Date(user.createdAt).toLocaleDateString(language === 'tr' ? 'tr-TR' : 'en-US', {
-                          month: 'long',
-                          day: 'numeric',
-                          year: 'numeric',
-                        })}
-                      </span>
-                    </div>
-
-                    {/* Email Verification Row (if unverified) */}
-                    {!user.emailVerified && (
-                      <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 space-y-2">
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="font-medium text-amber-300 flex items-center gap-1.5">
-                            <AlertCircle className="w-3.5 h-3.5 shrink-0" /> {t.emailUnverified}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={handleResendEmail}
-                            disabled={isResendingEmail}
-                            className="text-amber-300 hover:text-amber-200 text-xs font-semibold underline flex items-center gap-1 shrink-0 cursor-pointer disabled:opacity-50"
-                          >
-                            {isResendingEmail ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
-                            <span>{t.resendEmail}</span>
-                          </button>
-                        </div>
-                        {resendSuccess && (
-                          <p className="text-[11px] text-emerald-400 flex items-center gap-1">
-                            <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-                            <span>{resendSuccess}</span>
-                          </p>
-                        )}
-                        {resendError && (
-                          <p className="text-[11px] text-rose-400 flex items-center gap-1">
-                            <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                            <span>{resendError}</span>
-                          </p>
-                        )}
-                      </div>
-                    )}
-
-                    {(syncStatus?.pendingCount ?? 0) > 0 && (
-                      <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs flex items-center justify-between">
-                        <span>{syncStatus?.pendingCount} {t.unsyncedChanges}</span>
-                        <span className="text-[10px] opacity-80">{t.autoRetrying}</span>
-                      </div>
-                    )}
-
-                    <button
-                      type="button"
-                      onClick={handleTriggerSync}
-                      disabled={isManualSyncing || syncStatus?.state === 'syncing'}
-                      className={`w-full py-2.5 rounded-xl text-xs font-semibold border flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 ${
-                        isLight
-                          ? 'bg-white hover:bg-slate-100 border-slate-300 text-slate-800 shadow-sm'
-                          : 'bg-white/10 hover:bg-white/15 border-white/15 text-white shadow-md'
-                      }`}
-                    >
-                      <RefreshCw className={`w-3.5 h-3.5 ${isManualSyncing || syncStatus?.state === 'syncing' ? 'animate-spin' : ''}`} />
-                      <span>{isManualSyncing || syncStatus?.state === 'syncing' ? t.syncingRecords : t.syncNow}</span>
-                    </button>
                   </div>
                 </div>
               ) : (
-                /* GUEST / LOCAL MODE VIEW (REDESIGNED) */
+                /* GUEST / LOCAL MODE VIEW (MATCHING HIGH-END DESIGN) */
                 <div className="space-y-5 py-2">
-                  <div className={`p-6 sm:p-8 rounded-3xl border text-center space-y-4 ${
-                    isLight ? 'bg-slate-50/90 border-slate-200 shadow-sm' : 'bg-white/5 border-white/10 shadow-xl'
+                  <div className={`p-6 sm:p-8 rounded-2xl border text-center space-y-4 ${
+                    isLight ? 'bg-slate-50 border-slate-200 shadow-sm' : 'bg-white/[0.03] border-white/[0.08] shadow-xl'
                   }`}>
                     <div className="w-14 h-14 mx-auto rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center shadow-inner">
                       <User className="w-7 h-7" />
                     </div>
                     <div>
-                      <h3 className="text-base sm:text-lg font-bold">{t.localGuestMode}</h3>
+                      <h3 className={`text-base sm:text-lg font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                        {t.localGuestMode}
+                      </h3>
                       <p className={`text-xs max-w-sm mx-auto mt-1.5 leading-relaxed ${
                         isLight ? 'text-slate-600' : 'text-white/70'
                       }`}>
@@ -1662,40 +1714,41 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     </div>
                   </div>
 
-                  {/* Local Focus Statistics */}
-                  <div className={`p-5 rounded-3xl border space-y-4 ${
-                    isLight ? 'bg-slate-50/90 border-slate-200' : 'bg-white/5 border-white/10'
+                  {/* Local Focus Statistics in Clean Metric Strip */}
+                  <div className={`p-5 rounded-2xl border space-y-4 ${
+                    isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/[0.03] border-white/[0.08]'
                   }`}>
-                    <h3 className={`text-[11px] font-mono font-semibold uppercase tracking-wider flex items-center gap-1.5 ${
-                      isLight ? 'text-slate-500' : 'text-white/50'
-                    }`}>
-                      <TrendingUp className="w-3.5 h-3.5" /> {t.localFocusStats}
-                    </h3>
+                    <div className="flex items-center gap-2">
+                      <Target className="w-4 h-4 text-rose-400" />
+                      <h3 className={`text-sm font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                        {t.localFocusStats}
+                      </h3>
+                    </div>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                      <div className={`p-3.5 rounded-2xl border ${
-                        isLight ? 'bg-white border-slate-200' : 'bg-white/5 border-white/10'
-                      }`}>
-                        <div className="text-xs font-bold font-timer text-indigo-400">{formatTotalFocusTime(totalFocusMinutes, language)}</div>
-                        <div className={`text-[10px] mt-0.5 ${isLight ? 'text-slate-500' : 'text-white/60'}`}>{t.allTimeFocus}</div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-0 sm:divide-x divide-white/[0.06]">
+                      <div className="sm:pr-4">
+                        <div className="text-2xl font-bold font-timer text-indigo-400">
+                          {formatTotalFocusTime(totalFocusMinutes, language)}
+                        </div>
+                        <div className={`text-xs mt-1 ${isLight ? 'text-slate-500' : 'text-white/60'}`}>{t.allTimeFocus}</div>
                       </div>
-                      <div className={`p-3.5 rounded-2xl border ${
-                        isLight ? 'bg-white border-slate-200' : 'bg-white/5 border-white/10'
-                      }`}>
-                        <div className="text-xs font-bold font-timer">{completedPomodoros}</div>
-                        <div className={`text-[10px] mt-0.5 ${isLight ? 'text-slate-500' : 'text-white/60'}`}>{t.pomodoro}</div>
+                      <div className="sm:px-4">
+                        <div className={`text-2xl font-bold font-timer ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                          {completedPomodoros}
+                        </div>
+                        <div className={`text-xs mt-1 ${isLight ? 'text-slate-500' : 'text-white/60'}`}>{t.pomodoro}</div>
                       </div>
-                      <div className={`p-3.5 rounded-2xl border ${
-                        isLight ? 'bg-white border-slate-200' : 'bg-white/5 border-white/10'
-                      }`}>
-                        <div className="text-xs font-bold font-timer">{formatTotalFocusTime(todayFocusMinutes, language)}</div>
-                        <div className={`text-[10px] mt-0.5 ${isLight ? 'text-slate-500' : 'text-white/60'}`}>{t.today}</div>
+                      <div className="sm:px-4">
+                        <div className={`text-2xl font-bold font-timer ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                          {formatTotalFocusTime(todayFocusMinutes, language)}
+                        </div>
+                        <div className={`text-xs mt-1 ${isLight ? 'text-slate-500' : 'text-white/60'}`}>{t.today}</div>
                       </div>
-                      <div className={`p-3.5 rounded-2xl border ${
-                        isLight ? 'bg-white border-slate-200' : 'bg-white/5 border-white/10'
-                      }`}>
-                        <div className="text-xs font-bold font-timer">{currentStreakDays}{language === 'tr' ? 'g' : 'd'}</div>
-                        <div className={`text-[10px] mt-0.5 ${isLight ? 'text-slate-500' : 'text-white/60'}`}>{t.streak}</div>
+                      <div className="sm:pl-4">
+                        <div className={`text-2xl font-bold font-timer ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                          {currentStreakDays} {currentStreakDays === 1 ? t.day : t.days}
+                        </div>
+                        <div className={`text-xs mt-1 ${isLight ? 'text-slate-500' : 'text-white/60'}`}>{t.streak}</div>
                       </div>
                     </div>
                   </div>
@@ -1721,9 +1774,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <RefreshCw className="w-3.5 h-3.5" /> {t.resetTodayStats}
             </button>
           ) : (
-            <span className={`text-[11px] ${isLight ? 'text-slate-500' : 'text-white/50'}`}>
-              Luno Cloud Sync v2
-            </span>
+            <div className={`flex items-center space-x-1.5 text-xs font-medium ${
+              isLight ? 'text-slate-500' : 'text-white/40'
+            }`}>
+              <Heart className="w-3.5 h-3.5 text-rose-400/70 shrink-0" />
+              <span>{language === 'tr' ? 'Luno ile daha odaklı bir sen.' : 'A more focused you with Luno.'}</span>
+            </div>
           )}
 
           <button
@@ -1731,7 +1787,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             className={`px-6 py-2 rounded-xl font-semibold text-xs sm:text-sm transition-all cursor-pointer ${
               isLight
                 ? 'bg-slate-900 text-white hover:bg-slate-800 shadow-sm'
-                : 'bg-white text-black hover:bg-white/90 shadow-md'
+                : 'bg-white text-slate-900 hover:bg-slate-100 shadow-md'
             }`}
           >
             {t.done}
