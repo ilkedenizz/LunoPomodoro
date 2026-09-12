@@ -554,19 +554,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   return (
     <div
       onClick={onClose}
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-md transition-opacity cursor-pointer overscroll-contain"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-md transition-opacity cursor-pointer overscroll-contain"
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className={`relative w-full max-w-lg p-4 sm:p-7 rounded-t-3xl sm:rounded-3xl glass-modal overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200 max-h-[90dvh] flex flex-col cursor-default pb-[max(1.25rem,var(--sab))] ${
-          isLight ? 'text-slate-900 border-slate-200/80' : 'text-white border-white/15'
+        className={`relative w-full max-w-xl sm:max-w-2xl p-5 sm:p-8 rounded-t-3xl sm:rounded-3xl glass-modal overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200 max-h-[90dvh] flex flex-col cursor-default pb-[max(1.5rem,var(--sab))] ${
+          isLight ? 'text-slate-900 border-slate-200/80 bg-white/95' : 'text-white border-white/15 bg-slate-950/90'
         }`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="settings-title"
       >
         {/* Header & Tab Navigation */}
-        <div className={`pb-3.5 border-b shrink-0 space-y-3 ${
+        <div className={`pb-4 border-b shrink-0 space-y-3.5 ${
           isLight ? 'border-slate-200' : 'border-white/10'
         }`}>
           <div className="flex items-center justify-between">
@@ -597,13 +597,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </div>
 
           {/* Tab Switcher */}
-          <div className={`grid grid-cols-2 gap-1 p-1 rounded-2xl border ${
+          <div className={`grid grid-cols-2 gap-1.5 p-1 rounded-2xl border ${
             isLight ? 'bg-slate-100 border-slate-200' : 'bg-white/5 border-white/10'
           }`}>
             <button
               type="button"
               onClick={() => setActiveTab('preferences')}
-              className={`flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-semibold transition-all min-h-[36px] ${
+              className={`flex items-center justify-center gap-2 py-2 px-4 rounded-xl text-xs sm:text-sm font-semibold transition-all min-h-[38px] ${
                 activeTab === 'preferences'
                   ? isLight
                     ? 'bg-white text-slate-900 shadow-sm border border-slate-200'
@@ -613,14 +613,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   : 'text-white/60 hover:text-white'
               }`}
             >
-              <Sliders className="w-3.5 h-3.5" />
+              <Sliders className="w-4 h-4" />
               <span>{t.preferences}</span>
             </button>
 
             <button
               type="button"
               onClick={() => setActiveTab('account')}
-              className={`flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-semibold transition-all min-h-[36px] ${
+              className={`flex items-center justify-center gap-2 py-2 px-4 rounded-xl text-xs sm:text-sm font-semibold transition-all min-h-[38px] ${
                 activeTab === 'account'
                   ? isLight
                     ? 'bg-white text-slate-900 shadow-sm border border-slate-200'
@@ -630,10 +630,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   : 'text-white/60 hover:text-white'
               }`}
             >
-              <User className="w-3.5 h-3.5" />
+              <User className="w-4 h-4" />
               <span>{t.profileHub}</span>
               {user && (
-                <span className={`w-2 h-2 rounded-full ${
+                <span className={`w-2 h-2 rounded-full ml-1 ${
                   syncStatus?.state === 'syncing'
                     ? 'bg-amber-400 animate-spin'
                     : (syncStatus?.pendingCount ?? 0) > 0
@@ -756,10 +756,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </span>
                 </div>
 
-                <div className={`p-3 rounded-2xl border ${
+                <div className={`p-3.5 rounded-2xl border ${
                   isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'
                 }`}>
-                  <div className="grid grid-cols-5 sm:grid-cols-9 gap-2">
+                  <div className="grid grid-cols-5 sm:grid-cols-9 gap-2.5">
                     {TIMER_COLORS.map((color) => {
                       const isSelected = (settings.timerColor || 'default') === color.id;
                       const colLabel = language === 'tr' ? color.nameTr : color.name;
@@ -798,7 +798,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 }`}>
                   {t.timerDurations}
                 </h3>
-                <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                <div className="grid grid-cols-3 gap-2.5 sm:gap-3.5">
                   <DurationInput
                     id="setting-duration-focus"
                     label={language === 'tr' ? 'Odak' : 'Focus'}
@@ -839,7 +839,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <Sparkles className="w-3.5 h-3.5" /> {t.automation}
                 </h3>
                 <div className="space-y-2.5">
-                  <label className={`flex items-center justify-between p-3 rounded-2xl border cursor-pointer transition-all ${
+                  <label className={`flex items-center justify-between p-3.5 rounded-2xl border cursor-pointer transition-all ${
                     isLight
                       ? 'bg-slate-50 hover:bg-slate-100/80 border-slate-200 text-slate-800'
                       : 'bg-white/5 hover:bg-white/10 border-white/10 text-white/90'
@@ -853,7 +853,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     />
                   </label>
 
-                  <label className={`flex items-center justify-between p-3 rounded-2xl border cursor-pointer transition-all ${
+                  <label className={`flex items-center justify-between p-3.5 rounded-2xl border cursor-pointer transition-all ${
                     isLight
                       ? 'bg-slate-50 hover:bg-slate-100/80 border-slate-200 text-slate-800'
                       : 'bg-white/5 hover:bg-white/10 border-white/10 text-white/90'
@@ -877,12 +877,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <Volume2 className="w-3.5 h-3.5" /> {t.audioNotifications}
                 </h3>
                 <div className="space-y-2.5">
-                  <label className={`flex items-center justify-between p-3 rounded-2xl border cursor-pointer transition-all ${
+                  <label className={`flex items-center justify-between p-3.5 rounded-2xl border cursor-pointer transition-all ${
                     isLight
                       ? 'bg-slate-50 hover:bg-slate-100/80 border-slate-200 text-slate-800'
                       : 'bg-white/5 hover:bg-white/10 border-white/10 text-white/90'
                   }`}>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2.5">
                       <Volume2 className={`w-4 h-4 ${isLight ? 'text-slate-500' : 'text-white/60'}`} />
                       <span className="text-sm font-medium">{t.completionSound}</span>
                     </div>
@@ -894,12 +894,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     />
                   </label>
 
-                  <label className={`flex items-center justify-between p-3 rounded-2xl border cursor-pointer transition-all ${
+                  <label className={`flex items-center justify-between p-3.5 rounded-2xl border cursor-pointer transition-all ${
                     isLight
                       ? 'bg-slate-50 hover:bg-slate-100/80 border-slate-200 text-slate-800'
                       : 'bg-white/5 hover:bg-white/10 border-white/10 text-white/90'
                   }`}>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2.5">
                       <Bell className={`w-4 h-4 ${isLight ? 'text-slate-500' : 'text-white/60'}`} />
                       <span className="text-sm font-medium">{t.browserNotifications}</span>
                     </div>
@@ -920,22 +920,22 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </>
           ) : (
             /* ==========================================================
-               TAB 2: PROFILE HUB & ACCOUNT EXPERIENCE
+               TAB 2: PROFILE HUB & ACCOUNT EXPERIENCE (REDESIGNED)
                ========================================================== */
             <>
               {user ? (
-                <div className="space-y-4">
-                  {/* 1. Hero Profile Card */}
+                <div className="space-y-5">
+                  {/* 1. Hero Identity Card */}
                   <div className={`p-5 sm:p-6 rounded-3xl border relative overflow-hidden transition-all ${
                     isLight
-                      ? 'bg-gradient-to-br from-slate-50 via-white to-indigo-50/30 border-slate-200 shadow-sm'
+                      ? 'bg-gradient-to-br from-slate-50/90 via-white to-indigo-50/20 border-slate-200/90 shadow-sm'
                       : 'bg-gradient-to-br from-white/10 via-white/5 to-indigo-950/20 border-white/15 shadow-xl'
                   }`}>
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                      <div className="flex items-center space-x-4">
-                        {/* Avatar with Camera Trigger & Live Indicator */}
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5">
+                      <div className="flex items-center space-x-4 sm:space-x-5 min-w-0">
+                        {/* Avatar with Ring, Hover Camera, and Async Loader */}
                         <div className="relative group shrink-0">
-                          <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 text-white flex items-center justify-center font-bold text-2xl sm:text-3xl shadow-xl overflow-hidden ring-4 ring-white/15 relative">
+                          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 text-white flex items-center justify-center font-bold text-xl sm:text-2xl shadow-xl overflow-hidden ring-4 ring-white/15 relative">
                             {user.avatarUrl && !isAvatarFailed ? (
                               <img
                                 src={user.avatarUrl}
@@ -958,7 +958,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             {/* Upload / Remove Loader Overlay */}
                             {(isUploadingAvatar || isRemovingAvatar) && (
                               <div className="absolute inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center text-white z-10 rounded-full">
-                                <Loader2 className="w-6 h-6 animate-spin" />
+                                <Loader2 className="w-5 h-5 animate-spin" />
                               </div>
                             )}
 
@@ -968,9 +968,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                 type="button"
                                 onClick={() => avatarFileInputRef.current?.click()}
                                 aria-label={user.avatarUrl ? t.changePhoto : t.uploadPhoto}
-                                className="absolute inset-0 bg-black/55 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity flex flex-col items-center justify-center text-white text-[11px] font-medium cursor-pointer z-10 rounded-full"
+                                className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity flex flex-col items-center justify-center text-white text-[10px] font-medium cursor-pointer z-10 rounded-full"
                               >
-                                <Camera className="w-5 h-5 mb-0.5" />
+                                <Camera className="w-4 h-4 mb-0.5" />
                                 <span>{user.avatarUrl ? (language === 'tr' ? 'Değiştir' : 'Change') : (language === 'tr' ? 'Yükle' : 'Upload')}</span>
                               </button>
                             )}
@@ -985,22 +985,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           />
                         </div>
 
+                        {/* Identity & Status */}
                         <div className="min-w-0 flex-1">
-                          {/* Nickname & Display Name */}
                           <div className="flex flex-wrap items-center gap-2">
-                            {user.nickname ? (
-                              <h3 className={`text-lg sm:text-xl font-bold tracking-tight truncate ${
-                                isLight ? 'text-slate-900' : 'text-white'
-                              }`}>
-                                @{user.nickname}
-                              </h3>
-                            ) : (
-                              <h3 className={`text-lg sm:text-xl font-bold tracking-tight truncate ${
-                                isLight ? 'text-slate-900' : 'text-white'
-                              }`}>
-                                {user.displayName || user.email.split('@')[0]}
-                              </h3>
-                            )}
+                            <h3 className={`text-lg sm:text-xl font-bold tracking-tight truncate ${
+                              isLight ? 'text-slate-900' : 'text-white'
+                            }`}>
+                              {user.nickname ? `@${user.nickname}` : (user.displayName || user.email.split('@')[0])}
+                            </h3>
                             {user.displayName && (
                               <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium ${
                                 isLight ? 'bg-slate-200/80 text-slate-700' : 'bg-white/10 text-white/80'
@@ -1010,11 +1002,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             )}
                           </div>
 
-                          {/* Email & Verified Badge */}
-                          <div className="flex flex-wrap items-center gap-2 mt-1">
+                          <div className="flex flex-wrap items-center gap-2 mt-1.5">
                             <div className="flex items-center space-x-1.5">
                               <Mail className={`w-3.5 h-3.5 shrink-0 ${isLight ? 'text-slate-400' : 'text-white/40'}`} />
-                              <p className={`text-xs truncate max-w-[170px] sm:max-w-[220px] ${isLight ? 'text-slate-600' : 'text-white/60'}`}>
+                              <p className={`text-xs truncate max-w-[170px] sm:max-w-[240px] ${isLight ? 'text-slate-600' : 'text-white/60'}`}>
                                 {user.email}
                               </p>
                             </div>
@@ -1031,9 +1022,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             )}
                           </div>
 
-                          {/* Badges: Sync State & Total Focus Time */}
-                          <div className="flex flex-wrap items-center gap-2 mt-2.5">
-                            <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${
+                          <div className="flex items-center gap-2 mt-2">
+                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-medium border ${
                               syncStatus?.state === 'syncing'
                                 ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
                                 : syncStatus?.state === 'offline'
@@ -1053,25 +1043,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                   : t.cloudSynced}
                               </span>
                             </span>
-
-                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${
-                              isLight
-                                ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
-                                : 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30'
-                            }`}>
-                              <Clock className="w-3 h-3 text-indigo-400 shrink-0" />
-                              <span className="font-timer">{formatTotalFocusTime(totalFocusMinutes, language)}</span>
-                            </span>
                           </div>
                         </div>
                       </div>
 
-                      {/* Header Actions: Edit Profile & Sign Out */}
-                      <div className="flex sm:flex-col items-center gap-2 w-full sm:w-auto">
+                      {/* Header Actions */}
+                      <div className="flex sm:flex-col items-center gap-2 w-full sm:w-auto shrink-0">
                         <button
                           type="button"
                           onClick={() => setIsEditingProfile((prev) => !prev)}
-                          className={`flex-1 sm:flex-none px-3.5 py-2 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-sm ${
+                          className={`flex-1 sm:flex-none px-4 py-2 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-sm min-h-[36px] ${
                             isEditingProfile
                               ? isLight
                                 ? 'bg-indigo-600 text-white shadow-indigo-500/20'
@@ -1088,10 +1069,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         <button
                           type="button"
                           onClick={onSignOut}
-                          className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                          className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer min-h-[36px] ${
                             isLight
-                              ? 'bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200'
-                              : 'bg-rose-500/15 text-rose-300 hover:bg-rose-500/25 border border-rose-500/25'
+                              ? 'text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200'
+                              : 'text-rose-400 hover:bg-rose-500/15 border border-transparent hover:border-rose-500/25'
                           }`}
                         >
                           <LogOut className="w-3.5 h-3.5" />
@@ -1102,27 +1083,27 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
                     {/* Quick Avatar Feedback Alerts */}
                     {avatarError && (
-                      <div className="mt-3 p-2.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-400 text-xs flex items-center gap-1.5 animate-in fade-in">
-                        <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <div className="mt-3.5 p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-400 text-xs flex items-center gap-2 animate-in fade-in">
+                        <AlertCircle className="w-4 h-4 shrink-0" />
                         <span>{avatarError}</span>
                       </div>
                     )}
                     {avatarSuccess && (
-                      <div className="mt-3 p-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs flex items-center gap-1.5 animate-in fade-in">
-                        <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                      <div className="mt-3.5 p-3 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs flex items-center gap-2 animate-in fade-in">
+                        <CheckCircle2 className="w-4 h-4 shrink-0" />
                         <span>{avatarSuccess}</span>
                       </div>
                     )}
                   </div>
 
-                  {/* 2. "Profili Düzenle" (Edit Profile Panel) */}
+                  {/* 2. Collapsible Edit Profile Panel */}
                   {isEditingProfile && (
-                    <div className={`p-4 sm:p-5 rounded-3xl border space-y-4 animate-in fade-in zoom-in-95 duration-200 ${
+                    <div className={`p-5 rounded-3xl border space-y-4 animate-in fade-in zoom-in-95 duration-200 ${
                       isLight
-                        ? 'bg-white border-indigo-200 shadow-md ring-1 ring-indigo-500/10'
-                        : 'bg-slate-900/80 border-indigo-500/40 shadow-xl ring-1 ring-indigo-500/20'
+                        ? 'bg-white border-indigo-200 shadow-lg ring-1 ring-indigo-500/10'
+                        : 'bg-slate-900/90 border-indigo-500/40 shadow-2xl ring-1 ring-indigo-500/20'
                     }`}>
-                      <div className="flex items-center justify-between border-b pb-2.5 border-dashed border-white/10">
+                      <div className="flex items-center justify-between border-b pb-3 border-dashed border-white/10">
                         <div className="flex items-center gap-2">
                           <Edit3 className="w-4 h-4 text-indigo-400" />
                           <h3 className="text-xs sm:text-sm font-bold">{t.editProfileDetails}</h3>
@@ -1130,7 +1111,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         <button
                           type="button"
                           onClick={handleCancelEdit}
-                          className={`text-xs px-2 py-1 rounded-lg cursor-pointer ${
+                          className={`text-xs px-2.5 py-1 rounded-lg cursor-pointer ${
                             isLight ? 'text-slate-500 hover:bg-slate-100' : 'text-white/60 hover:bg-white/10'
                           }`}
                         >
@@ -1139,11 +1120,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       </div>
 
                       {/* Photo Actions Row */}
-                      <div className={`p-3 rounded-2xl border flex flex-col sm:flex-row items-center justify-between gap-3 ${
+                      <div className={`p-3.5 rounded-2xl border flex flex-col sm:flex-row items-center justify-between gap-3 ${
                         isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'
                       }`}>
                         <div className="flex items-center gap-3">
-                          <div className="w-11 h-11 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center font-bold text-sm overflow-hidden shrink-0">
+                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center font-bold text-sm overflow-hidden shrink-0">
                             {user.avatarUrl && !isAvatarFailed ? (
                               <img
                                 src={user.avatarUrl}
@@ -1176,10 +1157,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             type="button"
                             onClick={() => avatarFileInputRef.current?.click()}
                             disabled={isUploadingAvatar || isRemovingAvatar}
-                            className={`px-3 py-1.5 rounded-xl text-xs font-semibold border flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50 ${
+                            className={`px-3.5 py-2 rounded-xl text-xs font-semibold border flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50 ${
                               isLight
-                                ? 'bg-white text-slate-800 border-slate-300 hover:bg-slate-100'
-                                : 'bg-white/10 text-white border-white/20 hover:bg-white/15'
+                                ? 'bg-white text-slate-800 border-slate-300 hover:bg-slate-100 shadow-sm'
+                                : 'bg-white/10 text-white border-white/20 hover:bg-white/15 shadow-sm'
                             }`}
                           >
                             <Upload className="w-3.5 h-3.5" />
@@ -1191,7 +1172,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                               type="button"
                               onClick={handleRemoveAvatar}
                               disabled={isUploadingAvatar || isRemovingAvatar}
-                              className="px-3 py-1.5 rounded-xl text-xs font-semibold text-rose-400 hover:text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 transition-all cursor-pointer disabled:opacity-50 flex items-center gap-1"
+                              className="px-3.5 py-2 rounded-xl text-xs font-semibold text-rose-400 hover:text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 transition-all cursor-pointer disabled:opacity-50 flex items-center gap-1"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                               <span>{isRemovingAvatar ? (language === 'tr' ? 'Kaldırılıyor...' : 'Removing...') : t.removePhoto}</span>
@@ -1201,10 +1182,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       </div>
 
                       {/* Nickname & Display Name Form */}
-                      <form onSubmit={handleSaveProfile} className="space-y-3.5">
+                      <form onSubmit={handleSaveProfile} className="space-y-4">
                         {/* Nickname Input */}
                         <div>
-                          <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center justify-between mb-1.5">
                             <label
                               htmlFor="edit-account-nickname"
                               className={`block text-xs font-medium ${isLight ? 'text-slate-700' : 'text-white/80'}`}
@@ -1227,7 +1208,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                               onChange={(e) => handleNicknameChange(e.target.value)}
                               placeholder={t.nicknamePlaceholder}
                               maxLength={20}
-                              className={`w-full pl-10 pr-10 py-2 rounded-xl text-xs sm:text-sm border transition-all focus:outline-none focus:ring-2 ${
+                              className={`w-full pl-10 pr-10 py-2.5 rounded-xl text-xs sm:text-sm border transition-all focus:outline-none focus:ring-2 ${
                                 nicknameStatus === 'available'
                                   ? isLight
                                     ? 'bg-emerald-50/50 border-emerald-500 text-slate-900 focus:ring-emerald-500/20'
@@ -1270,7 +1251,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         <div>
                           <label
                             htmlFor="edit-account-display-name"
-                            className={`block text-xs font-medium mb-1 ${isLight ? 'text-slate-700' : 'text-white/80'}`}
+                            className={`block text-xs font-medium mb-1.5 ${isLight ? 'text-slate-700' : 'text-white/80'}`}
                           >
                             {t.displayNameLabel}
                           </label>
@@ -1281,7 +1262,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             onChange={(e) => setDisplayNameInput(e.target.value)}
                             placeholder={t.displayNamePlaceholder}
                             maxLength={40}
-                            className={`w-full px-3.5 py-2 rounded-xl text-xs sm:text-sm border transition-all focus:outline-none focus:ring-2 ${
+                            className={`w-full px-3.5 py-2.5 rounded-xl text-xs sm:text-sm border transition-all focus:outline-none focus:ring-2 ${
                               isLight
                                 ? 'bg-white border-slate-300 text-slate-900 focus:border-indigo-600 focus:ring-indigo-500/20'
                                 : 'bg-white/10 border-white/20 text-white focus:border-white/60 focus:ring-white/20'
@@ -1290,7 +1271,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         </div>
 
                         {/* Password Section Toggle inside Edit Panel */}
-                        <div className="pt-2 border-t border-dashed border-white/10">
+                        <div className="pt-2.5 border-t border-dashed border-white/10">
                           {!isChangingPassword ? (
                             <button
                               type="button"
@@ -1303,7 +1284,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                               <span>{t.changePasswordLink}</span>
                             </button>
                           ) : (
-                            <div className="space-y-2.5 p-3 rounded-2xl border border-indigo-500/30 bg-indigo-500/5">
+                            <div className="space-y-3 p-3.5 rounded-2xl border border-indigo-500/30 bg-indigo-500/5">
                               <div className="flex items-center justify-between">
                                 <span className="text-xs font-semibold flex items-center gap-1.5">
                                   <Lock className="w-3.5 h-3.5 text-indigo-400" /> {t.newPasswordLabel}
@@ -1325,7 +1306,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                 placeholder={t.newPasswordPlaceholder}
                                 value={newPassword}
                                 onChange={(e) => setNewPassword(e.target.value)}
-                                className={`w-full px-3 py-1.5 rounded-xl text-xs border ${
+                                className={`w-full px-3.5 py-2 rounded-xl text-xs border ${
                                   isLight ? 'bg-white border-slate-300 text-slate-900' : 'bg-white/10 border-white/20 text-white'
                                 }`}
                               />
@@ -1334,7 +1315,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                 placeholder={t.confirmPasswordPlaceholder}
                                 value={confirmPassword}
                                 onChange={(e) => setConfirmPassword(e.target.value)}
-                                className={`w-full px-3 py-1.5 rounded-xl text-xs border ${
+                                className={`w-full px-3.5 py-2 rounded-xl text-xs border ${
                                   isLight ? 'bg-white border-slate-300 text-slate-900' : 'bg-white/10 border-white/20 text-white'
                                 }`}
                               />
@@ -1354,7 +1335,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                 type="button"
                                 onClick={handleSavePassword}
                                 disabled={isSavingPassword || !newPassword}
-                                className={`w-full py-2 rounded-xl text-xs font-semibold cursor-pointer disabled:opacity-50 ${
+                                className={`w-full py-2.5 rounded-xl text-xs font-semibold cursor-pointer disabled:opacity-50 ${
                                   isLight ? 'bg-indigo-600 text-white' : 'bg-indigo-500 text-white'
                                 }`}
                               >
@@ -1418,92 +1399,99 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     </div>
                   )}
 
-                  {/* 3. Live Focus Analytics Grid */}
-                  <div className="space-y-3">
-                    <h3 className={`text-[11px] font-mono font-semibold uppercase tracking-wider flex items-center gap-1.5 ${
-                      isLight ? 'text-slate-500' : 'text-white/50'
-                    }`}>
-                      <TrendingUp className="w-3.5 h-3.5" /> {t.focusStatistics}
-                    </h3>
-
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                      {/* Total Focus Time */}
-                      <div className={`p-3.5 rounded-2xl border flex flex-col justify-between transition-all ${
-                        isLight
-                          ? 'bg-indigo-50/70 border-indigo-200/80 shadow-xs'
-                          : 'bg-gradient-to-br from-indigo-500/15 via-white/5 to-white/5 border-indigo-500/30 shadow-sm'
+                  {/* 3. Focus Analytics Overview (Clean Apple/Linear Layout) */}
+                  <div className={`p-5 rounded-3xl border space-y-4 ${
+                    isLight ? 'bg-slate-50/90 border-slate-200' : 'bg-white/5 border-white/10'
+                  }`}>
+                    <div className="flex items-center justify-between">
+                      <h3 className={`text-[11px] font-mono font-semibold uppercase tracking-wider flex items-center gap-1.5 ${
+                        isLight ? 'text-slate-500' : 'text-white/50'
                       }`}>
-                        <div className="flex items-center justify-between text-indigo-400 mb-1.5">
+                        <TrendingUp className="w-3.5 h-3.5" /> {t.focusStatistics}
+                      </h3>
+                      <span className={`text-[10px] font-mono ${isLight ? 'text-slate-400' : 'text-white/40'}`}>
+                        {sessions.length} {language === 'tr' ? 'oturum' : 'sessions'}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+                      {/* Total Focus Time */}
+                      <div className={`p-4 rounded-2xl border flex flex-col justify-between transition-all ${
+                        isLight
+                          ? 'bg-white border-slate-200 shadow-xs'
+                          : 'bg-white/5 border-white/10 shadow-xs'
+                      }`}>
+                        <div className="flex items-center justify-between text-indigo-400 mb-2">
                           <Clock className="w-4 h-4" />
-                          <span className={`text-[10px] font-mono font-semibold ${isLight ? 'text-indigo-600' : 'text-indigo-300'}`}>
-                            {language === 'tr' ? 'TOPLAM' : 'TOTAL'}
+                          <span className={`text-[9px] font-mono font-semibold uppercase ${isLight ? 'text-slate-400' : 'text-white/40'}`}>
+                            {language === 'tr' ? 'Toplam' : 'Total'}
                           </span>
                         </div>
                         <div>
-                          <div className={`text-base sm:text-lg font-bold font-timer tracking-tight ${
-                            isLight ? 'text-indigo-800' : 'text-indigo-200'
+                          <div className={`text-lg sm:text-xl font-bold font-timer tracking-tight ${
+                            isLight ? 'text-indigo-900' : 'text-indigo-300'
                           }`}>
                             {formatTotalFocusTime(totalFocusMinutes, language)}
                           </div>
-                          <div className={`text-[10px] font-medium ${isLight ? 'text-slate-600' : 'text-white/70'}`}>
+                          <div className={`text-[11px] font-medium mt-0.5 ${isLight ? 'text-slate-500' : 'text-white/60'}`}>
                             {t.totalFocusTime}
                           </div>
                         </div>
                       </div>
 
                       {/* Completed Pomodoros */}
-                      <div className={`p-3.5 rounded-2xl border flex flex-col justify-between ${
-                        isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'
+                      <div className={`p-4 rounded-2xl border flex flex-col justify-between ${
+                        isLight ? 'bg-white border-slate-200 shadow-xs' : 'bg-white/5 border-white/10 shadow-xs'
                       }`}>
-                        <div className="flex items-center justify-between text-purple-400 mb-1.5">
+                        <div className="flex items-center justify-between text-purple-400 mb-2">
                           <Award className="w-4 h-4" />
-                          <span className={`text-[10px] font-mono font-medium ${isLight ? 'text-slate-500' : 'text-white/50'}`}>
+                          <span className={`text-[9px] font-mono font-semibold uppercase ${isLight ? 'text-slate-400' : 'text-white/40'}`}>
                             {t.pomos}
                           </span>
                         </div>
                         <div>
-                          <div className="text-base sm:text-lg font-bold font-timer">{completedPomodoros}</div>
-                          <div className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-white/60'}`}>
+                          <div className="text-lg sm:text-xl font-bold font-timer">{completedPomodoros}</div>
+                          <div className={`text-[11px] font-medium mt-0.5 ${isLight ? 'text-slate-500' : 'text-white/60'}`}>
                             {t.completed}
                           </div>
                         </div>
                       </div>
 
                       {/* Today's Focus */}
-                      <div className={`p-3.5 rounded-2xl border flex flex-col justify-between ${
-                        isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'
+                      <div className={`p-4 rounded-2xl border flex flex-col justify-between ${
+                        isLight ? 'bg-white border-slate-200 shadow-xs' : 'bg-white/5 border-white/10 shadow-xs'
                       }`}>
-                        <div className="flex items-center justify-between text-emerald-400 mb-1.5">
+                        <div className="flex items-center justify-between text-emerald-400 mb-2">
                           <TrendingUp className="w-4 h-4" />
-                          <span className={`text-[10px] font-mono font-medium ${isLight ? 'text-slate-500' : 'text-white/50'}`}>
-                            {language === 'tr' ? 'BUGÜN' : 'TODAY'}
+                          <span className={`text-[9px] font-mono font-semibold uppercase ${isLight ? 'text-slate-400' : 'text-white/40'}`}>
+                            {language === 'tr' ? 'Bugün' : 'Today'}
                           </span>
                         </div>
                         <div>
-                          <div className="text-base sm:text-lg font-bold font-timer">
+                          <div className="text-lg sm:text-xl font-bold font-timer">
                             {formatTotalFocusTime(todayFocusMinutes, language)}
                           </div>
-                          <div className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-white/60'}`}>
+                          <div className={`text-[11px] font-medium mt-0.5 ${isLight ? 'text-slate-500' : 'text-white/60'}`}>
                             {t.todayFocus}
                           </div>
                         </div>
                       </div>
 
                       {/* Current Streak */}
-                      <div className={`p-3.5 rounded-2xl border flex flex-col justify-between ${
-                        isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'
+                      <div className={`p-4 rounded-2xl border flex flex-col justify-between ${
+                        isLight ? 'bg-white border-slate-200 shadow-xs' : 'bg-white/5 border-white/10 shadow-xs'
                       }`}>
-                        <div className="flex items-center justify-between text-amber-400 mb-1.5">
+                        <div className="flex items-center justify-between text-amber-400 mb-2">
                           <Flame className="w-4 h-4" />
-                          <span className={`text-[10px] font-mono font-medium ${isLight ? 'text-slate-500' : 'text-white/50'}`}>
+                          <span className={`text-[9px] font-mono font-semibold uppercase ${isLight ? 'text-slate-400' : 'text-white/40'}`}>
                             {t.streak}
                           </span>
                         </div>
                         <div>
-                          <div className="text-base sm:text-lg font-bold font-timer">
+                          <div className="text-lg sm:text-xl font-bold font-timer">
                             {currentStreakDays} {currentStreakDays === 1 ? t.day : t.days}
                           </div>
-                          <div className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-white/60'}`}>
+                          <div className={`text-[11px] font-medium mt-0.5 ${isLight ? 'text-slate-500' : 'text-white/60'}`}>
                             {t.activeStreak}
                           </div>
                         </div>
@@ -1511,15 +1499,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     </div>
                   </div>
 
-                  {/* 4. Friends & Community Hub Card */}
+                  {/* 4. Friends & Community Row */}
                   {onOpenFriends && (
-                    <div className={`p-4 rounded-2xl border flex items-center justify-between gap-3 transition-all ${
+                    <div className={`p-4 sm:p-5 rounded-3xl border flex items-center justify-between gap-4 transition-all ${
                       isLight
-                        ? 'bg-gradient-to-r from-indigo-50/70 to-purple-50/70 border-indigo-200/80 hover:border-indigo-300'
-                        : 'bg-gradient-to-r from-indigo-500/10 to-purple-500/10 border-indigo-500/25 hover:border-indigo-500/40'
+                        ? 'bg-gradient-to-r from-indigo-50/80 via-white to-purple-50/80 border-indigo-200/80 hover:border-indigo-300'
+                        : 'bg-gradient-to-r from-indigo-500/10 via-white/5 to-purple-500/10 border-indigo-500/25 hover:border-indigo-500/40'
                     }`}>
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="p-2.5 rounded-xl bg-indigo-500/20 text-indigo-400 shrink-0">
+                      <div className="flex items-center gap-3.5 min-w-0">
+                        <div className="p-3 rounded-2xl bg-indigo-500/20 text-indigo-400 shrink-0">
                           <Users className="w-5 h-5" />
                         </div>
                         <div className="min-w-0">
@@ -1531,7 +1519,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                               </span>
                             )}
                           </div>
-                          <p className={`text-[11px] truncate ${isLight ? 'text-slate-600' : 'text-white/70'}`}>
+                          <p className={`text-[11px] truncate mt-0.5 ${isLight ? 'text-slate-600' : 'text-white/70'}`}>
                             {t.friendsCommunityDesc}
                           </p>
                         </div>
@@ -1543,7 +1531,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           onClose();
                           onOpenFriends();
                         }}
-                        className={`px-3 py-2 rounded-xl text-xs font-semibold shrink-0 flex items-center gap-1 cursor-pointer transition-all ${
+                        className={`px-4 py-2 rounded-xl text-xs font-semibold shrink-0 flex items-center gap-1 cursor-pointer transition-all ${
                           isLight
                             ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm'
                             : 'bg-indigo-500 text-white hover:bg-indigo-600 shadow-md'
@@ -1556,8 +1544,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   )}
 
                   {/* 5. Cloud Sync & Security Details */}
-                  <div className={`p-4 rounded-2xl border space-y-3 ${
-                    isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'
+                  <div className={`p-5 rounded-3xl border space-y-3.5 ${
+                    isLight ? 'bg-slate-50/90 border-slate-200' : 'bg-white/5 border-white/10'
                   }`}>
                     <div className="flex items-center justify-between text-xs">
                       <div className="flex items-center space-x-2">
@@ -1569,7 +1557,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       </span>
                     </div>
 
-                    <div className="pt-2 border-t border-dashed border-white/10 flex items-center justify-between text-xs">
+                    <div className="pt-2.5 border-t border-dashed border-white/10 flex items-center justify-between text-xs">
                       <div className="flex items-center space-x-2">
                         <Calendar className={`w-3.5 h-3.5 ${isLight ? 'text-slate-400' : 'text-white/40'}`} />
                         <span className={isLight ? 'text-slate-600' : 'text-white/70'}>{t.memberSince}</span>
@@ -1585,7 +1573,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
                     {/* Email Verification Row (if unverified) */}
                     {!user.emailVerified && (
-                      <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 space-y-1.5">
+                      <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 space-y-2">
                         <div className="flex items-center justify-between text-xs">
                           <span className="font-medium text-amber-300 flex items-center gap-1.5">
                             <AlertCircle className="w-3.5 h-3.5 shrink-0" /> {t.emailUnverified}
@@ -1602,13 +1590,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         </div>
                         {resendSuccess && (
                           <p className="text-[11px] text-emerald-400 flex items-center gap-1">
-                            <CheckCircle2 className="w-3 h-3 shrink-0" />
+                            <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
                             <span>{resendSuccess}</span>
                           </p>
                         )}
                         {resendError && (
                           <p className="text-[11px] text-rose-400 flex items-center gap-1">
-                            <AlertCircle className="w-3 h-3 shrink-0" />
+                            <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                             <span>{resendError}</span>
                           </p>
                         )}
@@ -1616,7 +1604,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     )}
 
                     {(syncStatus?.pendingCount ?? 0) > 0 && (
-                      <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs flex items-center justify-between">
+                      <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs flex items-center justify-between">
                         <span>{syncStatus?.pendingCount} {t.unsyncedChanges}</span>
                         <span className="text-[10px] opacity-80">{t.autoRetrying}</span>
                       </div>
@@ -1638,17 +1626,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </div>
                 </div>
               ) : (
-                /* GUEST / LOCAL MODE VIEW */
-                <div className="space-y-4 py-2">
-                  <div className={`p-6 rounded-3xl border text-center space-y-3.5 ${
-                    isLight ? 'bg-slate-50 border-slate-200 shadow-sm' : 'bg-white/5 border-white/10 shadow-lg'
+                /* GUEST / LOCAL MODE VIEW (REDESIGNED) */
+                <div className="space-y-5 py-2">
+                  <div className={`p-6 sm:p-8 rounded-3xl border text-center space-y-4 ${
+                    isLight ? 'bg-slate-50/90 border-slate-200 shadow-sm' : 'bg-white/5 border-white/10 shadow-xl'
                   }`}>
                     <div className="w-14 h-14 mx-auto rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center shadow-inner">
                       <User className="w-7 h-7" />
                     </div>
                     <div>
-                      <h3 className="text-base font-bold">{t.localGuestMode}</h3>
-                      <p className={`text-xs max-w-xs mx-auto mt-1 leading-relaxed ${
+                      <h3 className="text-base sm:text-lg font-bold">{t.localGuestMode}</h3>
+                      <p className={`text-xs max-w-sm mx-auto mt-1.5 leading-relaxed ${
                         isLight ? 'text-slate-600' : 'text-white/70'
                       }`}>
                         {t.guestModeDesc}
@@ -1662,7 +1650,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           onClose();
                           onOpenAuth?.('signin');
                         }}
-                        className={`w-full py-3 rounded-xl font-semibold text-xs transition-all flex items-center justify-center space-x-2 cursor-pointer shadow-md ${
+                        className={`w-full max-w-xs mx-auto py-3 rounded-xl font-semibold text-xs transition-all flex items-center justify-center space-x-2 cursor-pointer shadow-md ${
                           isLight
                             ? 'bg-indigo-600 text-white hover:bg-indigo-700'
                             : 'bg-white text-black hover:bg-white/90'
@@ -1675,37 +1663,39 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </div>
 
                   {/* Local Focus Statistics */}
-                  <div className="space-y-3">
+                  <div className={`p-5 rounded-3xl border space-y-4 ${
+                    isLight ? 'bg-slate-50/90 border-slate-200' : 'bg-white/5 border-white/10'
+                  }`}>
                     <h3 className={`text-[11px] font-mono font-semibold uppercase tracking-wider flex items-center gap-1.5 ${
                       isLight ? 'text-slate-500' : 'text-white/50'
                     }`}>
                       <TrendingUp className="w-3.5 h-3.5" /> {t.localFocusStats}
                     </h3>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                       <div className={`p-3.5 rounded-2xl border ${
-                        isLight ? 'bg-indigo-50/70 border-indigo-200/80' : 'bg-indigo-500/15 border-indigo-500/30'
+                        isLight ? 'bg-white border-slate-200' : 'bg-white/5 border-white/10'
                       }`}>
                         <div className="text-xs font-bold font-timer text-indigo-400">{formatTotalFocusTime(totalFocusMinutes, language)}</div>
-                        <div className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-white/60'}`}>{t.allTimeFocus}</div>
+                        <div className={`text-[10px] mt-0.5 ${isLight ? 'text-slate-500' : 'text-white/60'}`}>{t.allTimeFocus}</div>
                       </div>
                       <div className={`p-3.5 rounded-2xl border ${
-                        isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'
+                        isLight ? 'bg-white border-slate-200' : 'bg-white/5 border-white/10'
                       }`}>
                         <div className="text-xs font-bold font-timer">{completedPomodoros}</div>
-                        <div className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-white/60'}`}>{t.pomodoro}</div>
+                        <div className={`text-[10px] mt-0.5 ${isLight ? 'text-slate-500' : 'text-white/60'}`}>{t.pomodoro}</div>
                       </div>
                       <div className={`p-3.5 rounded-2xl border ${
-                        isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'
+                        isLight ? 'bg-white border-slate-200' : 'bg-white/5 border-white/10'
                       }`}>
                         <div className="text-xs font-bold font-timer">{formatTotalFocusTime(todayFocusMinutes, language)}</div>
-                        <div className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-white/60'}`}>{t.today}</div>
+                        <div className={`text-[10px] mt-0.5 ${isLight ? 'text-slate-500' : 'text-white/60'}`}>{t.today}</div>
                       </div>
                       <div className={`p-3.5 rounded-2xl border ${
-                        isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'
+                        isLight ? 'bg-white border-slate-200' : 'bg-white/5 border-white/10'
                       }`}>
                         <div className="text-xs font-bold font-timer">{currentStreakDays}{language === 'tr' ? 'g' : 'd'}</div>
-                        <div className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-white/60'}`}>{t.streak}</div>
+                        <div className={`text-[10px] mt-0.5 ${isLight ? 'text-slate-500' : 'text-white/60'}`}>{t.streak}</div>
                       </div>
                     </div>
                   </div>
@@ -1716,7 +1706,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </div>
 
         {/* Footer Actions */}
-        <div className={`pt-3.5 border-t flex items-center justify-between shrink-0 ${
+        <div className={`pt-4 border-t flex items-center justify-between shrink-0 ${
           isLight ? 'border-slate-200' : 'border-white/10'
         }`}>
           {activeTab === 'preferences' ? (
@@ -1751,3 +1741,4 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     </div>
   );
 };
+
