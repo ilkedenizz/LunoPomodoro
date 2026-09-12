@@ -73,6 +73,7 @@ import {
 import { getAtmosphereById } from './utils/backgrounds';
 import { playCompletionChime, ambientEngine, playTickSound } from './utils/sound';
 import { isToday } from './utils/dates';
+import { getSessionMinutes } from './utils/statistics';
 import { onAuthStateChange, signOut, getCurrentUser, handleAuthUrlCallback } from './services/auth';
 import { getIncomingFriendRequests } from './services/friends';
 import {
@@ -390,7 +391,7 @@ export function App() {
     [todayFocusSessions]
   );
   const todayTotalMinutes = useMemo(
-    () => todayFocusSessions.reduce((acc, s) => acc + s.durationMinutes, 0),
+    () => todayFocusSessions.reduce((acc, s) => acc + getSessionMinutes(s), 0),
     [todayFocusSessions]
   );
 

@@ -388,6 +388,32 @@ export class SyncEngine {
         setLastSyncedAt(this.lastSyncedAt);
         return true;
       }
+
+      // Fallback for live Supabase projects where schema migration hasn't been run yet
+      if (
+        error.code === 'PGRST204' ||
+        error.message?.includes('completed') ||
+        error.message?.includes('target_duration_minutes') ||
+        error.message?.includes('actual_duration_seconds')
+      ) {
+        const fallbackRes = await client.from('focus_sessions').upsert({
+          id: session.id,
+          user_id: userId,
+          timestamp: new Date(session.timestamp).toISOString(),
+          mode: sanitizeTimerMode(session.mode),
+          duration_minutes: session.durationMinutes,
+          task_title: session.taskTitle || null,
+        });
+        if (!fallbackRes.error) {
+          const queue = getPendingSyncQueue();
+          queue.pendingSessionIds = queue.pendingSessionIds.filter((id) => id !== session.id);
+          savePendingQueue(queue);
+          this.lastSyncedAt = Date.now();
+          setLastSyncedAt(this.lastSyncedAt);
+          return true;
+        }
+      }
+
       if (import.meta.env.DEV) {
         console.error('[Luno Sync Engine Error in pushSession]:', error);
       }
@@ -787,16 +813,27 @@ export class SyncEngine {
       if (sessionsRes.data && Array.isArray(sessionsRes.data)) {
         const remoteSessions: FocusSession[] = sessionsRes.data
           .filter((r: any) => r && typeof r.id === 'string')
-          .map((r: any) => ({
-            id: r.id,
-            timestamp: r.timestamp ? new Date(r.timestamp).getTime() : Date.now(),
-            mode: sanitizeTimerMode(r.mode),
-            durationMinutes: sanitizeDuration(r.duration_minutes, 25),
-            targetDurationMinutes: typeof r.target_duration_minutes === 'number' ? r.target_duration_minutes : undefined,
-            actualDurationSeconds: typeof r.actual_duration_seconds === 'number' ? r.actual_duration_seconds : undefined,
-            completed: r.completed !== false,
-            taskTitle: r.task_title || undefined,
-          }));
+          .map((r: any) => {
+            const actualSecs =
+              typeof r.actual_duration_seconds === 'number' && r.actual_duration_seconds > 0
+                ? r.actual_duration_seconds
+                : undefined;
+            const durationMins = actualSecs
+              ? Math.max(1, Math.round(actualSecs / 60))
+              : sanitizeDuration(r.duration_minutes, 25);
+
+            return {
+              id: r.id,
+              timestamp: r.timestamp ? new Date(r.timestamp).getTime() : Date.now(),
+              mode: sanitizeTimerMode(r.mode),
+              durationMinutes: durationMins,
+              targetDurationMinutes:
+                typeof r.target_duration_minutes === 'number' ? r.target_duration_minutes : undefined,
+              actualDurationSeconds: actualSecs,
+              completed: r.completed !== false,
+              taskTitle: r.task_title || undefined,
+            };
+          });
         saveSessionsDirectly(remoteSessions);
       } else {
         saveSessionsDirectly([]);

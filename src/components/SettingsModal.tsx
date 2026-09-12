@@ -50,6 +50,7 @@ import {
   getPomodoroCount,
   getTotalFocusMinutes,
   formatTotalFocusTime,
+  getSessionMinutes,
 } from '../utils/statistics';
 import { isToday } from '../utils/dates';
 import { getTranslations } from '../utils/translations';
@@ -402,7 +403,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const completedPomodoros = getPomodoroCount(sessions);
   const todayFocusMinutes = sessions
     .filter((s) => isToday(s.timestamp) && s.mode === 'pomodoro')
-    .reduce((acc, s) => acc + s.durationMinutes, 0);
+    .reduce((acc, s) => acc + getSessionMinutes(s), 0);
   const currentStreakDays = getCurrentStreak(sessions);
 
   // Handle Profile Save (Nickname & Display Name)

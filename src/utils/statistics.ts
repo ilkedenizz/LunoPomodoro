@@ -2,12 +2,19 @@ import type { FocusSession, AppLanguage } from '../types';
 import { isToday, isYesterday, isSameDay, getStartOfWeek } from './dates';
 import { formatDurationVerbose } from './translations';
 
+export const getSessionMinutes = (s: FocusSession): number => {
+  if (typeof s.actualDurationSeconds === 'number' && s.actualDurationSeconds > 0) {
+    return Math.max(1, Math.round(s.actualDurationSeconds / 60));
+  }
+  return typeof s.durationMinutes === 'number' && s.durationMinutes > 0 ? s.durationMinutes : 0;
+};
+
 export const getPomodoroSessions = (sessions: FocusSession[]): FocusSession[] => {
   return sessions.filter((s) => s.mode === 'pomodoro');
 };
 
 export const getTotalFocusMinutes = (sessions: FocusSession[]): number => {
-  return getPomodoroSessions(sessions).reduce((acc, s) => acc + s.durationMinutes, 0);
+  return getPomodoroSessions(sessions).reduce((acc, s) => acc + getSessionMinutes(s), 0);
 };
 
 export const formatTotalFocusTime = (totalMinutes: number, lang: AppLanguage = 'en'): string => {
@@ -107,7 +114,7 @@ export const getBestDay = (sessions: FocusSession[], lang: AppLanguage = 'en'): 
     const existing = dayMap.get(key) || { fullDate: d, minutes: 0, pomodoros: 0 };
     dayMap.set(key, {
       fullDate: d,
-      minutes: existing.minutes + s.durationMinutes,
+      minutes: existing.minutes + getSessionMinutes(s),
       pomodoros: existing.pomodoros + 1,
     });
   });
@@ -156,7 +163,7 @@ export const getWeeklyStats = (sessions: FocusSession[], lang: AppLanguage = 'en
     d.setDate(d.getDate() + i);
 
     const daySessions = poms.filter((s) => isSameDay(s.timestamp, d.getTime()));
-    const minutes = daySessions.reduce((acc, s) => acc + s.durationMinutes, 0);
+    const minutes = daySessions.reduce((acc, s) => acc + getSessionMinutes(s), 0);
 
     days.push({
       dayName: dayLabels[i],
@@ -190,7 +197,7 @@ export const getMonthlyStats = (sessions: FocusSession[]): DayMonthlyStat[] => {
   for (let day = 1; day <= totalDays; day++) {
     const d = new Date(year, month, day);
     const daySessions = poms.filter((s) => isSameDay(s.timestamp, d.getTime()));
-    const minutes = daySessions.reduce((acc, s) => acc + s.durationMinutes, 0);
+    const minutes = daySessions.reduce((acc, s) => acc + getSessionMinutes(s), 0);
 
     let intensity: 0 | 1 | 2 | 3 = 0;
     if (minutes > 0 && minutes < 50) intensity = 1;
@@ -218,7 +225,7 @@ export interface AllTimeStats {
 
 export const getAllTimeStats = (sessions: FocusSession[]): AllTimeStats => {
   const poms = getPomodoroSessions(sessions);
-  const totalMinutes = poms.reduce((acc, s) => acc + s.durationMinutes, 0);
+  const totalMinutes = poms.reduce((acc, s) => acc + getSessionMinutes(s), 0);
   const uniqueDates = getUniqueFocusDates(sessions);
   const daysFocused = uniqueDates.length;
   const avgMinutesPerFocusDay = daysFocused > 0 ? Math.round(totalMinutes / daysFocused) : 0;
@@ -266,7 +273,7 @@ export const getGroupedRecentSessions = (sessions: FocusSession[], lang: AppLang
 
   const sortedGroups = Array.from(map.entries())
     .map(([dateKey, val]) => {
-      const totalMinutes = val.sessions.reduce((acc, s) => acc + s.durationMinutes, 0);
+      const totalMinutes = val.sessions.reduce((acc, s) => acc + getSessionMinutes(s), 0);
       return {
         dateKey,
         dateLabel: val.dateLabel,
