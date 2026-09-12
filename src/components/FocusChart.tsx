@@ -53,7 +53,7 @@ export const FocusChart: React.FC<FocusChartProps> = ({
         </div>
 
         {/* 24-Hour Timeline Bar Chart */}
-        <div className="flex items-end justify-between gap-1 sm:gap-1.5 h-44 pt-6 pb-2 px-1 sm:px-2 border-b border-white/10">
+        <div className="flex items-end justify-between gap-0.5 xs:gap-1 sm:gap-1.5 h-44 pt-6 pb-2 px-0.5 sm:px-2 border-b border-white/10">
           {todayHourlyStats.map((item) => {
             const heightPercent = Math.max(6, Math.round((item.minutes / maxHourMinutes) * 100));
             const endHour = item.hour.toString().padStart(2, '0');
@@ -195,7 +195,7 @@ export const FocusChart: React.FC<FocusChartProps> = ({
       </div>
 
       {/* Heatmap Days Grid */}
-      <div className="grid grid-cols-7 gap-2 py-2">
+      <div className="grid grid-cols-7 gap-1 xs:gap-1.5 sm:gap-2 py-2">
         {monthlyStats.map((item) => {
           let bgClass = 'bg-white/5 border-white/5 text-white/40';
           if (item.intensity === 1) bgClass = 'bg-indigo-500/25 border-indigo-400/30 text-white/80';

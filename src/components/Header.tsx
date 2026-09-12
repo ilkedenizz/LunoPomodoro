@@ -129,13 +129,13 @@ export const Header: React.FC<HeaderProps> = React.memo(({
       </div>
 
       {/* Action Control Buttons */}
-      <div className="flex items-center space-x-1 xs:space-x-1.5 sm:space-x-2 shrink-0">
+      <div className="flex items-center space-x-1 sm:space-x-1.5 md:space-x-2 shrink-0">
         {/* Quick Theme Switcher Button */}
         {onToggleTheme && (
           <button
             onClick={onToggleTheme}
             aria-label={isLight ? t.themeDark : t.themeLight}
-            className={`p-2 sm:p-2.5 rounded-xl glass-panel glass-panel-hover transition-all focus:outline-none focus-visible:ring-2 flex items-center justify-center min-w-[34px] min-h-[34px] sm:min-w-[40px] sm:min-h-[40px] ${
+            className={`p-1.5 xs:p-2 sm:p-2.5 rounded-xl glass-panel glass-panel-hover transition-all focus:outline-none focus-visible:ring-2 flex items-center justify-center min-w-[30px] min-h-[30px] xs:min-w-[34px] xs:min-h-[34px] sm:min-w-[40px] sm:min-h-[40px] ${
               isLight
                 ? 'text-amber-600 hover:text-amber-700 focus-visible:ring-slate-400'
                 : 'text-white/80 hover:text-white focus-visible:ring-white/50'

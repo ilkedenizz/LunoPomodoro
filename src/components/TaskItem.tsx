@@ -164,10 +164,10 @@ export const TaskItem: React.FC<TaskItemProps> = ({
           <button
             onClick={() => setIsEditing(true)}
             aria-label={t.edit}
-            className={`p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all ${
+            className={`p-1.5 rounded-lg opacity-75 md:opacity-0 md:group-hover:opacity-100 hover:opacity-100 transition-all ${
               isLight
-                ? 'text-slate-400 hover:text-slate-900 hover:bg-black/5'
-                : 'text-white/40 hover:text-white hover:bg-white/10'
+                ? 'text-slate-500 hover:text-slate-900 hover:bg-black/5'
+                : 'text-white/60 hover:text-white hover:bg-white/10'
             }`}
             title={t.edit}
           >
@@ -197,10 +197,10 @@ export const TaskItem: React.FC<TaskItemProps> = ({
           <button
             onClick={() => setIsConfirmingDelete(true)}
             aria-label={t.delete}
-            className={`p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all ${
+            className={`p-1.5 rounded-lg opacity-75 md:opacity-0 md:group-hover:opacity-100 hover:opacity-100 transition-all ${
               isLight
-                ? 'text-slate-400 hover:text-rose-600 hover:bg-black/5'
-                : 'text-white/40 hover:text-red-300 hover:bg-white/10'
+                ? 'text-slate-500 hover:text-rose-600 hover:bg-black/5'
+                : 'text-white/60 hover:text-red-300 hover:bg-white/10'
             }`}
             title={t.delete}
           >
