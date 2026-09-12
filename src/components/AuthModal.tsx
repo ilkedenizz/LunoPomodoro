@@ -16,6 +16,8 @@ import {
   Check,
   RotateCw,
   AtSign,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import {
   signUp,
@@ -27,8 +29,7 @@ import {
   checkNicknameAvailability,
 } from '../services/auth';
 import { isSupabaseConfigured } from '../services/supabaseClient';
-import { SyncEngine, clearPendingQueue, setLastSyncedAt } from '../services/syncEngine';
-import { clearLocalStorageData } from '../utils/storage';
+import { SyncEngine } from '../services/syncEngine';
 import type { AppTheme, UserProfile, AppLanguage } from '../types';
 import { getTranslations } from '../utils/translations';
 
@@ -70,6 +71,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [confirmPassword, setConfirmPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmNewPassword, setShowConfirmNewPassword] = useState(false);
   const [pendingConfirmationEmailState, setPendingConfirmationEmailState] = useState<string>('');
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -157,6 +162,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       return;
     }
 
+    if (isLoading) return;
+
     // 1. SIGN UP FLOW
     if (mode === 'signup') {
       if (nickname.trim()) {
@@ -204,11 +211,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         }
 
         if (res.user) {
-          // Fresh account = completely clean start. Discard old local data.
-          clearLocalStorageData();
-          clearPendingQueue();
-          setLastSyncedAt(null);
-          SyncEngine.reset();
+          setStatusMessage(language === 'tr' ? 'Yerel odak verileriniz hesabınıza aktarılıyor...' : 'Synchronizing your local focus data with your account...');
+          // Migrate local records to the newly created account so no local work is lost
+          await SyncEngine.migrateLocalDataToAccount(res.user.id);
 
           setSuccessMessage(language === 'tr' ? "Hesap oluşturuldu! Luno'ya hoş geldiniz." : 'Account created! Welcome to Luno.');
           onAuthSuccess(res.user);
@@ -241,7 +246,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         }
 
         setStatusMessage(language === 'tr' ? 'Bulut odak kayıtlarınız yükleniyor...' : 'Loading your cloud focus records...');
-        clearPendingQueue();
         await SyncEngine.pullAndMerge(res.user.id);
         setSuccessMessage(language === 'tr' ? 'Giriş başarılı! Verileriniz senkronize edildi.' : 'Signed in successfully! Your data is synchronized.');
 
@@ -696,24 +700,35 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     )}
                   </div>
                   <div className="relative">
-                    <Lock className={`w-4 h-4 absolute left-3.5 top-1/2 transform -translate-y-1/2 ${
+                    <Lock className={`w-4 h-4 absolute left-3.5 top-1/2 transform -translate-y-1/2 pointer-events-none ${
                       isLight ? 'text-slate-400' : 'text-white/40'
                     }`} />
                     <input
                       id="auth-password"
-                      type="password"
+                      type={showPassword ? 'text' : 'password'}
                       autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
                       required
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••"
                       minLength={6}
-                      className={`w-full pl-10 pr-4 py-2.5 rounded-xl text-sm border transition-all focus:outline-none focus:ring-2 min-h-[44px] ${
+                      className={`w-full pl-10 pr-10 py-2.5 rounded-xl text-sm border transition-all focus:outline-none focus:ring-2 min-h-[44px] ${
                         isLight
                           ? 'bg-white border-slate-300 text-slate-900 focus:border-indigo-600 focus:ring-indigo-500/20'
                           : 'bg-white/10 border-white/20 text-white focus:border-white/60 focus:ring-white/20'
                       }`}
                     />
+                    <button
+                      type="button"
+                      tabIndex={-1}
+                      onClick={() => setShowPassword((prev) => !prev)}
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      className={`absolute right-3 top-1/2 transform -translate-y-1/2 p-1 rounded-lg transition-colors focus:outline-none ${
+                        isLight ? 'text-slate-400 hover:text-slate-700' : 'text-white/40 hover:text-white/80'
+                      }`}
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
                   </div>
                 </div>
               )}
@@ -728,24 +743,35 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     {t.confirmPasswordLabel}
                   </label>
                   <div className="relative">
-                    <Lock className={`w-4 h-4 absolute left-3.5 top-1/2 transform -translate-y-1/2 ${
+                    <Lock className={`w-4 h-4 absolute left-3.5 top-1/2 transform -translate-y-1/2 pointer-events-none ${
                       isLight ? 'text-slate-400' : 'text-white/40'
                     }`} />
                     <input
                       id="auth-confirm-password"
-                      type="password"
+                      type={showConfirmPassword ? 'text' : 'password'}
                       autoComplete="new-password"
                       required
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       placeholder="••••••••"
                       minLength={6}
-                      className={`w-full pl-10 pr-4 py-2.5 rounded-xl text-sm border transition-all focus:outline-none focus:ring-2 min-h-[44px] ${
+                      className={`w-full pl-10 pr-10 py-2.5 rounded-xl text-sm border transition-all focus:outline-none focus:ring-2 min-h-[44px] ${
                         isLight
                           ? 'bg-white border-slate-300 text-slate-900 focus:border-indigo-600 focus:ring-indigo-500/20'
                           : 'bg-white/10 border-white/20 text-white focus:border-white/60 focus:ring-white/20'
                       }`}
                     />
+                    <button
+                      type="button"
+                      tabIndex={-1}
+                      onClick={() => setShowConfirmPassword((prev) => !prev)}
+                      aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                      className={`absolute right-3 top-1/2 transform -translate-y-1/2 p-1 rounded-lg transition-colors focus:outline-none ${
+                        isLight ? 'text-slate-400 hover:text-slate-700' : 'text-white/40 hover:text-white/80'
+                      }`}
+                    >
+                      {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
                   </div>
                 </div>
               )}
@@ -761,24 +787,35 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       {t.newPasswordLabel}
                     </label>
                     <div className="relative">
-                      <Lock className={`w-4 h-4 absolute left-3.5 top-1/2 transform -translate-y-1/2 ${
+                      <Lock className={`w-4 h-4 absolute left-3.5 top-1/2 transform -translate-y-1/2 pointer-events-none ${
                         isLight ? 'text-slate-400' : 'text-white/40'
                       }`} />
                       <input
                         id="auth-new-password"
-                        type="password"
+                        type={showNewPassword ? 'text' : 'password'}
                         autoComplete="new-password"
                         required
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
                         placeholder="••••••••"
                         minLength={6}
-                        className={`w-full pl-10 pr-4 py-2.5 rounded-xl text-sm border transition-all focus:outline-none focus:ring-2 min-h-[44px] ${
+                        className={`w-full pl-10 pr-10 py-2.5 rounded-xl text-sm border transition-all focus:outline-none focus:ring-2 min-h-[44px] ${
                           isLight
                             ? 'bg-white border-slate-300 text-slate-900 focus:border-indigo-600 focus:ring-indigo-500/20'
                             : 'bg-white/10 border-white/20 text-white focus:border-white/60 focus:ring-white/20'
                         }`}
                       />
+                      <button
+                        type="button"
+                        tabIndex={-1}
+                        onClick={() => setShowNewPassword((prev) => !prev)}
+                        aria-label={showNewPassword ? 'Hide password' : 'Show password'}
+                        className={`absolute right-3 top-1/2 transform -translate-y-1/2 p-1 rounded-lg transition-colors focus:outline-none ${
+                          isLight ? 'text-slate-400 hover:text-slate-700' : 'text-white/40 hover:text-white/80'
+                        }`}
+                      >
+                        {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
                     </div>
                   </div>
 
@@ -790,24 +827,35 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       {t.confirmPasswordPlaceholder}
                     </label>
                     <div className="relative">
-                      <Lock className={`w-4 h-4 absolute left-3.5 top-1/2 transform -translate-y-1/2 ${
+                      <Lock className={`w-4 h-4 absolute left-3.5 top-1/2 transform -translate-y-1/2 pointer-events-none ${
                         isLight ? 'text-slate-400' : 'text-white/40'
                       }`} />
                       <input
                         id="auth-confirm-new-password"
-                        type="password"
+                        type={showConfirmNewPassword ? 'text' : 'password'}
                         autoComplete="new-password"
                         required
                         value={confirmNewPassword}
                         onChange={(e) => setConfirmNewPassword(e.target.value)}
                         placeholder="••••••••"
                         minLength={6}
-                        className={`w-full pl-10 pr-4 py-2.5 rounded-xl text-sm border transition-all focus:outline-none focus:ring-2 min-h-[44px] ${
+                        className={`w-full pl-10 pr-10 py-2.5 rounded-xl text-sm border transition-all focus:outline-none focus:ring-2 min-h-[44px] ${
                           isLight
                             ? 'bg-white border-slate-300 text-slate-900 focus:border-indigo-600 focus:ring-indigo-500/20'
                             : 'bg-white/10 border-white/20 text-white focus:border-white/60 focus:ring-white/20'
                         }`}
                       />
+                      <button
+                        type="button"
+                        tabIndex={-1}
+                        onClick={() => setShowConfirmNewPassword((prev) => !prev)}
+                        aria-label={showConfirmNewPassword ? 'Hide password' : 'Show password'}
+                        className={`absolute right-3 top-1/2 transform -translate-y-1/2 p-1 rounded-lg transition-colors focus:outline-none ${
+                          isLight ? 'text-slate-400 hover:text-slate-700' : 'text-white/40 hover:text-white/80'
+                        }`}
+                      >
+                        {showConfirmNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
                     </div>
                   </div>
                 </>

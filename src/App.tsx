@@ -65,10 +65,6 @@ import {
   saveSoundMixerState,
   loadAtmospherePresets,
   saveAtmospherePresets,
-  clearLocalStorageData,
-  DEFAULT_SETTINGS,
-  DEFAULT_SOUND_MIXER,
-  DEFAULT_DAILY_GOAL,
 } from './utils/storage';
 import { getAtmosphereById } from './utils/backgrounds';
 import { playCompletionChime, ambientEngine, playTickSound } from './utils/sound';
@@ -239,17 +235,7 @@ export function App() {
         });
       } else {
         setIncomingRequestsCount(0);
-        clearLocalStorageData();
         SyncEngine.reset();
-        setSettings(DEFAULT_SETTINGS);
-        setTasks([]);
-        setSessions([]);
-        setDailyGoal(DEFAULT_DAILY_GOAL);
-        setAtmospherePresets([]);
-        setFavoriteAtmospheres(['tokyo', 'rain', 'soft-ivory']);
-        setSoundMixerState(DEFAULT_SOUND_MIXER);
-        setActiveTaskId(null);
-        setAtmosphere(getAtmosphereById(loadSavedBackground(DEFAULT_SETTINGS.theme), DEFAULT_SETTINGS.theme));
       }
 
       // Handle password recovery link from Supabase email
@@ -999,21 +985,8 @@ export function App() {
 
   const handleSignOut = useCallback(async () => {
     await signOut();
-    clearLocalStorageData();
     setUser(null);
     SyncEngine.reset();
-    setSettings(DEFAULT_SETTINGS);
-    setTasks([]);
-    setSessions([]);
-    setDailyGoal(DEFAULT_DAILY_GOAL);
-    setAtmospherePresets([]);
-    setFavoriteAtmospheres(['tokyo', 'rain', 'soft-ivory']);
-    setSoundMixerState(DEFAULT_SOUND_MIXER);
-    setActiveTaskId(null);
-    setAtmosphere(getAtmosphereById(loadSavedBackground(DEFAULT_SETTINGS.theme), DEFAULT_SETTINGS.theme));
-    setMode('pomodoro');
-    setTimerState('idle');
-    setTimeLeft(DEFAULT_SETTINGS.pomodoroDuration * 60);
   }, []);
 
   const handleSyncNow = useCallback(async () => {

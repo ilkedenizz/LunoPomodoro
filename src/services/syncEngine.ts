@@ -22,8 +22,6 @@ import {
   saveAtmospherePresets,
   loadFavoriteAtmospheres,
   saveFavoriteAtmospheres,
-  DEFAULT_SETTINGS,
-  DEFAULT_DAILY_GOAL,
 } from '../utils/storage';
 
 const PENDING_QUEUE_KEY_V2 = 'luno_pending_sync_queue_v2';
@@ -791,9 +789,11 @@ export class SyncEngine {
         if (presetsRes.error) console.error('[Luno Sync Engine Error in fetchPresets]:', presetsRes.error);
       }
 
-      // 1. Set Tasks from Cloud
+      // 1. Merge Tasks (Preserve local tasks and merge with cloud)
+      const localTasks = loadTasks();
+      let remoteTasks: Task[] = [];
       if (tasksRes.data && Array.isArray(tasksRes.data)) {
-        const remoteTasks: Task[] = tasksRes.data
+        remoteTasks = tasksRes.data
           .filter((r: any) => r && typeof r.id === 'string' && typeof r.title === 'string')
           .map((r: any) => ({
             id: r.id,
@@ -804,14 +804,32 @@ export class SyncEngine {
             completedAt: r.completed_at ? new Date(r.completed_at).getTime() : undefined,
             updatedAt: r.updated_at ? new Date(r.updated_at).getTime() : undefined,
           }));
-        saveTasks(remoteTasks);
-      } else {
-        saveTasks([]);
+      }
+      const mergedTasks = mergeTasks(localTasks, remoteTasks);
+      saveTasks(mergedTasks);
+
+      // Push any local tasks that don't exist on remote up to cloud
+      const remoteTaskIdSet = new Set(remoteTasks.map((t) => t.id));
+      const unpushedTasks = mergedTasks.filter((t) => !remoteTaskIdSet.has(t.id));
+      if (unpushedTasks.length > 0) {
+        const payload = unpushedTasks.map((t) => ({
+          id: t.id,
+          user_id: userId,
+          title: t.title,
+          completed: t.completed,
+          pomodoros: t.pomodoros || 0,
+          created_at: new Date(t.createdAt).toISOString(),
+          completed_at: t.completedAt ? new Date(t.completedAt).toISOString() : null,
+          updated_at: new Date(t.updatedAt || t.createdAt).toISOString(),
+        }));
+        await client.from('tasks').upsert(payload);
       }
 
-      // 2. Set Sessions from Cloud
+      // 2. Merge Focus Sessions (Preserve local sessions & merge with cloud)
+      const localSessions = loadSessions();
+      let remoteSessions: FocusSession[] = [];
       if (sessionsRes.data && Array.isArray(sessionsRes.data)) {
-        const remoteSessions: FocusSession[] = sessionsRes.data
+        remoteSessions = sessionsRes.data
           .filter((r: any) => r && typeof r.id === 'string')
           .map((r: any) => {
             const actualSecs =
@@ -834,43 +852,76 @@ export class SyncEngine {
               taskTitle: r.task_title || undefined,
             };
           });
-        saveSessionsDirectly(remoteSessions);
-      } else {
-        saveSessionsDirectly([]);
+      }
+      const mergedSessions = mergeSessions(localSessions, remoteSessions);
+      saveSessionsDirectly(mergedSessions);
+
+      // Push any local sessions that don't exist in cloud up to Supabase
+      const remoteSessionIdSet = new Set(remoteSessions.map((s) => s.id));
+      const unpushedSessions = mergedSessions.filter((s) => !remoteSessionIdSet.has(s.id));
+      if (unpushedSessions.length > 0) {
+        const sessionPayload = unpushedSessions.map((s) => ({
+          id: s.id,
+          user_id: userId,
+          timestamp: new Date(s.timestamp).toISOString(),
+          mode: sanitizeTimerMode(s.mode),
+          duration_minutes: s.durationMinutes,
+          target_duration_minutes: s.targetDurationMinutes || s.durationMinutes,
+          actual_duration_seconds: s.actualDurationSeconds || (s.durationMinutes * 60),
+          completed: s.completed !== false,
+          task_title: s.taskTitle || null,
+        }));
+        const { error: sessErr } = await client.from('focus_sessions').upsert(sessionPayload);
+        if (sessErr && (
+          sessErr.code === 'PGRST204' ||
+          sessErr.message?.includes('completed') ||
+          sessErr.message?.includes('target_duration_minutes') ||
+          sessErr.message?.includes('actual_duration_seconds')
+        )) {
+          const fallbackPayload = unpushedSessions.map((s) => ({
+            id: s.id,
+            user_id: userId,
+            timestamp: new Date(s.timestamp).toISOString(),
+            mode: sanitizeTimerMode(s.mode),
+            duration_minutes: s.durationMinutes,
+            task_title: s.taskTitle || null,
+          }));
+          await client.from('focus_sessions').upsert(fallbackPayload);
+        }
       }
 
-      // 3. Set Settings from Cloud
+      // 3. Settings Merge
       if (settingsRes.data) {
         const remoteSettings = settingsRes.data;
         const current = loadSettings();
         const updated: TimerSettings = {
           ...current,
-          pomodoroDuration: sanitizeDuration(remoteSettings.pomodoro_duration, 25),
-          shortBreakDuration: sanitizeDuration(remoteSettings.short_break_duration, 5),
-          longBreakDuration: sanitizeDuration(remoteSettings.long_break_duration, 15),
-          autoStartBreaks: typeof remoteSettings.auto_start_breaks === 'boolean' ? remoteSettings.auto_start_breaks : false,
-          autoStartPomodoros: typeof remoteSettings.auto_start_pomodoros === 'boolean' ? remoteSettings.auto_start_pomodoros : false,
-          soundEnabled: typeof remoteSettings.sound_enabled === 'boolean' ? remoteSettings.sound_enabled : true,
-          soundVolume: typeof remoteSettings.sound_volume === 'number' ? Math.max(0, Math.min(1, remoteSettings.sound_volume)) : 0.8,
-          notificationsEnabled: typeof remoteSettings.notifications_enabled === 'boolean' ? remoteSettings.notifications_enabled : true,
-          tickingEnabled: typeof remoteSettings.ticking_enabled === 'boolean' ? remoteSettings.ticking_enabled : false,
-          theme: sanitizeTheme(remoteSettings.theme, 'dark'),
-          timerColor: sanitizeTimerColor(remoteSettings.timer_color, 'default'),
+          pomodoroDuration: sanitizeDuration(remoteSettings.pomodoro_duration, current.pomodoroDuration || 25),
+          shortBreakDuration: sanitizeDuration(remoteSettings.short_break_duration, current.shortBreakDuration || 5),
+          longBreakDuration: sanitizeDuration(remoteSettings.long_break_duration, current.longBreakDuration || 15),
+          autoStartBreaks: typeof remoteSettings.auto_start_breaks === 'boolean' ? remoteSettings.auto_start_breaks : current.autoStartBreaks,
+          autoStartPomodoros: typeof remoteSettings.auto_start_pomodoros === 'boolean' ? remoteSettings.auto_start_pomodoros : current.autoStartPomodoros,
+          soundEnabled: typeof remoteSettings.sound_enabled === 'boolean' ? remoteSettings.sound_enabled : current.soundEnabled,
+          soundVolume: typeof remoteSettings.sound_volume === 'number' ? Math.max(0, Math.min(1, remoteSettings.sound_volume)) : current.soundVolume,
+          notificationsEnabled: typeof remoteSettings.notifications_enabled === 'boolean' ? remoteSettings.notifications_enabled : current.notificationsEnabled,
+          tickingEnabled: typeof remoteSettings.ticking_enabled === 'boolean' ? remoteSettings.ticking_enabled : current.tickingEnabled,
+          theme: sanitizeTheme(remoteSettings.theme, current.theme || 'dark'),
+          timerColor: sanitizeTimerColor(remoteSettings.timer_color, current.timerColor || 'default'),
           language: remoteSettings.language === 'tr' || remoteSettings.language === 'en' ? remoteSettings.language : current.language || 'en',
         };
         saveSettings(updated);
 
-        if (Array.isArray(remoteSettings.favorite_atmospheres)) {
+        if (Array.isArray(remoteSettings.favorite_atmospheres) && remoteSettings.favorite_atmospheres.length > 0) {
           saveFavoriteAtmospheres(remoteSettings.favorite_atmospheres);
         }
       } else {
-        // Initial clean setup for new account in cloud
-        saveSettings(DEFAULT_SETTINGS);
-        saveFavoriteAtmospheres(['tokyo', 'rain', 'soft-ivory']);
-        await this.pushSettings(DEFAULT_SETTINGS, ['tokyo', 'rain', 'soft-ivory'], userId);
+        // Initial setup for new user: push local settings to cloud
+        const currentSettings = loadSettings();
+        const currentFavs = loadFavoriteAtmospheres();
+        await this.pushSettings(currentSettings, currentFavs, userId);
       }
 
-      // 4. Set Daily Goal from Cloud
+      // 4. Daily Goal Merge
       if (goalRes.data) {
         const mergedGoal: DailyGoal = {
           targetPomodoros: typeof goalRes.data.target_pomodoros === 'number' ? goalRes.data.target_pomodoros : 4,
@@ -878,14 +929,15 @@ export class SyncEngine {
         };
         saveDailyGoal(mergedGoal);
       } else {
-        // Initial setup for daily goal in cloud
-        saveDailyGoal(DEFAULT_DAILY_GOAL);
-        await this.pushDailyGoal(DEFAULT_DAILY_GOAL, userId);
+        const currentGoal = loadDailyGoal();
+        await this.pushDailyGoal(currentGoal, userId);
       }
 
-      // 5. Set Presets from Cloud
+      // 5. Atmosphere Presets Merge
+      const localPresets = loadAtmospherePresets();
+      let remotePresets: AtmospherePreset[] = [];
       if (presetsRes.data && Array.isArray(presetsRes.data)) {
-        const remotePresets: AtmospherePreset[] = presetsRes.data
+        remotePresets = presetsRes.data
           .filter((r: any) => r && typeof r.id === 'string' && typeof r.name === 'string')
           .map((r: any) => ({
             id: r.id,
@@ -894,9 +946,23 @@ export class SyncEngine {
             soundMixer: r.sound_mixer || { masterVolume: 0.8, tracks: {} },
             createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
           }));
-        saveAtmospherePresets(remotePresets);
-      } else {
-        saveAtmospherePresets([]);
+      }
+      const mergedPresets = mergePresets(localPresets, remotePresets);
+      saveAtmospherePresets(mergedPresets);
+
+      // Push any local presets not yet in cloud
+      const remotePresetIdSet = new Set(remotePresets.map((p) => p.id));
+      const unpushedPresets = mergedPresets.filter((p) => !remotePresetIdSet.has(p.id));
+      if (unpushedPresets.length > 0) {
+        const presetsPayload = unpushedPresets.map((p) => ({
+          id: p.id,
+          user_id: userId,
+          name: p.name,
+          atmosphere_id: p.atmosphereId,
+          sound_mixer: p.soundMixer,
+          created_at: new Date(p.createdAt).toISOString(),
+        }));
+        await client.from('atmosphere_presets').upsert(presetsPayload);
       }
 
       this.lastSyncedAt = Date.now();
