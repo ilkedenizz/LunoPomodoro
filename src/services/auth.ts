@@ -142,7 +142,7 @@ export const getAuthRedirectUrl = (): string => {
   // 2. Active browser window origin (e.g. http://localhost:5173 or https://your-project.vercel.app)
   if (typeof window !== 'undefined' && window.location && window.location.origin) {
     const origin = window.location.origin.trim().replace(/\/+$/, '');
-    if (origin && !origin.includes('localhost:5000')) {
+    if (origin && (origin.startsWith('http://') || origin.startsWith('https://'))) {
       return origin;
     }
   }

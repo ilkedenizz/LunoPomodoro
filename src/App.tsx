@@ -71,7 +71,7 @@ import {
   DEFAULT_DAILY_GOAL,
 } from './utils/storage';
 import { getAtmosphereById } from './utils/backgrounds';
-import { playCompletionChime, ambientEngine } from './utils/sound';
+import { playCompletionChime, ambientEngine, playTickSound } from './utils/sound';
 import { isToday } from './utils/dates';
 import { onAuthStateChange, signOut, getCurrentUser, handleAuthUrlCallback } from './services/auth';
 import { getIncomingFriendRequests } from './services/friends';
@@ -148,6 +148,7 @@ export function App() {
   // High precision timer reference & idempotency flag
   const expectedEndRef = useRef<number | null>(null);
   const isCompletingRef = useRef<boolean>(false);
+  const autoStartTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Auth state listener and initial cloud sync
   useEffect(() => {
@@ -485,6 +486,11 @@ export function App() {
     setTimeLeft(0);
     setTimerState('completed');
 
+    if (autoStartTimeoutRef.current) {
+      clearTimeout(autoStartTimeoutRef.current);
+      autoStartTimeoutRef.current = null;
+    }
+
     // Alarm Sound
     if (settings.soundEnabled) {
       playCompletionChime(settings.soundVolume);
@@ -547,6 +553,20 @@ export function App() {
         origin: { y: 0.6 },
         colors: ['#ffffff', '#a855f7', '#38bdf8', '#34d399'],
       });
+
+      // Automation: Auto-start breaks if enabled
+      if (settings.autoStartBreaks) {
+        const nextBreakMode: TimerMode =
+          (todayPomodorosCount + 1) % 4 === 0 ? 'longBreak' : 'shortBreak';
+        const breakDuration = getModeDurationSeconds(nextBreakMode, settings);
+        autoStartTimeoutRef.current = setTimeout(() => {
+          isCompletingRef.current = false;
+          setMode(nextBreakMode);
+          setTimeLeft(breakDuration);
+          expectedEndRef.current = Date.now() + breakDuration * 1000;
+          setTimerState('running');
+        }, 1200);
+      }
     } else {
       // Break completion: log break session
       const breakSession: FocusSession = {
@@ -562,6 +582,18 @@ export function App() {
         markSessionPending(breakSession.id);
         SyncEngine.pushSession(breakSession, user.id);
       }
+
+      // Automation: Auto-start next pomodoro if enabled
+      if (settings.autoStartPomodoros) {
+        const focusDuration = getModeDurationSeconds('pomodoro', settings);
+        autoStartTimeoutRef.current = setTimeout(() => {
+          isCompletingRef.current = false;
+          setMode('pomodoro');
+          setTimeLeft(focusDuration);
+          expectedEndRef.current = Date.now() + focusDuration * 1000;
+          setTimerState('running');
+        }, 1200);
+      }
     }
   }, [
     mode,
@@ -569,6 +601,8 @@ export function App() {
     activeTaskId,
     activeTaskTitle,
     user,
+    todayPomodorosCount,
+    getModeDurationSeconds,
   ]);
 
   // Main Timer Countdown Loop
@@ -591,12 +625,20 @@ export function App() {
         setTimeLeft(0);
         handleSessionComplete();
       } else {
-        setTimeLeft((prev) => (prev !== remainingSecs ? remainingSecs : prev));
+        setTimeLeft((prev) => {
+          if (prev !== remainingSecs) {
+            if (settings.tickingEnabled && settings.soundEnabled) {
+              playTickSound(settings.soundVolume);
+            }
+            return remainingSecs;
+          }
+          return prev;
+        });
       }
     }, 200);
 
     return () => clearInterval(interval);
-  }, [timerState, timeLeft, handleSessionComplete]);
+  }, [timerState, timeLeft, settings.tickingEnabled, settings.soundEnabled, settings.soundVolume, handleSessionComplete]);
 
   // Tab visibility synchronization (prevents background throttle drift)
   useEffect(() => {
@@ -620,6 +662,10 @@ export function App() {
 
   // Timer Controls
   const handleStart = useCallback(() => {
+    if (autoStartTimeoutRef.current) {
+      clearTimeout(autoStartTimeoutRef.current);
+      autoStartTimeoutRef.current = null;
+    }
     isCompletingRef.current = false;
     const targetDuration = timeLeft <= 0 ? getModeDurationSeconds(mode) : timeLeft;
     setTimeLeft(targetDuration);
@@ -628,17 +674,29 @@ export function App() {
   }, [timeLeft, mode, getModeDurationSeconds]);
 
   const handlePause = useCallback(() => {
+    if (autoStartTimeoutRef.current) {
+      clearTimeout(autoStartTimeoutRef.current);
+      autoStartTimeoutRef.current = null;
+    }
     setTimerState('paused');
     expectedEndRef.current = null;
   }, []);
 
   const handleResume = useCallback(() => {
+    if (autoStartTimeoutRef.current) {
+      clearTimeout(autoStartTimeoutRef.current);
+      autoStartTimeoutRef.current = null;
+    }
     isCompletingRef.current = false;
     expectedEndRef.current = Date.now() + timeLeft * 1000;
     setTimerState('running');
   }, [timeLeft]);
 
   const handleReset = useCallback(() => {
+    if (autoStartTimeoutRef.current) {
+      clearTimeout(autoStartTimeoutRef.current);
+      autoStartTimeoutRef.current = null;
+    }
     isCompletingRef.current = false;
     setTimerState('idle');
     expectedEndRef.current = null;
@@ -646,6 +704,10 @@ export function App() {
   }, [mode, getModeDurationSeconds]);
 
   const handleSkip = useCallback(() => {
+    if (autoStartTimeoutRef.current) {
+      clearTimeout(autoStartTimeoutRef.current);
+      autoStartTimeoutRef.current = null;
+    }
     isCompletingRef.current = false;
     setTimerState('idle');
     expectedEndRef.current = null;
@@ -662,6 +724,10 @@ export function App() {
 
   // Action: User explicitly chooses to take a break after Pomodoro
   const handleStartBreak = useCallback(() => {
+    if (autoStartTimeoutRef.current) {
+      clearTimeout(autoStartTimeoutRef.current);
+      autoStartTimeoutRef.current = null;
+    }
     isCompletingRef.current = false;
     const nextBreakMode: TimerMode =
       todayPomodorosCount > 0 && todayPomodorosCount % 4 === 0 ? 'longBreak' : 'shortBreak';
@@ -674,6 +740,10 @@ export function App() {
 
   // Action: User explicitly chooses to continue with another Focus session
   const handleContinueFocus = useCallback(() => {
+    if (autoStartTimeoutRef.current) {
+      clearTimeout(autoStartTimeoutRef.current);
+      autoStartTimeoutRef.current = null;
+    }
     isCompletingRef.current = false;
     setMode('pomodoro');
     const focusDuration = getModeDurationSeconds('pomodoro');
@@ -683,6 +753,10 @@ export function App() {
   }, [getModeDurationSeconds]);
 
   const handleSelectMode = useCallback((newMode: TimerMode) => {
+    if (autoStartTimeoutRef.current) {
+      clearTimeout(autoStartTimeoutRef.current);
+      autoStartTimeoutRef.current = null;
+    }
     setMode((prevMode) => {
       if (newMode === prevMode && timerState !== 'completed') return prevMode;
       isCompletingRef.current = false;
