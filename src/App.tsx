@@ -150,6 +150,31 @@ export function App() {
   const isCompletingRef = useRef<boolean>(false);
   const autoStartTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Preload lazy modals during browser idle time for zero-delay modal opening
+  useEffect(() => {
+    const preloadModals = () => {
+      import('./components/SettingsModal');
+      import('./components/BackgroundSelectorModal');
+      import('./components/AmbienceAudioPlayer');
+      import('./components/FriendsModal');
+      import('./components/FocusHistoryModal');
+      import('./components/ShortcutsModal');
+      import('./components/AuthModal');
+    };
+
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      const handle = (window as unknown as { requestIdleCallback: (cb: () => void, opts?: { timeout: number }) => number }).requestIdleCallback(preloadModals, { timeout: 2000 });
+      return () => {
+        if ('cancelIdleCallback' in window) {
+          (window as unknown as { cancelIdleCallback: (id: number) => void }).cancelIdleCallback(handle);
+        }
+      };
+    } else {
+      const timer = setTimeout(preloadModals, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
   // Auth state listener and initial cloud sync
   useEffect(() => {
     let isMounted = true;
@@ -892,6 +917,85 @@ export function App() {
     });
   }, [mode, timerState, getModeDurationSeconds]);
 
+  // Stable Navigation and Modal Handlers
+  const handleOpenBackgrounds = useCallback(() => setIsBackgroundsOpen(true), []);
+  const handleCloseBackgrounds = useCallback(() => setIsBackgroundsOpen(false), []);
+
+  const handleOpenSettings = useCallback(() => {
+    setSettingsTab('preferences');
+    setIsSettingsOpen(true);
+  }, []);
+  const handleCloseSettings = useCallback(() => setIsSettingsOpen(false), []);
+
+  const handleOpenAudio = useCallback(() => setIsAudioOpen(true), []);
+  const handleCloseAudio = useCallback(() => setIsAudioOpen(false), []);
+
+  const handleOpenShortcuts = useCallback(() => setIsShortcutsOpen(true), []);
+  const handleCloseShortcuts = useCallback(() => setIsShortcutsOpen(false), []);
+
+  const handleOpenHistory = useCallback(() => setIsHistoryOpen(true), []);
+  const handleCloseHistory = useCallback(() => setIsHistoryOpen(false), []);
+
+  const handleOpenFriends = useCallback(() => setIsFriendsOpen(true), []);
+  const handleCloseFriends = useCallback(() => setIsFriendsOpen(false), []);
+
+  const handleHeaderOpenAuth = useCallback(() => {
+    if (user) {
+      setSettingsTab('account');
+      setIsSettingsOpen(true);
+    } else {
+      handleOpenAuth('signin');
+    }
+  }, [user, handleOpenAuth]);
+
+  const handleCloseAuth = useCallback(() => {
+    setIsAuthOpen(false);
+    setAuthModalError(null);
+  }, []);
+
+  const handleSaveSettings = useCallback((newSettings: TimerSettings) => {
+    if (newSettings.theme !== settings.theme) {
+      const targetBg = getAtmosphereById(loadSavedBackground(newSettings.theme), newSettings.theme);
+      setAtmosphere(targetBg);
+    }
+    setSettings(newSettings);
+    saveSettings(newSettings);
+    if (user) {
+      markSettingsPending();
+      SyncEngine.pushSettings(newSettings, favoriteAtmospheres, user.id);
+    }
+    if (timerState === 'idle') {
+      setTimeLeft(getModeDurationSeconds(mode, newSettings));
+    }
+  }, [settings.theme, user, favoriteAtmospheres, timerState, mode, getModeDurationSeconds]);
+
+  const handleResetStats = useCallback(() => {
+    localStorage.removeItem('pomodoro_sessions_v1');
+    setSessions([]);
+  }, []);
+
+  const handleSelectAtmosphere = useCallback((bg: AtmosphereTheme) => {
+    setAtmosphere(bg);
+    saveBackground(bg.id, settings.theme);
+  }, [settings.theme]);
+
+  const handleOpenFriendsFromSettings = useCallback(() => {
+    setIsSettingsOpen(false);
+    setIsFriendsOpen(true);
+  }, []);
+
+  const handleUserUpdate = useCallback((updatedUser: UserProfile | null) => {
+    setUser(updatedUser);
+  }, []);
+
+  const handleOpenAuthFromSettings = useCallback((authMode?: AuthModalMode) => {
+    handleOpenAuth(authMode || 'signin');
+  }, [handleOpenAuth]);
+
+  const handleOpenAuthFromFriends = useCallback(() => {
+    handleOpenAuth('signin');
+  }, [handleOpenAuth]);
+
   const isLight = settings.theme === 'light';
 
   return (
@@ -908,15 +1012,12 @@ export function App() {
         currentAtmosphere={atmosphere}
         todayPomodoros={todayPomodorosCount}
         todayMinutes={todayTotalMinutes}
-        onOpenBackgrounds={() => setIsBackgroundsOpen(true)}
-        onOpenSettings={() => {
-          setSettingsTab('preferences');
-          setIsSettingsOpen(true);
-        }}
-        onOpenAudio={() => setIsAudioOpen(true)}
-        onOpenShortcuts={() => setIsShortcutsOpen(true)}
-        onOpenHistory={() => setIsHistoryOpen(true)}
-        onOpenFriends={() => setIsFriendsOpen(true)}
+        onOpenBackgrounds={handleOpenBackgrounds}
+        onOpenSettings={handleOpenSettings}
+        onOpenAudio={handleOpenAudio}
+        onOpenShortcuts={handleOpenShortcuts}
+        onOpenHistory={handleOpenHistory}
+        onOpenFriends={handleOpenFriends}
         incomingRequestsCount={incomingRequestsCount}
         isAudioPlaying={isAudioPlaying}
         isFullscreen={isFullscreen}
@@ -926,14 +1027,7 @@ export function App() {
         onToggleTheme={handleToggleTheme}
         user={user}
         syncStatus={syncStatus}
-        onOpenAuth={() => {
-          if (user) {
-            setSettingsTab('account');
-            setIsSettingsOpen(true);
-          } else {
-            handleOpenAuth('signin');
-          }
-        }}
+        onOpenAuth={handleHeaderOpenAuth}
         language={settings.language || 'en'}
       />
 
@@ -1011,7 +1105,7 @@ export function App() {
       {/* 4. Minimal Footer / Mobile Stats Badge */}
       <footer className="relative z-10 w-full py-2.5 sm:py-3 px-6 text-center flex flex-col sm:flex-row items-center justify-between text-xs space-y-2 sm:space-y-0 shrink-0">
         <button
-          onClick={() => setIsHistoryOpen(true)}
+          onClick={handleOpenHistory}
           className={`md:hidden flex items-center space-x-2 px-3 py-1 rounded-full glass-pill cursor-pointer ${
             isLight ? 'text-slate-800' : 'text-white/80'
           }`}
@@ -1066,40 +1160,20 @@ export function App() {
         {isSettingsOpen && (
           <SettingsModal
             isOpen={isSettingsOpen}
-            onClose={() => setIsSettingsOpen(false)}
+            onClose={handleCloseSettings}
             settings={settings}
-            onSaveSettings={(newSettings) => {
-              if (newSettings.theme !== settings.theme) {
-                const targetBg = getAtmosphereById(loadSavedBackground(newSettings.theme), newSettings.theme);
-                setAtmosphere(targetBg);
-              }
-              setSettings(newSettings);
-              saveSettings(newSettings);
-              if (user) {
-                markSettingsPending();
-                SyncEngine.pushSettings(newSettings, favoriteAtmospheres, user.id);
-              }
-              if (timerState === 'idle') {
-                setTimeLeft(getModeDurationSeconds(mode, newSettings));
-              }
-            }}
-            onResetStats={() => {
-              localStorage.removeItem('pomodoro_sessions_v1');
-              setSessions([]);
-            }}
+            onSaveSettings={handleSaveSettings}
+            onResetStats={handleResetStats}
             user={user}
             syncStatus={syncStatus}
             sessions={sessions}
             tasks={tasks}
             initialTab={settingsTab}
-            onOpenAuth={(mode) => handleOpenAuth(mode || 'signin')}
+            onOpenAuth={handleOpenAuthFromSettings}
             onSignOut={handleSignOut}
             onSyncNow={handleSyncNow}
-            onUserUpdate={(updatedUser) => setUser(updatedUser)}
-            onOpenFriends={() => {
-              setIsSettingsOpen(false);
-              setIsFriendsOpen(true);
-            }}
+            onUserUpdate={handleUserUpdate}
+            onOpenFriends={handleOpenFriendsFromSettings}
             incomingRequestsCount={incomingRequestsCount}
             language={settings.language || 'en'}
           />
@@ -1108,12 +1182,9 @@ export function App() {
         {isBackgroundsOpen && (
           <BackgroundSelectorModal
             isOpen={isBackgroundsOpen}
-            onClose={() => setIsBackgroundsOpen(false)}
+            onClose={handleCloseBackgrounds}
             activeId={atmosphere.id}
-            onSelect={(bg) => {
-              setAtmosphere(bg);
-              saveBackground(bg.id, settings.theme);
-            }}
+            onSelect={handleSelectAtmosphere}
             favoriteIds={favoriteAtmospheres}
             onToggleFavorite={handleToggleFavorite}
             mixerState={soundMixerState}
@@ -1130,7 +1201,7 @@ export function App() {
         {isAudioOpen && (
           <AmbienceAudioPlayer
             isOpen={isAudioOpen}
-            onClose={() => setIsAudioOpen(false)}
+            onClose={handleCloseAudio}
             mixerState={soundMixerState}
             onChangeMixerState={handleMixerChange}
             language={settings.language || 'en'}
@@ -1140,7 +1211,7 @@ export function App() {
         {isShortcutsOpen && (
           <ShortcutsModal
             isOpen={isShortcutsOpen}
-            onClose={() => setIsShortcutsOpen(false)}
+            onClose={handleCloseShortcuts}
             language={settings.language || 'en'}
           />
         )}
@@ -1148,7 +1219,7 @@ export function App() {
         {isHistoryOpen && (
           <FocusHistoryModal
             isOpen={isHistoryOpen}
-            onClose={() => setIsHistoryOpen(false)}
+            onClose={handleCloseHistory}
             sessions={sessions}
             language={settings.language || 'en'}
           />
@@ -1157,10 +1228,10 @@ export function App() {
         {isFriendsOpen && (
           <FriendsModal
             isOpen={isFriendsOpen}
-            onClose={() => setIsFriendsOpen(false)}
+            onClose={handleCloseFriends}
             user={user}
             theme={settings.theme}
-            onOpenAuth={() => handleOpenAuth('signin')}
+            onOpenAuth={handleOpenAuthFromFriends}
             onRequestCountChange={setIncomingRequestsCount}
             language={settings.language || 'en'}
           />
@@ -1169,10 +1240,7 @@ export function App() {
         {isAuthOpen && (
           <AuthModal
             isOpen={isAuthOpen}
-            onClose={() => {
-              setIsAuthOpen(false);
-              setAuthModalError(null);
-            }}
+            onClose={handleCloseAuth}
             theme={settings.theme}
             initialMode={authModalMode}
             initialError={authModalError}

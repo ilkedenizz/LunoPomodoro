@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import type { AtmosphereTheme, AppTheme } from '../types';
 
 interface BackgroundViewProps {
@@ -13,22 +13,24 @@ export const BackgroundView: React.FC<BackgroundViewProps> = React.memo(({
   const [currentBg, setCurrentBg] = useState<AtmosphereTheme>(atmosphere);
   const [prevBg, setPrevBg] = useState<AtmosphereTheme | null>(null);
   const [isCrossfading, setIsCrossfading] = useState<boolean>(false);
-
-  if (atmosphere.id !== currentBg.id) {
-    setPrevBg(currentBg);
-    setCurrentBg(atmosphere);
-    setIsCrossfading(true);
-  }
+  const prevAtmosphereIdRef = useRef<string>(atmosphere.id);
 
   useEffect(() => {
-    if (isCrossfading) {
+    if (atmosphere.id !== prevAtmosphereIdRef.current) {
+      setPrevBg(currentBg);
+      setCurrentBg(atmosphere);
+      setIsCrossfading(true);
+      prevAtmosphereIdRef.current = atmosphere.id;
+
       const timer = setTimeout(() => {
         setIsCrossfading(false);
         setPrevBg(null);
       }, 700);
       return () => clearTimeout(timer);
+    } else {
+      setCurrentBg(atmosphere);
     }
-  }, [isCrossfading]);
+  }, [atmosphere, currentBg]);
 
   const isLight = theme === 'light';
 

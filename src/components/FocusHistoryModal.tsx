@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { X, TrendingUp, Sparkles, Award } from 'lucide-react';
 import { PeriodSelector } from './PeriodSelector';
 import type { PeriodType } from './PeriodSelector';
@@ -26,7 +26,7 @@ interface FocusHistoryModalProps {
   language?: AppLanguage;
 }
 
-export const FocusHistoryModal: React.FC<FocusHistoryModalProps> = ({
+export const FocusHistoryModal: React.FC<FocusHistoryModalProps> = React.memo(({
   isOpen,
   onClose,
   sessions,
@@ -35,24 +35,24 @@ export const FocusHistoryModal: React.FC<FocusHistoryModalProps> = ({
   const [period, setPeriod] = useState<PeriodType>('week');
   const t = getTranslations(language);
 
+  const totalMinutes = useMemo(() => getTotalFocusMinutes(sessions), [sessions]);
+  const totalPomodoros = useMemo(() => getPomodoroCount(sessions), [sessions]);
+  const currentStreak = useMemo(() => getCurrentStreak(sessions), [sessions]);
+  const bestDay = useMemo(() => getBestDay(sessions, language), [sessions, language]);
+
+  const weeklyStats = useMemo(() => getWeeklyStats(sessions, language), [sessions, language]);
+  const monthlyStats = useMemo(() => getMonthlyStats(sessions), [sessions]);
+  const allTimeStats = useMemo(() => getAllTimeStats(sessions), [sessions]);
+  const groupedSessions = useMemo(() => getGroupedRecentSessions(sessions, language), [sessions, language]);
+
   if (!isOpen) return null;
-
-  const totalMinutes = getTotalFocusMinutes(sessions);
-  const totalPomodoros = getPomodoroCount(sessions);
-  const currentStreak = getCurrentStreak(sessions);
-  const bestDay = getBestDay(sessions, language);
-
-  const weeklyStats = getWeeklyStats(sessions, language);
-  const monthlyStats = getMonthlyStats(sessions);
-  const allTimeStats = getAllTimeStats(sessions);
-  const groupedSessions = getGroupedRecentSessions(sessions, language);
 
   const hasHistory = totalPomodoros > 0;
 
   return (
     <div
       onClick={onClose}
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-md transition-all cursor-pointer"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-md transition-opacity cursor-pointer"
     >
       <div
         onClick={(e) => e.stopPropagation()}
@@ -185,4 +185,6 @@ export const FocusHistoryModal: React.FC<FocusHistoryModalProps> = ({
       </div>
     </div>
   );
-};
+});
+
+FocusHistoryModal.displayName = 'FocusHistoryModal';

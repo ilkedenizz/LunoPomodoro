@@ -25,7 +25,7 @@ export const AmbienceAudioPlayer: React.FC<AmbienceAudioPlayerProps> = ({
   return (
     <div
       onClick={onClose}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md cursor-pointer"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md transition-opacity cursor-pointer"
     >
       <div
         onClick={(e) => e.stopPropagation()}
