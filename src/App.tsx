@@ -692,12 +692,12 @@ export function App() {
     getModeDurationSeconds,
   ]);
 
-  // Main Timer Countdown Loop
+  // Main Timer Countdown Loop (Persistent interval with zero-drift timestamp reference)
   useEffect(() => {
     if (timerState !== 'running') return;
 
     if (!expectedEndRef.current) {
-      expectedEndRef.current = Date.now() + timeLeft * 1000;
+      expectedEndRef.current = Date.now() + (timeLeftRef.current > 0 ? timeLeftRef.current : getModeDurationSeconds(modeRef.current)) * 1000;
     }
 
     const interval = setInterval(() => {
@@ -725,7 +725,7 @@ export function App() {
     }, 200);
 
     return () => clearInterval(interval);
-  }, [timerState, timeLeft, settings.tickingEnabled, settings.soundEnabled, settings.soundVolume, handleSessionComplete]);
+  }, [timerState, settings.tickingEnabled, settings.soundEnabled, settings.soundVolume, handleSessionComplete, getModeDurationSeconds]);
 
   // Tab visibility synchronization (prevents background throttle drift)
   useEffect(() => {
