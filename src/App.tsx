@@ -68,6 +68,7 @@ import {
   clearLocalStorageData,
   DEFAULT_SETTINGS,
   DEFAULT_SOUND_MIXER,
+  DEFAULT_DAILY_GOAL,
 } from './utils/storage';
 import { getAtmosphereById } from './utils/backgrounds';
 import { playCompletionChime, ambientEngine } from './utils/sound';
@@ -179,12 +180,15 @@ export function App() {
         });
         SyncEngine.pullAndMerge(initialUser.id).then(() => {
           if (!isMounted) return;
-          setSettings(loadSettings());
+          const loadedSettings = loadSettings();
+          setSettings(loadedSettings);
           setTasks(loadTasks());
           setSessions(loadSessions());
           setDailyGoal(loadDailyGoal());
           setAtmospherePresets(loadAtmospherePresets());
           setFavoriteAtmospheres(loadFavoriteAtmospheres());
+          const currentTheme = loadedSettings.theme || 'dark';
+          setAtmosphere(getAtmosphereById(loadSavedBackground(currentTheme), currentTheme));
         });
       }
     });
@@ -199,6 +203,17 @@ export function App() {
         });
       } else {
         setIncomingRequestsCount(0);
+        clearLocalStorageData();
+        SyncEngine.reset();
+        setSettings(DEFAULT_SETTINGS);
+        setTasks([]);
+        setSessions([]);
+        setDailyGoal(DEFAULT_DAILY_GOAL);
+        setAtmospherePresets([]);
+        setFavoriteAtmospheres(['tokyo', 'rain', 'soft-ivory']);
+        setSoundMixerState(DEFAULT_SOUND_MIXER);
+        setActiveTaskId(null);
+        setAtmosphere(getAtmosphereById(loadSavedBackground(DEFAULT_SETTINGS.theme), DEFAULT_SETTINGS.theme));
       }
 
       // Handle password recovery link from Supabase email
@@ -211,12 +226,15 @@ export function App() {
         SyncEngine.pullAndMerge(currentUser.id).then(() => {
           if (!isMounted) return;
           // Re-hydrate local states with latest merged cloud data
-          setSettings(loadSettings());
+          const loadedSettings = loadSettings();
+          setSettings(loadedSettings);
           setTasks(loadTasks());
           setSessions(loadSessions());
           setDailyGoal(loadDailyGoal());
           setAtmospherePresets(loadAtmospherePresets());
           setFavoriteAtmospheres(loadFavoriteAtmospheres());
+          const currentTheme = loadedSettings.theme || 'dark';
+          setAtmosphere(getAtmosphereById(loadSavedBackground(currentTheme), currentTheme));
         });
       }
     });
@@ -750,24 +768,29 @@ export function App() {
     setSettings(DEFAULT_SETTINGS);
     setTasks([]);
     setSessions([]);
-    setDailyGoal(loadDailyGoal());
+    setDailyGoal(DEFAULT_DAILY_GOAL);
     setAtmospherePresets([]);
-    setFavoriteAtmospheres(loadFavoriteAtmospheres());
+    setFavoriteAtmospheres(['tokyo', 'rain', 'soft-ivory']);
     setSoundMixerState(DEFAULT_SOUND_MIXER);
     setActiveTaskId(null);
-    const targetBg = getAtmosphereById(loadSavedBackground(DEFAULT_SETTINGS.theme), DEFAULT_SETTINGS.theme);
-    setAtmosphere(targetBg);
+    setAtmosphere(getAtmosphereById(loadSavedBackground(DEFAULT_SETTINGS.theme), DEFAULT_SETTINGS.theme));
+    setMode('pomodoro');
+    setTimerState('idle');
+    setTimeLeft(DEFAULT_SETTINGS.pomodoroDuration * 60);
   }, []);
 
   const handleSyncNow = useCallback(async () => {
     if (user) {
       await SyncEngine.pullAndMerge(user.id);
-      setSettings(loadSettings());
+      const loadedSettings = loadSettings();
+      setSettings(loadedSettings);
       setTasks(loadTasks());
       setSessions(loadSessions());
       setDailyGoal(loadDailyGoal());
       setAtmospherePresets(loadAtmospherePresets());
       setFavoriteAtmospheres(loadFavoriteAtmospheres());
+      const currentTheme = loadedSettings.theme || 'dark';
+      setAtmosphere(getAtmosphereById(loadSavedBackground(currentTheme), currentTheme));
     }
   }, [user]);
 
@@ -780,14 +803,20 @@ export function App() {
   const handleAuthSuccess = useCallback((authedUser: UserProfile) => {
     setUser(authedUser);
     SyncEngine.pullAndMerge(authedUser.id).then(() => {
-      setSettings(loadSettings());
+      const loadedSettings = loadSettings();
+      setSettings(loadedSettings);
       setTasks(loadTasks());
       setSessions(loadSessions());
       setDailyGoal(loadDailyGoal());
       setAtmospherePresets(loadAtmospherePresets());
       setFavoriteAtmospheres(loadFavoriteAtmospheres());
+      const currentTheme = loadedSettings.theme || 'dark';
+      setAtmosphere(getAtmosphereById(loadSavedBackground(currentTheme), currentTheme));
+      if (timerState === 'idle') {
+        setTimeLeft(getModeDurationSeconds(mode, loadedSettings));
+      }
     });
-  }, []);
+  }, [mode, timerState, getModeDurationSeconds]);
 
   const isLight = settings.theme === 'light';
 

@@ -344,11 +344,17 @@ CREATE TABLE IF NOT EXISTS public.user_settings (
   sound_enabled BOOLEAN NOT NULL DEFAULT TRUE,
   sound_volume NUMERIC NOT NULL DEFAULT 0.8 CHECK (sound_volume >= 0 AND sound_volume <= 1),
   notifications_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+  ticking_enabled BOOLEAN NOT NULL DEFAULT FALSE,
   theme TEXT NOT NULL DEFAULT 'dark' CHECK (theme IN ('light', 'dark')),
   timer_color TEXT NOT NULL DEFAULT 'default',
+  language TEXT NOT NULL DEFAULT 'en' CHECK (language IN ('en', 'tr')),
   favorite_atmospheres JSONB NOT NULL DEFAULT '[]'::jsonb,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
+
+-- Idempotent column additions for existing installations
+ALTER TABLE public.user_settings ADD COLUMN IF NOT EXISTS ticking_enabled BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE public.user_settings ADD COLUMN IF NOT EXISTS language TEXT NOT NULL DEFAULT 'en';
 
 ALTER TABLE public.user_settings ENABLE ROW LEVEL SECURITY;
 
@@ -362,6 +368,7 @@ EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
 CREATE INDEX IF NOT EXISTS idx_user_settings_user ON public.user_settings(user_id);
+GRANT ALL ON TABLE public.user_settings TO authenticated;
 
 -- 2. DAILY GOALS
 CREATE TABLE IF NOT EXISTS public.daily_goals (
@@ -383,6 +390,7 @@ EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
 CREATE INDEX IF NOT EXISTS idx_daily_goals_user ON public.daily_goals(user_id);
+GRANT ALL ON TABLE public.daily_goals TO authenticated;
 
 -- 3. FOCUS TASKS
 CREATE TABLE IF NOT EXISTS public.tasks (
@@ -410,6 +418,7 @@ END $$;
 
 CREATE INDEX IF NOT EXISTS idx_tasks_user_id ON public.tasks(user_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_user_created ON public.tasks(user_id, created_at DESC);
+GRANT ALL ON TABLE public.tasks TO authenticated;
 
 -- 4. FOCUS SESSIONS / HISTORY
 CREATE TABLE IF NOT EXISTS public.focus_sessions (
@@ -435,6 +444,7 @@ EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
 CREATE INDEX IF NOT EXISTS idx_focus_sessions_user_time ON public.focus_sessions(user_id, timestamp DESC);
+GRANT ALL ON TABLE public.focus_sessions TO authenticated;
 
 -- 5. ATMOSPHERE PRESETS
 CREATE TABLE IF NOT EXISTS public.atmosphere_presets (
@@ -459,6 +469,7 @@ EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
 CREATE INDEX IF NOT EXISTS idx_atmosphere_presets_user ON public.atmosphere_presets(user_id);
+GRANT ALL ON TABLE public.atmosphere_presets TO authenticated;
 
 -- 6. SUPABASE STORAGE: AVATARS BUCKET & RLS POLICIES
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)

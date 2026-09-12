@@ -22,6 +22,8 @@ import {
   saveAtmospherePresets,
   loadFavoriteAtmospheres,
   saveFavoriteAtmospheres,
+  DEFAULT_SETTINGS,
+  DEFAULT_DAILY_GOAL,
 } from '../utils/storage';
 
 const PENDING_QUEUE_KEY_V2 = 'luno_pending_sync_queue_v2';
@@ -312,8 +314,14 @@ export class SyncEngine {
         setLastSyncedAt(this.lastSyncedAt);
         return true;
       }
+      if (import.meta.env.DEV) {
+        console.error('[Luno Sync Engine Error in pushTask]:', error);
+      }
       return false;
-    } catch {
+    } catch (err) {
+      if (import.meta.env.DEV) {
+        console.error('[Luno Sync Engine Exception in pushTask]:', err);
+      }
       return false;
     } finally {
       this.isSyncing = false;
@@ -338,8 +346,14 @@ export class SyncEngine {
         setLastSyncedAt(this.lastSyncedAt);
         return true;
       }
+      if (import.meta.env.DEV) {
+        console.error('[Luno Sync Engine Error in pushDeletedTask]:', error);
+      }
       return false;
-    } catch {
+    } catch (err) {
+      if (import.meta.env.DEV) {
+        console.error('[Luno Sync Engine Exception in pushDeletedTask]:', err);
+      }
       return false;
     }
   }
@@ -371,8 +385,14 @@ export class SyncEngine {
         setLastSyncedAt(this.lastSyncedAt);
         return true;
       }
+      if (import.meta.env.DEV) {
+        console.error('[Luno Sync Engine Error in pushSession]:', error);
+      }
       return false;
-    } catch {
+    } catch (err) {
+      if (import.meta.env.DEV) {
+        console.error('[Luno Sync Engine Exception in pushSession]:', err);
+      }
       return false;
     } finally {
       this.isSyncing = false;
@@ -400,8 +420,10 @@ export class SyncEngine {
         sound_enabled: settings.soundEnabled,
         sound_volume: settings.soundVolume,
         notifications_enabled: settings.notificationsEnabled,
+        ticking_enabled: settings.tickingEnabled,
         theme: settings.theme,
         timer_color: settings.timerColor,
+        language: settings.language || 'en',
         favorite_atmospheres: favorites,
         updated_at: new Date().toISOString(),
       });
@@ -414,8 +436,14 @@ export class SyncEngine {
         setLastSyncedAt(this.lastSyncedAt);
         return true;
       }
+      if (import.meta.env.DEV) {
+        console.error('[Luno Sync Engine Error in pushSettings]:', error);
+      }
       return false;
-    } catch {
+    } catch (err) {
+      if (import.meta.env.DEV) {
+        console.error('[Luno Sync Engine Exception in pushSettings]:', err);
+      }
       return false;
     } finally {
       this.isSyncing = false;
@@ -448,8 +476,14 @@ export class SyncEngine {
         setLastSyncedAt(this.lastSyncedAt);
         return true;
       }
+      if (import.meta.env.DEV) {
+        console.error('[Luno Sync Engine Error in pushDailyGoal]:', error);
+      }
       return false;
-    } catch {
+    } catch (err) {
+      if (import.meta.env.DEV) {
+        console.error('[Luno Sync Engine Exception in pushDailyGoal]:', err);
+      }
       return false;
     } finally {
       this.isSyncing = false;
@@ -481,8 +515,14 @@ export class SyncEngine {
         setLastSyncedAt(this.lastSyncedAt);
         return true;
       }
+      if (import.meta.env.DEV) {
+        console.error('[Luno Sync Engine Error in pushPreset]:', error);
+      }
       return false;
-    } catch {
+    } catch (err) {
+      if (import.meta.env.DEV) {
+        console.error('[Luno Sync Engine Exception in pushPreset]:', err);
+      }
       return false;
     }
   }
@@ -504,8 +544,14 @@ export class SyncEngine {
         setLastSyncedAt(this.lastSyncedAt);
         return true;
       }
+      if (import.meta.env.DEV) {
+        console.error('[Luno Sync Engine Error in pushDeletedPreset]:', error);
+      }
       return false;
-    } catch {
+    } catch (err) {
+      if (import.meta.env.DEV) {
+        console.error('[Luno Sync Engine Exception in pushDeletedPreset]:', err);
+      }
       return false;
     }
   }
@@ -590,7 +636,7 @@ export class SyncEngine {
       const localFavs = loadFavoriteAtmospheres();
 
       // 1. Settings & Goals
-      await client.from('user_settings').upsert({
+      const { error: settingsErr } = await client.from('user_settings').upsert({
         user_id: userId,
         pomodoro_duration: localSettings.pomodoroDuration,
         short_break_duration: localSettings.shortBreakDuration,
@@ -600,18 +646,26 @@ export class SyncEngine {
         sound_enabled: localSettings.soundEnabled,
         sound_volume: localSettings.soundVolume,
         notifications_enabled: localSettings.notificationsEnabled,
+        ticking_enabled: localSettings.tickingEnabled,
         theme: localSettings.theme,
         timer_color: localSettings.timerColor,
+        language: localSettings.language || 'en',
         favorite_atmospheres: localFavs,
         updated_at: new Date().toISOString(),
       });
+      if (settingsErr && import.meta.env.DEV) {
+        console.error('[Luno Sync Engine Error in migrateLocalDataToAccount user_settings]:', settingsErr);
+      }
 
-      await client.from('daily_goals').upsert({
+      const { error: goalErr } = await client.from('daily_goals').upsert({
         user_id: userId,
         target_pomodoros: localGoal.targetPomodoros,
         target_minutes: localGoal.targetMinutes,
         updated_at: new Date().toISOString(),
       });
+      if (goalErr && import.meta.env.DEV) {
+        console.error('[Luno Sync Engine Error in migrateLocalDataToAccount daily_goals]:', goalErr);
+      }
 
       // 2. Tasks
       if (localTasks.length > 0) {
@@ -625,7 +679,10 @@ export class SyncEngine {
           completed_at: t.completedAt ? new Date(t.completedAt).toISOString() : null,
           updated_at: new Date(t.updatedAt || t.createdAt).toISOString(),
         }));
-        await client.from('tasks').upsert(payload);
+        const { error: tasksErr } = await client.from('tasks').upsert(payload);
+        if (tasksErr && import.meta.env.DEV) {
+          console.error('[Luno Sync Engine Error in migrateLocalDataToAccount tasks]:', tasksErr);
+        }
       }
 
       // 3. Sessions
@@ -638,7 +695,10 @@ export class SyncEngine {
           duration_minutes: s.durationMinutes,
           task_title: s.taskTitle || null,
         }));
-        await client.from('focus_sessions').upsert(sessionPayload);
+        const { error: sessErr } = await client.from('focus_sessions').upsert(sessionPayload);
+        if (sessErr && import.meta.env.DEV) {
+          console.error('[Luno Sync Engine Error in migrateLocalDataToAccount sessions]:', sessErr);
+        }
       }
 
       // 4. Presets
@@ -651,7 +711,10 @@ export class SyncEngine {
           sound_mixer: p.soundMixer,
           created_at: new Date(p.createdAt).toISOString(),
         }));
-        await client.from('atmosphere_presets').upsert(presetsPayload);
+        const { error: presetsErr } = await client.from('atmosphere_presets').upsert(presetsPayload);
+        if (presetsErr && import.meta.env.DEV) {
+          console.error('[Luno Sync Engine Error in migrateLocalDataToAccount presets]:', presetsErr);
+        }
       }
 
       this.lastSyncedAt = Date.now();
@@ -659,6 +722,9 @@ export class SyncEngine {
       clearPendingQueue();
       return { success: true };
     } catch (err: unknown) {
+      if (import.meta.env.DEV) {
+        console.error('[Luno Sync Engine Exception in migrateLocalDataToAccount]:', err);
+      }
       const msg = err instanceof Error ? err.message : 'Migration failed.';
       return { success: false, error: msg };
     } finally {
@@ -687,6 +753,14 @@ export class SyncEngine {
         client.from('focus_sessions').select('*').eq('user_id', userId),
         client.from('atmosphere_presets').select('*').eq('user_id', userId),
       ]);
+
+      if (import.meta.env.DEV) {
+        if (settingsRes.error) console.error('[Luno Sync Engine Error in fetchSettings]:', settingsRes.error);
+        if (goalRes.error) console.error('[Luno Sync Engine Error in fetchGoal]:', goalRes.error);
+        if (tasksRes.error) console.error('[Luno Sync Engine Error in fetchTasks]:', tasksRes.error);
+        if (sessionsRes.error) console.error('[Luno Sync Engine Error in fetchSessions]:', sessionsRes.error);
+        if (presetsRes.error) console.error('[Luno Sync Engine Error in fetchPresets]:', presetsRes.error);
+      }
 
       // 1. Set Tasks from Cloud
       if (tasksRes.data && Array.isArray(tasksRes.data)) {
@@ -736,8 +810,10 @@ export class SyncEngine {
           soundEnabled: typeof remoteSettings.sound_enabled === 'boolean' ? remoteSettings.sound_enabled : true,
           soundVolume: typeof remoteSettings.sound_volume === 'number' ? Math.max(0, Math.min(1, remoteSettings.sound_volume)) : 0.8,
           notificationsEnabled: typeof remoteSettings.notifications_enabled === 'boolean' ? remoteSettings.notifications_enabled : true,
+          tickingEnabled: typeof remoteSettings.ticking_enabled === 'boolean' ? remoteSettings.ticking_enabled : false,
           theme: sanitizeTheme(remoteSettings.theme, 'dark'),
           timerColor: sanitizeTimerColor(remoteSettings.timer_color, 'default'),
+          language: remoteSettings.language === 'tr' || remoteSettings.language === 'en' ? remoteSettings.language : current.language || 'en',
         };
         saveSettings(updated);
 
@@ -746,8 +822,9 @@ export class SyncEngine {
         }
       } else {
         // Initial clean setup for new account in cloud
-        saveSettings(loadSettings());
-        await this.pushSettings(loadSettings(), loadFavoriteAtmospheres(), userId);
+        saveSettings(DEFAULT_SETTINGS);
+        saveFavoriteAtmospheres(['tokyo', 'rain', 'soft-ivory']);
+        await this.pushSettings(DEFAULT_SETTINGS, ['tokyo', 'rain', 'soft-ivory'], userId);
       }
 
       // 4. Set Daily Goal from Cloud
@@ -759,8 +836,8 @@ export class SyncEngine {
         saveDailyGoal(mergedGoal);
       } else {
         // Initial setup for daily goal in cloud
-        saveDailyGoal(loadDailyGoal());
-        await this.pushDailyGoal(loadDailyGoal(), userId);
+        saveDailyGoal(DEFAULT_DAILY_GOAL);
+        await this.pushDailyGoal(DEFAULT_DAILY_GOAL, userId);
       }
 
       // 5. Set Presets from Cloud
@@ -783,6 +860,9 @@ export class SyncEngine {
       setLastSyncedAt(this.lastSyncedAt);
       return { success: true };
     } catch (err: unknown) {
+      if (import.meta.env.DEV) {
+        console.error('[Luno Sync Engine Exception in pullAndMerge]:', err);
+      }
       const msg = err instanceof Error ? err.message : 'Sync failed.';
       return { success: false, error: msg };
     } finally {
