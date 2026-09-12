@@ -1060,7 +1060,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             }`}>
                               <Clock className="w-3 h-3 text-indigo-400 shrink-0" />
                               <span className="font-timer">{formatTotalFocusTime(totalFocusMinutes, language)}</span>
-                              <span className="font-normal opacity-75">{language === 'tr' ? 'Odak' : 'Focus'}</span>
                             </span>
                           </div>
                         </div>

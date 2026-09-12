@@ -1,6 +1,6 @@
 import type { FocusSession, AppLanguage } from '../types';
 import { isToday, isYesterday, isSameDay, getStartOfWeek } from './dates';
-import { formatDuration } from './translations';
+import { formatDurationVerbose } from './translations';
 
 export const getPomodoroSessions = (sessions: FocusSession[]): FocusSession[] => {
   return sessions.filter((s) => s.mode === 'pomodoro');
@@ -11,7 +11,7 @@ export const getTotalFocusMinutes = (sessions: FocusSession[]): number => {
 };
 
 export const formatTotalFocusTime = (totalMinutes: number, lang: AppLanguage = 'en'): string => {
-  return formatDuration(totalMinutes, lang);
+  return formatDurationVerbose(totalMinutes, lang);
 };
 
 
