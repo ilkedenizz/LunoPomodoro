@@ -104,27 +104,29 @@ export const Header: React.FC<HeaderProps> = React.memo(({
         </div>
       </div>
 
-      {/* Today Stats Pill - Desktop */}
-      <button
-        onClick={onOpenHistory}
-        aria-label={t.focusHistoryTooltip}
-        className={`hidden md:flex items-center space-x-2 px-4 py-1.5 rounded-full glass-pill glass-panel-hover text-xs font-medium cursor-pointer focus:outline-none focus-visible:ring-2 ${
-          isLight
-            ? 'text-slate-800 focus-visible:ring-slate-400'
-            : 'text-white/90 focus-visible:ring-white/50'
-        }`}
-        title={t.focusHistoryTooltip}
-      >
-        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-        <span className={isLight ? 'text-slate-500' : 'text-white/60'}>{t.today}:</span>
-        <span className={`font-semibold ${isLight ? 'text-slate-900' : 'text-white'}`}>
-          {todayPomodoros} {todayPomodoros === 1 ? t.todayPomodoroSingle : t.todayPomodoroPlural}
-        </span>
-        <span className={isLight ? 'text-slate-400' : 'text-white/40'}>•</span>
-        <span className={isLight ? 'text-slate-700' : 'text-white/80'}>
-          {formatDurationHoursMinutes(todayMinutes, language)} {t.todayFocused}
-        </span>
-      </button>
+      {/* Today Stats Pill - Centered at Viewport Horizontal Center */}
+      <div className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 pointer-events-none hidden md:flex items-center justify-center z-10">
+        <button
+          onClick={onOpenHistory}
+          aria-label={t.focusHistoryTooltip}
+          className={`pointer-events-auto flex items-center space-x-2 px-4 py-1.5 rounded-full glass-pill glass-panel-hover text-xs font-medium cursor-pointer focus:outline-none focus-visible:ring-2 whitespace-nowrap transition-all ${
+            isLight
+              ? 'text-slate-800 focus-visible:ring-slate-400'
+              : 'text-white/90 focus-visible:ring-white/50'
+          }`}
+          title={t.focusHistoryTooltip}
+        >
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+          <span className={isLight ? 'text-slate-500' : 'text-white/60'}>{t.today}:</span>
+          <span className={`font-semibold ${isLight ? 'text-slate-900' : 'text-white'}`}>
+            {todayPomodoros} {todayPomodoros === 1 ? t.todayPomodoroSingle : t.todayPomodoroPlural}
+          </span>
+          <span className={isLight ? 'text-slate-400' : 'text-white/40'}>•</span>
+          <span className={isLight ? 'text-slate-700' : 'text-white/80'}>
+            {formatDurationHoursMinutes(todayMinutes, language)} {t.todayFocused}
+          </span>
+        </button>
+      </div>
 
       {/* Action Control Buttons */}
       <div className="flex items-center space-x-1 xs:space-x-1.5 sm:space-x-2 shrink-0">
