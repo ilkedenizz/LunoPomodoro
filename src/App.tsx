@@ -1332,6 +1332,8 @@ export function App() {
             isOpen={isHistoryOpen}
             onClose={handleCloseHistory}
             sessions={sessions}
+            tasks={tasks}
+            dailyGoal={dailyGoal}
             language={settings.language || 'en'}
           />
         )}

@@ -5,14 +5,19 @@ import type { PeriodType } from './PeriodSelector';
 import { StatsOverview } from './StatsOverview';
 import { FocusChart } from './FocusChart';
 import { SessionHistory } from './SessionHistory';
-import type { FocusSession, AppLanguage } from '../types';
+import type { FocusSession, AppLanguage, Task, DailyGoal } from '../types';
 import {
   getTotalFocusMinutes,
   getPomodoroCount,
+  getPartialPomodoroCount,
+  getCompletedTasksCount,
   getCurrentStreak,
+  getBestStreak,
   getBestDay,
   getWeeklyStats,
   getMonthlyStats,
+  getTodayHourlyStats,
+  getTodaySummary,
   getAllTimeStats,
   getGroupedRecentSessions,
 } from '../utils/statistics';
@@ -23,6 +28,8 @@ interface FocusHistoryModalProps {
   isOpen: boolean;
   onClose: () => void;
   sessions: FocusSession[];
+  tasks?: Task[];
+  dailyGoal?: DailyGoal;
   language?: AppLanguage;
 }
 
@@ -30,6 +37,8 @@ export const FocusHistoryModal: React.FC<FocusHistoryModalProps> = React.memo(({
   isOpen,
   onClose,
   sessions,
+  tasks,
+  dailyGoal,
   language = 'en',
 }) => {
   const [period, setPeriod] = useState<PeriodType>('week');
@@ -38,16 +47,52 @@ export const FocusHistoryModal: React.FC<FocusHistoryModalProps> = React.memo(({
   const totalMinutes = useMemo(() => getTotalFocusMinutes(sessions), [sessions]);
   const totalPomodoros = useMemo(() => getPomodoroCount(sessions), [sessions]);
   const currentStreak = useMemo(() => getCurrentStreak(sessions), [sessions]);
+  const bestStreak = useMemo(() => getBestStreak(sessions), [sessions]);
   const bestDay = useMemo(() => getBestDay(sessions, language), [sessions, language]);
 
+  const todayHourlyStats = useMemo(() => getTodayHourlyStats(sessions), [sessions]);
+  const todaySummary = useMemo(() => getTodaySummary(sessions, dailyGoal), [sessions, dailyGoal]);
   const weeklyStats = useMemo(() => getWeeklyStats(sessions, language), [sessions, language]);
   const monthlyStats = useMemo(() => getMonthlyStats(sessions), [sessions]);
   const allTimeStats = useMemo(() => getAllTimeStats(sessions), [sessions]);
+  const completedTasksCount = useMemo(() => getCompletedTasksCount(tasks), [tasks]);
+  const partialPomodorosCount = useMemo(() => getPartialPomodoroCount(sessions), [sessions]);
   const groupedSessions = useMemo(() => getGroupedRecentSessions(sessions, language), [sessions, language]);
+
+  // Dynamic metrics based on selected period
+  const overviewMetrics = useMemo(() => {
+    if (period === 'today') {
+      return {
+        minutes: todaySummary.totalMinutes,
+        pomodoros: todaySummary.completedPomodoros,
+        partialPomodoros: todaySummary.partialPomodoros,
+        goalProgress: todaySummary.goalProgressPercent,
+      };
+    }
+    if (period === 'week') {
+      const weekMinutes = weeklyStats.reduce((acc, d) => acc + d.minutes, 0);
+      const weekPomodoros = weeklyStats.reduce((acc, d) => acc + d.pomodoros, 0);
+      return {
+        minutes: weekMinutes,
+        pomodoros: weekPomodoros,
+        partialPomodoros: 0,
+        goalProgress: undefined,
+      };
+    }
+    // month
+    const monthMinutes = monthlyStats.reduce((acc, d) => acc + d.minutes, 0);
+    const monthPomodoros = monthlyStats.reduce((acc, d) => acc + d.pomodoros, 0);
+    return {
+      minutes: monthMinutes,
+      pomodoros: monthPomodoros,
+      partialPomodoros: 0,
+      goalProgress: undefined,
+    };
+  }, [period, todaySummary, weeklyStats, monthlyStats]);
 
   if (!isOpen) return null;
 
-  const hasHistory = totalMinutes > 0 || totalPomodoros > 0;
+  const hasHistory = totalMinutes > 0 || totalPomodoros > 0 || sessions.length > 0;
 
   return (
     <div
@@ -114,16 +159,20 @@ export const FocusHistoryModal: React.FC<FocusHistoryModalProps> = React.memo(({
 
               {/* Stats Summary Overview Cards */}
               <StatsOverview
-                totalMinutes={totalMinutes}
-                pomodoros={totalPomodoros}
+                totalMinutes={overviewMetrics.minutes}
+                pomodoros={overviewMetrics.pomodoros}
                 currentStreak={currentStreak}
                 bestDay={bestDay}
+                period={period}
+                partialPomodoros={overviewMetrics.partialPomodoros}
+                goalProgressPercent={overviewMetrics.goalProgress}
                 language={language}
               />
 
-              {/* Weekly Bar Chart / Monthly Heatmap */}
+              {/* Charts (Today Hourly / Weekly / Monthly) */}
               <FocusChart
                 period={period}
+                todayHourlyStats={todayHourlyStats}
                 weeklyStats={weeklyStats}
                 monthlyStats={monthlyStats}
                 language={language}
@@ -138,7 +187,7 @@ export const FocusHistoryModal: React.FC<FocusHistoryModalProps> = React.memo(({
                   </h3>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 text-center">
                   <div>
                     <span className="text-[10px] text-white/50 uppercase font-mono block mb-1">
                       {t.totalFocus}
@@ -154,6 +203,20 @@ export const FocusHistoryModal: React.FC<FocusHistoryModalProps> = React.memo(({
                     </span>
                     <span className="font-timer text-lg font-bold text-white">
                       {allTimeStats.totalPomodoros}
+                    </span>
+                    {partialPomodorosCount > 0 && (
+                      <span className="text-[9px] text-amber-300/80 font-mono block">
+                        +{partialPomodorosCount} {t.sessionIncomplete}
+                      </span>
+                    )}
+                  </div>
+
+                  <div>
+                    <span className="text-[10px] text-white/50 uppercase font-mono block mb-1">
+                      {t.completedTasks}
+                    </span>
+                    <span className="font-timer text-lg font-bold text-white">
+                      {completedTasksCount}
                     </span>
                   </div>
 
@@ -172,6 +235,15 @@ export const FocusHistoryModal: React.FC<FocusHistoryModalProps> = React.memo(({
                     </span>
                     <span className="font-timer text-lg font-bold text-white">
                       {formatDuration(allTimeStats.avgMinutesPerFocusDay, language)}
+                    </span>
+                  </div>
+
+                  <div>
+                    <span className="text-[10px] text-white/50 uppercase font-mono block mb-1">
+                      {t.bestStreak}
+                    </span>
+                    <span className="font-timer text-lg font-bold text-white">
+                      {bestStreak} <span className="text-xs font-normal text-white/60">{t.days}</span>
                     </span>
                   </div>
                 </div>

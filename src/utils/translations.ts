@@ -298,6 +298,14 @@ export interface Translations {
   noSessions: string;
   sessionCompleted: string;
   sessionIncomplete: string;
+  todayActivity: string;
+  hoverForDetailsToday: string;
+  todayHourlyBreakdown: string;
+  partialSessions: string;
+  bestStreak: string;
+  goalProgress: string;
+  activeDays: string;
+  dailyAverage: string;
 }
 
 export const TRANSLATIONS: Record<AppLanguage, Translations> = {
@@ -599,6 +607,14 @@ export const TRANSLATIONS: Record<AppLanguage, Translations> = {
     noSessions: 'No focus sessions recorded yet.',
     sessionCompleted: 'Completed',
     sessionIncomplete: 'Incomplete',
+    todayActivity: "Today's Focus Activity",
+    hoverForDetailsToday: 'Hover over an hour for details',
+    todayHourlyBreakdown: 'Hourly Timeline',
+    partialSessions: 'Partial Sessions',
+    bestStreak: 'Best Streak',
+    goalProgress: 'Goal Progress',
+    activeDays: 'Active Days',
+    dailyAverage: 'Daily Average',
   },
   tr: {
     // Common
@@ -898,6 +914,14 @@ export const TRANSLATIONS: Record<AppLanguage, Translations> = {
     noSessions: 'Henüz kaydedilmiş çalışma oturumu yok.',
     sessionCompleted: 'Tamamlandı',
     sessionIncomplete: 'Yarıda bırakıldı',
+    todayActivity: 'Bugünkü Odak Aktivitesi',
+    hoverForDetailsToday: 'Detaylar için bir saatin üzerine gelin',
+    todayHourlyBreakdown: 'Saatlik Zaman Çizelgesi',
+    partialSessions: 'Yarım Kalan Oturumlar',
+    bestStreak: 'En İyi Seri',
+    goalProgress: 'Hedef İlerlemesi',
+    activeDays: 'Aktif Gün',
+    dailyAverage: 'Günlük Ortalama',
   },
 };
 

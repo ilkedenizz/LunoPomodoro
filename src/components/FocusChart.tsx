@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { DayWeeklyStat, DayMonthlyStat } from '../utils/statistics';
+import type { DayWeeklyStat, DayMonthlyStat, TodayHourlyStat } from '../utils/statistics';
 import type { PeriodType } from './PeriodSelector';
 import type { AppLanguage } from '../types';
 import { formatDuration } from '../utils/dates';
@@ -7,6 +7,7 @@ import { getTranslations } from '../utils/translations';
 
 interface FocusChartProps {
   period: PeriodType;
+  todayHourlyStats?: TodayHourlyStat[];
   weeklyStats: DayWeeklyStat[];
   monthlyStats: DayMonthlyStat[];
   language?: AppLanguage;
@@ -14,19 +15,91 @@ interface FocusChartProps {
 
 export const FocusChart: React.FC<FocusChartProps> = ({
   period,
+  todayHourlyStats = [],
   weeklyStats,
   monthlyStats,
   language = 'en',
 }) => {
+  const [hoveredTodayItem, setHoveredTodayItem] = useState<TodayHourlyStat | null>(null);
   const [hoveredWeekItem, setHoveredWeekItem] = useState<DayWeeklyStat | null>(null);
   const [hoveredMonthItem, setHoveredMonthItem] = useState<DayMonthlyStat | null>(null);
   const t = getTranslations(language);
   const locale = language === 'tr' ? 'tr-TR' : 'en-US';
 
+  // 1. TODAY'S HOURLY TIMELINE
   if (period === 'today') {
-    return null; // Handled separately in Today view
+    const maxHourMinutes = Math.max(1, ...todayHourlyStats.map((h) => h.minutes));
+
+    return (
+      <div className="w-full p-4 sm:p-6 rounded-3xl glass-panel border border-white/10 flex flex-col">
+        {/* Graph Title & Tooltip Header */}
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-white/70">
+            {t.todayActivity}
+          </h3>
+          <div className="h-5 text-xs text-indigo-200 font-medium">
+            {hoveredTodayItem ? (
+              <span>
+                {hoveredTodayItem.hourLabel} - {hoveredTodayItem.hour.toString().padStart(2, '0')}:59:{' '}
+                <strong className="text-white">
+                  {hoveredTodayItem.pomodoros} {t.pomodoro}
+                </strong>{' '}
+                ({formatDuration(hoveredTodayItem.minutes, language)})
+              </span>
+            ) : (
+              <span className="text-white/40">{t.hoverForDetailsToday}</span>
+            )}
+          </div>
+        </div>
+
+        {/* 24-Hour Timeline Bar Chart */}
+        <div className="flex items-end justify-between gap-1 sm:gap-1.5 h-44 pt-6 pb-2 px-1 sm:px-2 border-b border-white/10">
+          {todayHourlyStats.map((item) => {
+            const heightPercent = Math.max(6, Math.round((item.minutes / maxHourMinutes) * 100));
+            const endHour = item.hour.toString().padStart(2, '0');
+
+            return (
+              <div
+                key={item.hour}
+                onMouseEnter={() => setHoveredTodayItem(item)}
+                onMouseLeave={() => setHoveredTodayItem(null)}
+                className="flex-1 flex flex-col items-center h-full justify-end group cursor-pointer"
+                tabIndex={0}
+                aria-label={`${item.hourLabel} - ${endHour}:59: ${item.pomodoros} pomodoros, ${formatDuration(item.minutes, language)}`}
+              >
+                {/* Bar Element */}
+                <div className="w-full flex flex-col items-center justify-end h-full relative">
+                  <div
+                    className={`w-full max-w-[18px] rounded-t-lg transition-all duration-300 ease-out ${
+                      item.minutes > 0
+                        ? 'bg-gradient-to-t from-indigo-500 to-white shadow-glow'
+                        : item.isCurrentHour
+                        ? 'bg-white/25 ring-1 ring-white/40'
+                        : 'bg-white/10 group-hover:bg-white/20'
+                    }`}
+                    style={{ height: item.minutes > 0 ? `${heightPercent}%` : '4px' }}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Hours X-Axis Labels (Key milestones) */}
+        <div className="flex justify-between px-1 pt-2 text-[10px] font-mono text-white/50">
+          <span>00:00</span>
+          <span>04:00</span>
+          <span>08:00</span>
+          <span>12:00</span>
+          <span>16:00</span>
+          <span>20:00</span>
+          <span>23:59</span>
+        </div>
+      </div>
+    );
   }
 
+  // 2. WEEKLY BAR CHART
   if (period === 'week') {
     const maxMinutes = Math.max(1, ...weeklyStats.map((d) => d.minutes));
 
@@ -102,7 +175,7 @@ export const FocusChart: React.FC<FocusChartProps> = ({
     );
   }
 
-  // Monthly Overview Heatmap
+  // 3. MONTHLY HEATMAP
   return (
     <div className="w-full p-4 sm:p-6 rounded-3xl glass-panel border border-white/10 flex flex-col">
       <div className="flex items-center justify-between mb-4">
@@ -155,4 +228,5 @@ export const FocusChart: React.FC<FocusChartProps> = ({
     </div>
   );
 };
+
  

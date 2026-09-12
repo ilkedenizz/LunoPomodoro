@@ -1,4 +1,4 @@
-import type { FocusSession, AppLanguage } from '../types';
+import type { FocusSession, AppLanguage, Task, DailyGoal } from '../types';
 import { isToday, isYesterday, isSameDay, getStartOfWeek } from './dates';
 import { formatDurationVerbose } from './translations';
 
@@ -21,9 +21,21 @@ export const formatTotalFocusTime = (totalMinutes: number, lang: AppLanguage = '
   return formatDurationVerbose(totalMinutes, lang);
 };
 
-
 export const getPomodoroCount = (sessions: FocusSession[]): number => {
   return getPomodoroSessions(sessions).filter((s) => s.completed !== false).length;
+};
+
+export const getCompletedPomodoroCount = (sessions: FocusSession[]): number => {
+  return getPomodoroSessions(sessions).filter((s) => s.completed !== false).length;
+};
+
+export const getPartialPomodoroCount = (sessions: FocusSession[]): number => {
+  return getPomodoroSessions(sessions).filter((s) => s.completed === false).length;
+};
+
+export const getCompletedTasksCount = (tasks?: Task[]): number => {
+  if (!tasks || !Array.isArray(tasks)) return 0;
+  return tasks.filter((t) => t.completed && !t.deletedAt).length;
 };
 
 // Returns unique YYYY-MM-DD date strings sorted ascending
@@ -286,5 +298,93 @@ export const getGroupedRecentSessions = (sessions: FocusSession[], lang: AppLang
     .sort((a, b) => b.timestamp - a.timestamp);
 
   return sortedGroups;
+};
+
+export interface TodayHourlyStat {
+  hour: number; // 0..23
+  hourLabel: string; // e.g. "00:00", "09:00", "14:00"
+  minutes: number;
+  pomodoros: number;
+  completedPomodoros: number;
+  partialPomodoros: number;
+  sessions: FocusSession[];
+  isCurrentHour: boolean;
+}
+
+export const getTodayHourlyStats = (sessions: FocusSession[]): TodayHourlyStat[] => {
+  const poms = getPomodoroSessions(sessions);
+  const todaySessions = poms.filter((s) => isToday(s.timestamp));
+  const currentHour = new Date().getHours();
+
+  const hourlyMap = new Map<number, FocusSession[]>();
+  for (let h = 0; h < 24; h++) {
+    hourlyMap.set(h, []);
+  }
+
+  todaySessions.forEach((s) => {
+    const h = new Date(s.timestamp).getHours();
+    if (hourlyMap.has(h)) {
+      hourlyMap.get(h)!.push(s);
+    }
+  });
+
+  const result: TodayHourlyStat[] = [];
+  for (let h = 0; h < 24; h++) {
+    const hourSessions = hourlyMap.get(h) || [];
+    const minutes = hourSessions.reduce((acc, s) => acc + getSessionMinutes(s), 0);
+    const completedPomodoros = hourSessions.filter((s) => s.completed !== false).length;
+    const partialPomodoros = hourSessions.filter((s) => s.completed === false).length;
+
+    result.push({
+      hour: h,
+      hourLabel: `${h.toString().padStart(2, '0')}:00`,
+      minutes,
+      pomodoros: hourSessions.length,
+      completedPomodoros,
+      partialPomodoros,
+      sessions: hourSessions,
+      isCurrentHour: h === currentHour,
+    });
+  }
+
+  return result;
+};
+
+export interface TodaySummary {
+  totalMinutes: number;
+  totalPomodoros: number;
+  completedPomodoros: number;
+  partialPomodoros: number;
+  targetMinutes: number;
+  targetPomodoros: number;
+  goalProgressPercent: number;
+}
+
+export const getTodaySummary = (sessions: FocusSession[], dailyGoal?: DailyGoal): TodaySummary => {
+  const poms = getPomodoroSessions(sessions);
+  const todaySessions = poms.filter((s) => isToday(s.timestamp));
+
+  const totalMinutes = todaySessions.reduce((acc, s) => acc + getSessionMinutes(s), 0);
+  const completedPomodoros = todaySessions.filter((s) => s.completed !== false).length;
+  const partialPomodoros = todaySessions.filter((s) => s.completed === false).length;
+  const totalPomodoros = todaySessions.length;
+
+  const targetPomodoros = dailyGoal?.targetPomodoros || 4;
+  const targetMinutes = dailyGoal?.targetMinutes || targetPomodoros * 25;
+
+  const goalProgressPercent = Math.min(
+    100,
+    Math.round((completedPomodoros / Math.max(1, targetPomodoros)) * 100)
+  );
+
+  return {
+    totalMinutes,
+    totalPomodoros,
+    completedPomodoros,
+    partialPomodoros,
+    targetMinutes,
+    targetPomodoros,
+    goalProgressPercent,
+  };
 };
 
