@@ -7,6 +7,7 @@ import { MainTimerDisplay } from './components/MainTimerDisplay';
 import { TimerControls } from './components/TimerControls';
 import { DailyFocus } from './components/DailyFocus';
 import { TaskList } from './components/TaskList';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 // Lazy-loaded heavy modal components for production bundle optimization
 const SettingsModal = lazy(() =>
@@ -942,6 +943,7 @@ export function App() {
         setIsAudioOpen(false);
         setIsShortcutsOpen(false);
         setIsHistoryOpen(false);
+        setIsFriendsOpen(false);
         setIsAuthOpen(false);
       }
     };
@@ -1062,6 +1064,16 @@ export function App() {
   const handleCloseAuth = useCallback(() => {
     setIsAuthOpen(false);
     setAuthModalError(null);
+  }, []);
+
+  const handleCloseAllModals = useCallback(() => {
+    setIsSettingsOpen(false);
+    setIsBackgroundsOpen(false);
+    setIsAudioOpen(false);
+    setIsShortcutsOpen(false);
+    setIsHistoryOpen(false);
+    setIsFriendsOpen(false);
+    setIsAuthOpen(false);
   }, []);
 
   const handleSaveSettings = useCallback((newSettings: TimerSettings) => {
@@ -1267,102 +1279,104 @@ export function App() {
         </div>
       </footer>
 
-      {/* 5. Lazy Modals with Suspense */}
-      <Suspense fallback={null}>
-        {isSettingsOpen && (
-          <SettingsModal
-            isOpen={isSettingsOpen}
-            onClose={handleCloseSettings}
-            settings={settings}
-            onSaveSettings={handleSaveSettings}
-            onResetStats={handleResetStats}
-            user={user}
-            syncStatus={syncStatus}
-            sessions={sessions}
-            tasks={tasks}
-            initialTab={settingsTab}
-            onOpenAuth={handleOpenAuthFromSettings}
-            onSignOut={handleSignOut}
-            onSyncNow={handleSyncNow}
-            onUserUpdate={handleUserUpdate}
-            onOpenFriends={handleOpenFriendsFromSettings}
-            incomingRequestsCount={incomingRequestsCount}
-            language={settings.language || 'en'}
-          />
-        )}
+      {/* 5. Lazy Modals with Suspense & ErrorBoundary */}
+      <ErrorBoundary isModal onReset={handleCloseAllModals}>
+        <Suspense fallback={null}>
+          {isSettingsOpen && (
+            <SettingsModal
+              isOpen={isSettingsOpen}
+              onClose={handleCloseSettings}
+              settings={settings}
+              onSaveSettings={handleSaveSettings}
+              onResetStats={handleResetStats}
+              user={user}
+              syncStatus={syncStatus}
+              sessions={sessions}
+              tasks={tasks}
+              initialTab={settingsTab}
+              onOpenAuth={handleOpenAuthFromSettings}
+              onSignOut={handleSignOut}
+              onSyncNow={handleSyncNow}
+              onUserUpdate={handleUserUpdate}
+              onOpenFriends={handleOpenFriendsFromSettings}
+              incomingRequestsCount={incomingRequestsCount}
+              language={settings.language || 'en'}
+            />
+          )}
 
-        {isBackgroundsOpen && (
-          <BackgroundSelectorModal
-            isOpen={isBackgroundsOpen}
-            onClose={handleCloseBackgrounds}
-            activeId={atmosphere.id}
-            onSelect={handleSelectAtmosphere}
-            favoriteIds={favoriteAtmospheres}
-            onToggleFavorite={handleToggleFavorite}
-            mixerState={soundMixerState}
-            onMixerChange={handleMixerChange}
-            presets={atmospherePresets}
-            onApplyPreset={handleApplyPreset}
-            onSavePreset={handleSavePreset}
-            onDeletePreset={handleDeletePreset}
-            theme={settings.theme}
-            language={settings.language || 'en'}
-          />
-        )}
+          {isBackgroundsOpen && (
+            <BackgroundSelectorModal
+              isOpen={isBackgroundsOpen}
+              onClose={handleCloseBackgrounds}
+              activeId={atmosphere.id}
+              onSelect={handleSelectAtmosphere}
+              favoriteIds={favoriteAtmospheres}
+              onToggleFavorite={handleToggleFavorite}
+              mixerState={soundMixerState}
+              onMixerChange={handleMixerChange}
+              presets={atmospherePresets}
+              onApplyPreset={handleApplyPreset}
+              onSavePreset={handleSavePreset}
+              onDeletePreset={handleDeletePreset}
+              theme={settings.theme}
+              language={settings.language || 'en'}
+            />
+          )}
 
-        {isAudioOpen && (
-          <AmbienceAudioPlayer
-            isOpen={isAudioOpen}
-            onClose={handleCloseAudio}
-            mixerState={soundMixerState}
-            onChangeMixerState={handleMixerChange}
-            language={settings.language || 'en'}
-          />
-        )}
+          {isAudioOpen && (
+            <AmbienceAudioPlayer
+              isOpen={isAudioOpen}
+              onClose={handleCloseAudio}
+              mixerState={soundMixerState}
+              onChangeMixerState={handleMixerChange}
+              language={settings.language || 'en'}
+            />
+          )}
 
-        {isShortcutsOpen && (
-          <ShortcutsModal
-            isOpen={isShortcutsOpen}
-            onClose={handleCloseShortcuts}
-            language={settings.language || 'en'}
-          />
-        )}
+          {isShortcutsOpen && (
+            <ShortcutsModal
+              isOpen={isShortcutsOpen}
+              onClose={handleCloseShortcuts}
+              language={settings.language || 'en'}
+            />
+          )}
 
-        {isHistoryOpen && (
-          <FocusHistoryModal
-            isOpen={isHistoryOpen}
-            onClose={handleCloseHistory}
-            sessions={sessions}
-            tasks={tasks}
-            dailyGoal={dailyGoal}
-            language={settings.language || 'en'}
-          />
-        )}
+          {isHistoryOpen && (
+            <FocusHistoryModal
+              isOpen={isHistoryOpen}
+              onClose={handleCloseHistory}
+              sessions={sessions}
+              tasks={tasks}
+              dailyGoal={dailyGoal}
+              language={settings.language || 'en'}
+            />
+          )}
 
-        {isFriendsOpen && (
-          <FriendsModal
-            isOpen={isFriendsOpen}
-            onClose={handleCloseFriends}
-            user={user}
-            theme={settings.theme}
-            onOpenAuth={handleOpenAuthFromFriends}
-            onRequestCountChange={setIncomingRequestsCount}
-            language={settings.language || 'en'}
-          />
-        )}
+          {isFriendsOpen && (
+            <FriendsModal
+              isOpen={isFriendsOpen}
+              onClose={handleCloseFriends}
+              user={user}
+              theme={settings.theme}
+              onOpenAuth={handleOpenAuthFromFriends}
+              onRequestCountChange={setIncomingRequestsCount}
+              language={settings.language || 'en'}
+            />
+          )}
 
-        {isAuthOpen && (
-          <AuthModal
-            isOpen={isAuthOpen}
-            onClose={handleCloseAuth}
-            theme={settings.theme}
-            initialMode={authModalMode}
-            initialError={authModalError}
-            onAuthSuccess={handleAuthSuccess}
-            language={settings.language || 'en'}
-          />
-        )}
-      </Suspense>
+          {isAuthOpen && (
+            <AuthModal
+              isOpen={isAuthOpen}
+              onClose={handleCloseAuth}
+              theme={settings.theme}
+              initialMode={authModalMode}
+              initialError={authModalError}
+              onAuthSuccess={handleAuthSuccess}
+              language={settings.language || 'en'}
+            />
+          )}
+        </Suspense>
+      </ErrorBoundary>
     </div>
   );
 }

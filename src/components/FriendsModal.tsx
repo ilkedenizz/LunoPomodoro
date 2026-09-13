@@ -41,9 +41,21 @@ interface FriendsModalProps {
 
 type FriendsTab = 'friends' | 'requests' | 'search';
 
+const formatFriendSinceDate = (since: number | string | undefined | null, lang: AppLanguage): string => {
+  if (!since) return lang === 'tr' ? 'Arkadaş' : 'Friends';
+  const timestamp = typeof since === 'string' ? Number(since) : since;
+  const d = new Date(isNaN(timestamp) ? since : timestamp);
+  if (isNaN(d.getTime())) {
+    return lang === 'tr' ? 'Arkadaş' : 'Friends';
+  }
+  return lang === 'tr'
+    ? `${d.toLocaleDateString('tr-TR', { month: 'short', day: 'numeric', year: 'numeric' })} tarihinden beri arkadaşsınız`
+    : `Friends since ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+};
+
 const FriendAvatar: React.FC<{
   avatarUrl?: string | null;
-  nickname: string;
+  nickname?: string | null;
   displayName?: string | null;
   size?: 'sm' | 'md';
 }> = ({ avatarUrl, nickname, displayName, size = 'md' }) => {
@@ -60,7 +72,7 @@ const FriendAvatar: React.FC<{
       {avatarUrl && !isFailed ? (
         <img
           src={avatarUrl}
-          alt={nickname}
+          alt={nickname || 'User'}
           className="w-full h-full object-cover rounded-full"
           onError={(e) => {
             if (import.meta.env.DEV) {
@@ -109,6 +121,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
   // Action loading IDs
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const lastReportedCountRef = useRef<number>(-1);
 
   const showFeedback = (type: 'success' | 'error', message: string) => {
     setFeedback({ type, message });
@@ -120,18 +133,25 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
   // Load friends and requests
   const loadAllData = useCallback(async () => {
     if (!user) return;
-    setIsLoadingLists(true);
     try {
+      setIsLoadingLists(true);
       const [friendsData, incomingData, outgoingData] = await Promise.all([
         getFriendsList(),
         getIncomingFriendRequests(),
         getOutgoingFriendRequests(),
       ]);
 
-      setFriends(friendsData);
-      setIncomingRequests(incomingData);
-      setOutgoingRequests(outgoingData);
-      onRequestCountChange?.(incomingData.length);
+      const safeFriends = Array.isArray(friendsData) ? friendsData : [];
+      const safeIncoming = Array.isArray(incomingData) ? incomingData : [];
+      const safeOutgoing = Array.isArray(outgoingData) ? outgoingData : [];
+
+      setFriends(safeFriends);
+      setIncomingRequests(safeIncoming);
+      setOutgoingRequests(safeOutgoing);
+      if (lastReportedCountRef.current !== safeIncoming.length) {
+        lastReportedCountRef.current = safeIncoming.length;
+        onRequestCountChange?.(safeIncoming.length);
+      }
     } catch (err) {
       if (import.meta.env.DEV) {
         console.error('[Luno Friends Load Error]:', err);
@@ -145,28 +165,35 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
     if (!isOpen || !user) return;
     let isCurrent = true;
 
-    Promise.all([
-      getFriendsList(),
-      getIncomingFriendRequests(),
-      getOutgoingFriendRequests(),
-    ])
-      .then(([friendsData, incomingData, outgoingData]) => {
+    (async () => {
+      try {
+        const [friendsData, incomingData, outgoingData] = await Promise.all([
+          getFriendsList(),
+          getIncomingFriendRequests(),
+          getOutgoingFriendRequests(),
+        ]);
         if (!isCurrent) return;
-        setFriends(friendsData);
-        setIncomingRequests(incomingData);
-        setOutgoingRequests(outgoingData);
-        onRequestCountChange?.(incomingData.length);
-      })
-      .catch((err) => {
+        const safeFriends = Array.isArray(friendsData) ? friendsData : [];
+        const safeIncoming = Array.isArray(incomingData) ? incomingData : [];
+        const safeOutgoing = Array.isArray(outgoingData) ? outgoingData : [];
+
+        setFriends(safeFriends);
+        setIncomingRequests(safeIncoming);
+        setOutgoingRequests(safeOutgoing);
+        if (lastReportedCountRef.current !== safeIncoming.length) {
+          lastReportedCountRef.current = safeIncoming.length;
+          onRequestCountChange?.(safeIncoming.length);
+        }
+      } catch (err) {
         if (import.meta.env.DEV) {
           console.error('[Luno Friends Load Error]:', err);
         }
-      })
-      .finally(() => {
+      } finally {
         if (isCurrent) {
           setIsLoadingLists(false);
         }
-      });
+      }
+    })();
 
     return () => {
       isCurrent = false;
@@ -191,7 +218,12 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
     searchDebounceRef.current = setTimeout(async () => {
       try {
         const results = await searchUsers(clean);
-        setSearchResults(results);
+        setSearchResults(Array.isArray(results) ? results : []);
+      } catch (err) {
+        if (import.meta.env.DEV) {
+          console.error('[Luno Friends Search Error]:', err);
+        }
+        setSearchResults([]);
       } finally {
         setIsSearching(false);
       }
@@ -209,6 +241,8 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
         showFeedback('success', language === 'tr' ? 'Arkadaşlık isteği gönderildi!' : (res.message || 'Friend request sent!'));
         await loadAllData();
       }
+    } catch (err) {
+      showFeedback('error', err instanceof Error ? err.message : 'Failed to send request');
     } finally {
       setActionLoadingId(null);
     }
@@ -224,6 +258,8 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
         showFeedback('success', language === 'tr' ? 'Arkadaşlık isteği kabul edildi!' : 'Friend request accepted!');
         await loadAllData();
       }
+    } catch (err) {
+      showFeedback('error', err instanceof Error ? err.message : 'Failed to accept request');
     } finally {
       setActionLoadingId(null);
     }
@@ -239,6 +275,8 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
         showFeedback('success', language === 'tr' ? 'İstek reddedildi.' : 'Friend request declined.');
         await loadAllData();
       }
+    } catch (err) {
+      showFeedback('error', err instanceof Error ? err.message : 'Failed to reject request');
     } finally {
       setActionLoadingId(null);
     }
@@ -254,6 +292,8 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
         showFeedback('success', language === 'tr' ? 'İstek iptal edildi.' : 'Friend request cancelled.');
         await loadAllData();
       }
+    } catch (err) {
+      showFeedback('error', err instanceof Error ? err.message : 'Failed to cancel request');
     } finally {
       setActionLoadingId(null);
     }
@@ -276,6 +316,8 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
         showFeedback('success', language === 'tr' ? 'Arkadaş listeden çıkarıldı.' : 'Friend removed.');
         await loadAllData();
       }
+    } catch (err) {
+      showFeedback('error', err instanceof Error ? err.message : 'Failed to remove friend');
     } finally {
       setActionLoadingId(null);
     }
@@ -283,7 +325,10 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
 
   if (!isOpen) return null;
 
-  const totalIncomingCount = incomingRequests.length;
+  const totalIncomingCount = incomingRequests?.length || 0;
+  const safeFriends = Array.isArray(friends) ? friends : [];
+  const safeIncomingRequests = Array.isArray(incomingRequests) ? incomingRequests : [];
+  const safeOutgoingRequests = Array.isArray(outgoingRequests) ? outgoingRequests : [];
 
   return (
     <div
@@ -359,7 +404,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
               }`}>
                 {language === 'tr'
                   ? 'Kullanıcı adına göre arama yapmak, istek göndermek ve diğer odaklananlarla bağlantı kurmak için ücretsiz Luno hesabı oluşturun veya giriş yapın.'
-                  : 'Create a free Luno account or sign in to search by nickname, send requests, and connect with other focusers.'}
+                  : 'Create a free Luno account or sign in to search by nickname, send requests, and connect with other focus partners.'}
               </p>
             </div>
             <div className="pt-2">
@@ -399,7 +444,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                     ? isLight ? 'bg-indigo-50 text-indigo-600' : 'bg-white/20 text-white'
                     : isLight ? 'bg-slate-200 text-slate-700' : 'bg-white/10 text-white/70'
                 }`}>
-                  {friends.length}
+                  {safeFriends.length}
                 </span>
               </button>
 
@@ -428,7 +473,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                     ? isLight ? 'bg-indigo-50 text-indigo-600' : 'bg-white/20 text-white'
                     : isLight ? 'bg-slate-200 text-slate-700' : 'bg-white/10 text-white/70'
                 }`}>
-                  {incomingRequests.length + outgoingRequests.length}
+                  {safeIncomingRequests.length + safeOutgoingRequests.length}
                 </span>
               </button>
 
@@ -460,7 +505,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                       <Loader2 className="w-6 h-6 animate-spin text-indigo-400" />
                       <span className="text-xs">{language === 'tr' ? 'Arkadaşlar yükleniyor...' : 'Loading friends...'}</span>
                     </div>
-                  ) : friends.length === 0 ? (
+                  ) : safeFriends.length === 0 ? (
                     <div className="py-10 text-center space-y-3">
                       <div className="w-12 h-12 mx-auto rounded-2xl bg-white/5 flex items-center justify-center text-white/40">
                         <Users className="w-6 h-6" />
@@ -484,9 +529,9 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                       </button>
                     </div>
                   ) : (
-                    friends.map((friend) => (
+                    safeFriends.map((friend) => (
                       <div
-                        key={friend.friendshipId}
+                        key={friend.friendshipId || friend.id}
                         className={`p-3.5 rounded-2xl border flex items-center justify-between gap-3 transition-all ${
                           isLight
                             ? 'bg-slate-50 hover:bg-slate-100/80 border-slate-200'
@@ -504,7 +549,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                           <div className="min-w-0">
                             <div className="flex items-center gap-1.5">
                               <span className="text-xs sm:text-sm font-bold truncate">
-                                @{friend.nickname}
+                                @{friend.nickname || 'user'}
                               </span>
                               {friend.displayName && (
                                 <span className={`text-[11px] truncate ${isLight ? 'text-slate-500' : 'text-white/60'}`}>
@@ -515,12 +560,8 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                             <div className={`flex items-center gap-1 text-[10px] mt-0.5 ${
                               isLight ? 'text-slate-400' : 'text-white/40'
                             }`}>
-                              <Calendar className="w-3 h-3" />
-                              <span>
-                                {language === 'tr'
-                                  ? `${new Date(friend.since).toLocaleDateString('tr-TR', { month: 'short', day: 'numeric', year: 'numeric' })} tarihinden beri arkadaşsınız`
-                                  : `Friends since ${new Date(friend.since).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`}
-                              </span>
+                              <Calendar className="w-3 h-3 shrink-0" />
+                              <span>{formatFriendSinceDate(friend.since, language)}</span>
                             </div>
                           </div>
                         </div>
@@ -557,15 +598,15 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                     <h3 className={`text-[11px] font-mono font-semibold uppercase tracking-wider flex items-center gap-1.5 ${
                       isLight ? 'text-slate-500' : 'text-white/50'
                     }`}>
-                      {language === 'tr' ? `Gelen İstekler (${incomingRequests.length})` : `Incoming Requests (${incomingRequests.length})`}
+                      {language === 'tr' ? `Gelen İstekler (${safeIncomingRequests.length})` : `Incoming Requests (${safeIncomingRequests.length})`}
                     </h3>
 
-                    {incomingRequests.length === 0 ? (
+                    {safeIncomingRequests.length === 0 ? (
                       <p className={`text-xs italic py-2 text-center ${isLight ? 'text-slate-400' : 'text-white/40'}`}>
                         {t.noRequests}
                       </p>
                     ) : (
-                      incomingRequests.map((req) => (
+                      safeIncomingRequests.map((req) => (
                         <div
                           key={req.id}
                           className={`p-3.5 rounded-2xl border flex items-center justify-between gap-3 ${
@@ -576,17 +617,17 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                         >
                           <div className="flex items-center space-x-3 min-w-0">
                             <FriendAvatar
-                              avatarUrl={req.user.avatarUrl}
-                              nickname={req.user.nickname}
-                              displayName={req.user.displayName}
+                              avatarUrl={req.user?.avatarUrl}
+                              nickname={req.user?.nickname}
+                              displayName={req.user?.displayName}
                               size="md"
                             />
 
                             <div className="min-w-0">
                               <span className="text-xs sm:text-sm font-bold truncate block">
-                                @{req.user.nickname}
+                                @{req.user?.nickname || 'user'}
                               </span>
-                              {req.user.displayName && (
+                              {req.user?.displayName && (
                                 <span className={`text-[11px] truncate block ${isLight ? 'text-slate-500' : 'text-white/60'}`}>
                                   {req.user.displayName}
                                 </span>
@@ -635,15 +676,15 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                     <h3 className={`text-[11px] font-mono font-semibold uppercase tracking-wider flex items-center gap-1.5 ${
                       isLight ? 'text-slate-500' : 'text-white/50'
                     }`}>
-                      {language === 'tr' ? `Gönderilen İstekler (${outgoingRequests.length})` : `Sent Requests (${outgoingRequests.length})`}
+                      {language === 'tr' ? `Gönderilen İstekler (${safeOutgoingRequests.length})` : `Sent Requests (${safeOutgoingRequests.length})`}
                     </h3>
 
-                    {outgoingRequests.length === 0 ? (
+                    {safeOutgoingRequests.length === 0 ? (
                       <p className={`text-xs italic py-2 text-center ${isLight ? 'text-slate-400' : 'text-white/40'}`}>
                         {language === 'tr' ? 'Bekleyen gönderilmiş istek yok.' : 'No outgoing pending requests.'}
                       </p>
                     ) : (
-                      outgoingRequests.map((req) => (
+                      safeOutgoingRequests.map((req) => (
                         <div
                           key={req.id}
                           className={`p-3 rounded-2xl border flex items-center justify-between gap-3 ${
@@ -652,15 +693,15 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                         >
                           <div className="flex items-center space-x-3 min-w-0">
                             <FriendAvatar
-                              avatarUrl={req.user.avatarUrl}
-                              nickname={req.user.nickname}
-                              displayName={req.user.displayName}
+                              avatarUrl={req.user?.avatarUrl}
+                              nickname={req.user?.nickname}
+                              displayName={req.user?.displayName}
                               size="sm"
                             />
 
                             <div className="min-w-0">
                               <span className="text-xs font-bold truncate block">
-                                @{req.user.nickname}
+                                @{req.user?.nickname || 'user'}
                               </span>
                               <span className="text-[10px] text-amber-400 font-medium">
                                 {language === 'tr' ? 'Yanıt bekleniyor...' : 'Awaiting response...'}
@@ -728,9 +769,10 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                     )}
 
                     {searchResults.map((foundUser) => {
-                      const isAlreadyFriend = friends.some((f) => f.id === foundUser.id);
-                      const isPendingOutgoing = outgoingRequests.some((r) => r.user.id === foundUser.id);
-                      const incomingReq = incomingRequests.find((r) => r.user.id === foundUser.id);
+                      if (!foundUser || !foundUser.id) return null;
+                      const isAlreadyFriend = safeFriends.some((f) => f?.id === foundUser.id);
+                      const isPendingOutgoing = safeOutgoingRequests.some((r) => r?.user?.id === foundUser.id);
+                      const incomingReq = safeIncomingRequests.find((r) => r?.user?.id === foundUser.id);
 
                       return (
                         <div
@@ -751,7 +793,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
 
                             <div className="min-w-0">
                               <span className="text-xs sm:text-sm font-bold truncate block">
-                                @{foundUser.nickname}
+                                @{foundUser.nickname || 'user'}
                               </span>
                               {foundUser.displayName && (
                                 <span className={`text-[11px] truncate block ${isLight ? 'text-slate-500' : 'text-white/60'}`}>

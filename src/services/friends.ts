@@ -9,6 +9,12 @@ export interface FriendServiceResponse<T = void> {
   message?: string;
 }
 
+const safeParseTimestamp = (val: any): number => {
+  if (!val) return Date.now();
+  const num = typeof val === 'number' ? val : new Date(val).getTime();
+  return isNaN(num) ? Date.now() : num;
+};
+
 export const searchUsers = async (query: string): Promise<PublicUserProfile[]> => {
   const clean = query.trim().replace(/^@/, '');
   if (!clean || clean.length < 2) return [];
@@ -24,12 +30,14 @@ export const searchUsers = async (query: string): Promise<PublicUserProfile[]> =
     });
 
     if (!error && Array.isArray(data)) {
-      return data.map((r: any) => ({
-        id: r.id,
-        nickname: r.nickname,
-        displayName: r.display_name || undefined,
-        avatarUrl: r.avatar_url || undefined,
-      }));
+      return data
+        .filter((r: any) => r && r.id && r.nickname)
+        .map((r: any) => ({
+          id: r.id,
+          nickname: r.nickname,
+          displayName: r.display_name || undefined,
+          avatarUrl: r.avatar_url || undefined,
+        }));
     }
 
     // Fallback: direct select if RPC not created yet
@@ -42,7 +50,7 @@ export const searchUsers = async (query: string): Promise<PublicUserProfile[]> =
     if (fallbackData && Array.isArray(fallbackData)) {
       const { data: { user } } = await client.auth.getUser();
       return fallbackData
-        .filter((r: any) => !user || r.id !== user.id)
+        .filter((r: any) => r && r.id && r.nickname && (!user || r.id !== user.id))
         .map((r: any) => ({
           id: r.id,
           nickname: r.nickname,
@@ -68,14 +76,16 @@ export const getFriendsList = async (): Promise<Friend[]> => {
   try {
     const { data, error } = await client.rpc('get_my_friends');
     if (!error && Array.isArray(data)) {
-      return data.map((r: any) => ({
-        friendshipId: r.friendship_id,
-        id: r.friend_id,
-        nickname: r.nickname,
-        displayName: r.display_name || undefined,
-        avatarUrl: r.avatar_url || undefined,
-        since: r.since ? new Date(r.since).getTime() : Date.now(),
-      }));
+      return data
+        .filter((r: any) => r && (r.friendship_id || r.id) && (r.friend_id || r.id) && r.nickname)
+        .map((r: any) => ({
+          friendshipId: r.friendship_id || r.id,
+          id: r.friend_id || r.id,
+          nickname: r.nickname,
+          displayName: r.display_name || undefined,
+          avatarUrl: r.avatar_url || undefined,
+          since: safeParseTimestamp(r.since),
+        }));
     }
 
     // Fallback direct join
@@ -90,26 +100,33 @@ export const getFriendsList = async (): Promise<Friend[]> => {
 
     if (!friendships || friendships.length === 0) return [];
 
-    const friendUserIds = friendships.map((f: any) => (f.requester_id === user.id ? f.addressee_id : f.requester_id));
+    const friendUserIds = friendships
+      .filter((f: any) => f && (f.requester_id || f.addressee_id))
+      .map((f: any) => (f.requester_id === user.id ? f.addressee_id : f.requester_id))
+      .filter(Boolean);
+
+    if (friendUserIds.length === 0) return [];
+
     const { data: profiles } = await client
       .from('profiles')
       .select('id, nickname, display_name, avatar_url')
       .in('id', friendUserIds);
 
-    const profileMap = new Map((profiles || []).map((p: any) => [p.id, p]));
+    const profileMap = new Map((profiles || []).filter((p: any) => p && p.id).map((p: any) => [p.id, p]));
     const result: Friend[] = [];
 
     for (const f of (friendships || [])) {
+      if (!f) continue;
       const friendId = f.requester_id === user.id ? f.addressee_id : f.requester_id;
       const prof = profileMap.get(friendId);
-      if (prof) {
+      if (prof && prof.nickname) {
         result.push({
           friendshipId: f.id,
           id: friendId,
           nickname: prof.nickname,
           displayName: prof.display_name || undefined,
           avatarUrl: prof.avatar_url || undefined,
-          since: f.updated_at ? new Date(f.updated_at).getTime() : Date.now(),
+          since: safeParseTimestamp(f.updated_at),
         });
       }
     }
@@ -131,17 +148,19 @@ export const getIncomingFriendRequests = async (): Promise<FriendRequest[]> => {
   try {
     const { data, error } = await client.rpc('get_incoming_friend_requests');
     if (!error && Array.isArray(data)) {
-      return data.map((r: any) => ({
-        id: r.friendship_id,
-        user: {
-          id: r.requester_id,
-          nickname: r.nickname,
-          displayName: r.display_name || undefined,
-          avatarUrl: r.avatar_url || undefined,
-        },
-        createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
-        type: 'incoming',
-      }));
+      return data
+        .filter((r: any) => r && r.friendship_id && r.requester_id && r.nickname)
+        .map((r: any) => ({
+          id: r.friendship_id,
+          user: {
+            id: r.requester_id,
+            nickname: r.nickname,
+            displayName: r.display_name || undefined,
+            avatarUrl: r.avatar_url || undefined,
+          },
+          createdAt: safeParseTimestamp(r.created_at),
+          type: 'incoming',
+        }));
     }
 
     const { data: { user } } = await client.auth.getUser();
@@ -155,18 +174,24 @@ export const getIncomingFriendRequests = async (): Promise<FriendRequest[]> => {
 
     if (!requests || requests.length === 0) return [];
 
-    const requesterIds = requests.map((r: any) => r.requester_id);
+    const requesterIds = requests
+      .filter((r: any) => r && r.requester_id)
+      .map((r: any) => r.requester_id);
+
+    if (requesterIds.length === 0) return [];
+
     const { data: profiles } = await client
       .from('profiles')
       .select('id, nickname, display_name, avatar_url')
       .in('id', requesterIds);
 
-    const profileMap = new Map((profiles || []).map((p: any) => [p.id, p]));
+    const profileMap = new Map((profiles || []).filter((p: any) => p && p.id).map((p: any) => [p.id, p]));
     const result: FriendRequest[] = [];
 
     for (const r of (requests || [])) {
+      if (!r) continue;
       const prof = profileMap.get(r.requester_id);
-      if (prof) {
+      if (prof && prof.nickname) {
         result.push({
           id: r.id,
           user: {
@@ -175,7 +200,7 @@ export const getIncomingFriendRequests = async (): Promise<FriendRequest[]> => {
             displayName: prof.display_name || undefined,
             avatarUrl: prof.avatar_url || undefined,
           },
-          createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
+          createdAt: safeParseTimestamp(r.created_at),
           type: 'incoming',
         });
       }
@@ -198,17 +223,19 @@ export const getOutgoingFriendRequests = async (): Promise<FriendRequest[]> => {
   try {
     const { data, error } = await client.rpc('get_outgoing_friend_requests');
     if (!error && Array.isArray(data)) {
-      return data.map((r: any) => ({
-        id: r.friendship_id,
-        user: {
-          id: r.addressee_id,
-          nickname: r.nickname,
-          displayName: r.display_name || undefined,
-          avatarUrl: r.avatar_url || undefined,
-        },
-        createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
-        type: 'outgoing',
-      }));
+      return data
+        .filter((r: any) => r && r.friendship_id && r.addressee_id && r.nickname)
+        .map((r: any) => ({
+          id: r.friendship_id,
+          user: {
+            id: r.addressee_id,
+            nickname: r.nickname,
+            displayName: r.display_name || undefined,
+            avatarUrl: r.avatar_url || undefined,
+          },
+          createdAt: safeParseTimestamp(r.created_at),
+          type: 'outgoing',
+        }));
     }
 
     const { data: { user } } = await client.auth.getUser();
@@ -222,18 +249,24 @@ export const getOutgoingFriendRequests = async (): Promise<FriendRequest[]> => {
 
     if (!requests || requests.length === 0) return [];
 
-    const addresseeIds = requests.map((r: any) => r.addressee_id);
+    const addresseeIds = requests
+      .filter((r: any) => r && r.addressee_id)
+      .map((r: any) => r.addressee_id);
+
+    if (addresseeIds.length === 0) return [];
+
     const { data: profiles } = await client
       .from('profiles')
       .select('id, nickname, display_name, avatar_url')
       .in('id', addresseeIds);
 
-    const profileMap = new Map((profiles || []).map((p: any) => [p.id, p]));
+    const profileMap = new Map((profiles || []).filter((p: any) => p && p.id).map((p: any) => [p.id, p]));
     const result: FriendRequest[] = [];
 
     for (const r of (requests || [])) {
+      if (!r) continue;
       const prof = profileMap.get(r.addressee_id);
-      if (prof) {
+      if (prof && prof.nickname) {
         result.push({
           id: r.id,
           user: {
@@ -242,7 +275,7 @@ export const getOutgoingFriendRequests = async (): Promise<FriendRequest[]> => {
             displayName: prof.display_name || undefined,
             avatarUrl: prof.avatar_url || undefined,
           },
-          createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
+          createdAt: safeParseTimestamp(r.created_at),
           type: 'outgoing',
         });
       }
