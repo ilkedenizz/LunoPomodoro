@@ -26,6 +26,25 @@ import {
 
 const PENDING_QUEUE_KEY_V2 = 'luno_pending_sync_queue_v2';
 const LAST_SYNCED_KEY_V2 = 'luno_last_synced_at_v2';
+const LAST_ACTIVE_USER_ID_KEY_V2 = 'luno_last_active_user_id_v2';
+
+export const getLastActiveUserId = (): string | null => {
+  try {
+    return localStorage.getItem(LAST_ACTIVE_USER_ID_KEY_V2);
+  } catch {
+    return null;
+  }
+};
+
+export const setLastActiveUserId = (userId: string | null): void => {
+  try {
+    if (userId) {
+      localStorage.setItem(LAST_ACTIVE_USER_ID_KEY_V2, userId);
+    } else {
+      localStorage.removeItem(LAST_ACTIVE_USER_ID_KEY_V2);
+    }
+  } catch {}
+};
 
 export const getLastSyncedAt = (): number | null => {
   try {
@@ -251,6 +270,7 @@ export class SyncEngine {
     this.isSyncing = false;
     this.lastSyncedAt = null;
     setLastSyncedAt(null);
+    setLastActiveUserId(null);
     clearPendingQueue();
     this.notify(this.getStatus());
   }
@@ -788,8 +808,16 @@ export class SyncEngine {
       this.isSyncing = true;
       this.notify(this.getStatus());
 
-      // Flush any queued offline edits before pulling
-      await this.flushPendingQueue(userId);
+      const previousUserId = getLastActiveUserId();
+      const isAccountSwitch = Boolean(previousUserId && previousUserId !== userId);
+
+      if (isAccountSwitch) {
+        // Account Switch: clear previous user's pending queue so nothing from User A leaks to User B
+        clearPendingQueue();
+      } else {
+        // Flush any queued offline edits before pulling
+        await this.flushPendingQueue(userId);
+      }
 
       const [settingsRes, goalRes, tasksRes, sessionsRes, presetsRes] = await Promise.all([
         client.from('user_settings').select('*').eq('user_id', userId).maybeSingle(),
@@ -807,8 +835,7 @@ export class SyncEngine {
         if (presetsRes.error) console.error('[Luno Sync Engine Error in fetchPresets]:', presetsRes.error);
       }
 
-      // 1. Merge Tasks (Preserve local tasks and merge with cloud)
-      const localTasks = loadTasks();
+      // 1. Process Tasks
       let remoteTasks: Task[] = [];
       if (tasksRes.data && Array.isArray(tasksRes.data)) {
         remoteTasks = tasksRes.data
@@ -823,28 +850,34 @@ export class SyncEngine {
             updatedAt: r.updated_at ? new Date(r.updated_at).getTime() : undefined,
           }));
       }
-      const mergedTasks = mergeTasks(localTasks, remoteTasks);
-      saveTasks(mergedTasks);
 
-      // Push any local tasks that don't exist on remote up to cloud
-      const remoteTaskIdSet = new Set(remoteTasks.map((t) => t.id));
-      const unpushedTasks = mergedTasks.filter((t) => !remoteTaskIdSet.has(t.id));
-      if (unpushedTasks.length > 0) {
-        const payload = unpushedTasks.map((t) => ({
-          id: t.id,
-          user_id: userId,
-          title: t.title,
-          completed: t.completed,
-          pomodoros: t.pomodoros || 0,
-          created_at: new Date(t.createdAt).toISOString(),
-          completed_at: t.completedAt ? new Date(t.completedAt).toISOString() : null,
-          updated_at: new Date(t.updatedAt || t.createdAt).toISOString(),
-        }));
-        await client.from('tasks').upsert(payload);
+      if (isAccountSwitch) {
+        // Strict account switch: do not inherit previous user's tasks
+        saveTasks(remoteTasks);
+      } else {
+        const localTasks = loadTasks();
+        const mergedTasks = mergeTasks(localTasks, remoteTasks);
+        saveTasks(mergedTasks);
+
+        // Push any local tasks that don't exist on remote up to cloud (Guest migration / local edits)
+        const remoteTaskIdSet = new Set(remoteTasks.map((t) => t.id));
+        const unpushedTasks = mergedTasks.filter((t) => !remoteTaskIdSet.has(t.id));
+        if (unpushedTasks.length > 0) {
+          const payload = unpushedTasks.map((t) => ({
+            id: t.id,
+            user_id: userId,
+            title: t.title,
+            completed: t.completed,
+            pomodoros: t.pomodoros || 0,
+            created_at: new Date(t.createdAt).toISOString(),
+            completed_at: t.completedAt ? new Date(t.completedAt).toISOString() : null,
+            updated_at: new Date(t.updatedAt || t.createdAt).toISOString(),
+          }));
+          await client.from('tasks').upsert(payload);
+        }
       }
 
-      // 2. Merge Focus Sessions (Preserve local sessions & merge with cloud)
-      const localSessions = loadSessions();
+      // 2. Process Focus Sessions
       let remoteSessions: FocusSession[] = [];
       if (sessionsRes.data && Array.isArray(sessionsRes.data)) {
         remoteSessions = sessionsRes.data
@@ -871,40 +904,46 @@ export class SyncEngine {
             };
           });
       }
-      const mergedSessions = mergeSessions(localSessions, remoteSessions);
-      saveSessionsDirectly(mergedSessions);
 
-      // Push any local sessions that don't exist in cloud up to Supabase
-      const remoteSessionIdSet = new Set(remoteSessions.map((s) => s.id));
-      const unpushedSessions = mergedSessions.filter((s) => !remoteSessionIdSet.has(s.id));
-      if (unpushedSessions.length > 0) {
-        const sessionPayload = unpushedSessions.map((s) => ({
-          id: s.id,
-          user_id: userId,
-          timestamp: new Date(s.timestamp).toISOString(),
-          mode: sanitizeTimerMode(s.mode),
-          duration_minutes: s.durationMinutes,
-          target_duration_minutes: s.targetDurationMinutes || s.durationMinutes,
-          actual_duration_seconds: s.actualDurationSeconds || (s.durationMinutes * 60),
-          completed: s.completed !== false,
-          task_title: s.taskTitle || null,
-        }));
-        const { error: sessErr } = await client.from('focus_sessions').upsert(sessionPayload);
-        if (sessErr && (
-          sessErr.code === 'PGRST204' ||
-          sessErr.message?.includes('completed') ||
-          sessErr.message?.includes('target_duration_minutes') ||
-          sessErr.message?.includes('actual_duration_seconds')
-        )) {
-          const fallbackPayload = unpushedSessions.map((s) => ({
+      if (isAccountSwitch) {
+        saveSessionsDirectly(remoteSessions);
+      } else {
+        const localSessions = loadSessions();
+        const mergedSessions = mergeSessions(localSessions, remoteSessions);
+        saveSessionsDirectly(mergedSessions);
+
+        // Push any local sessions that don't exist in cloud up to Supabase (Guest migration / local edits)
+        const remoteSessionIdSet = new Set(remoteSessions.map((s) => s.id));
+        const unpushedSessions = mergedSessions.filter((s) => !remoteSessionIdSet.has(s.id));
+        if (unpushedSessions.length > 0) {
+          const sessionPayload = unpushedSessions.map((s) => ({
             id: s.id,
             user_id: userId,
             timestamp: new Date(s.timestamp).toISOString(),
             mode: sanitizeTimerMode(s.mode),
             duration_minutes: s.durationMinutes,
+            target_duration_minutes: s.targetDurationMinutes || s.durationMinutes,
+            actual_duration_seconds: s.actualDurationSeconds || (s.durationMinutes * 60),
+            completed: s.completed !== false,
             task_title: s.taskTitle || null,
           }));
-          await client.from('focus_sessions').upsert(fallbackPayload);
+          const { error: sessErr } = await client.from('focus_sessions').upsert(sessionPayload);
+          if (sessErr && (
+            sessErr.code === 'PGRST204' ||
+            sessErr.message?.includes('completed') ||
+            sessErr.message?.includes('target_duration_minutes') ||
+            sessErr.message?.includes('actual_duration_seconds')
+          )) {
+            const fallbackPayload = unpushedSessions.map((s) => ({
+              id: s.id,
+              user_id: userId,
+              timestamp: new Date(s.timestamp).toISOString(),
+              mode: sanitizeTimerMode(s.mode),
+              duration_minutes: s.durationMinutes,
+              task_title: s.taskTitle || null,
+            }));
+            await client.from('focus_sessions').upsert(fallbackPayload);
+          }
         }
       }
 
@@ -952,7 +991,6 @@ export class SyncEngine {
       }
 
       // 5. Atmosphere Presets Merge
-      const localPresets = loadAtmospherePresets();
       let remotePresets: AtmospherePreset[] = [];
       if (presetsRes.data && Array.isArray(presetsRes.data)) {
         remotePresets = presetsRes.data
@@ -965,24 +1003,31 @@ export class SyncEngine {
             createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
           }));
       }
-      const mergedPresets = mergePresets(localPresets, remotePresets);
-      saveAtmospherePresets(mergedPresets);
 
-      // Push any local presets not yet in cloud
-      const remotePresetIdSet = new Set(remotePresets.map((p) => p.id));
-      const unpushedPresets = mergedPresets.filter((p) => !remotePresetIdSet.has(p.id));
-      if (unpushedPresets.length > 0) {
-        const presetsPayload = unpushedPresets.map((p) => ({
-          id: p.id,
-          user_id: userId,
-          name: p.name,
-          atmosphere_id: p.atmosphereId,
-          sound_mixer: p.soundMixer,
-          created_at: new Date(p.createdAt).toISOString(),
-        }));
-        await client.from('atmosphere_presets').upsert(presetsPayload);
+      if (isAccountSwitch) {
+        saveAtmospherePresets(remotePresets);
+      } else {
+        const localPresets = loadAtmospherePresets();
+        const mergedPresets = mergePresets(localPresets, remotePresets);
+        saveAtmospherePresets(mergedPresets);
+
+        // Push any local presets not yet in cloud (Guest migration)
+        const remotePresetIdSet = new Set(remotePresets.map((p) => p.id));
+        const unpushedPresets = mergedPresets.filter((p) => !remotePresetIdSet.has(p.id));
+        if (unpushedPresets.length > 0) {
+          const presetsPayload = unpushedPresets.map((p) => ({
+            id: p.id,
+            user_id: userId,
+            name: p.name,
+            atmosphereId: p.atmosphereId,
+            soundMixer: p.soundMixer,
+            created_at: new Date(p.createdAt).toISOString(),
+          }));
+          await client.from('atmosphere_presets').upsert(presetsPayload);
+        }
       }
 
+      setLastActiveUserId(userId);
       this.lastSyncedAt = Date.now();
       setLastSyncedAt(this.lastSyncedAt);
       return { success: true };

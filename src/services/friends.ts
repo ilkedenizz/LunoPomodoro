@@ -290,6 +290,8 @@ export const getOutgoingFriendRequests = async (): Promise<FriendRequest[]> => {
   }
 };
 
+const inFlightFriendActions = new Set<string>();
+
 export const sendFriendRequest = async (targetUserId: string): Promise<FriendServiceResponse> => {
   if (!isSupabaseConfigured()) {
     return { error: UNCONFIGURED_ERROR };
@@ -298,6 +300,12 @@ export const sendFriendRequest = async (targetUserId: string): Promise<FriendSer
   if (!client) {
     return { error: UNCONFIGURED_ERROR };
   }
+
+  const lockKey = `send:${targetUserId}`;
+  if (inFlightFriendActions.has(lockKey)) {
+    return { error: 'Request is currently processing.' };
+  }
+  inFlightFriendActions.add(lockKey);
 
   try {
     const { data: { user } } = await client.auth.getUser();
@@ -382,6 +390,8 @@ export const sendFriendRequest = async (targetUserId: string): Promise<FriendSer
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Failed to send friend request.';
     return { error: msg };
+  } finally {
+    inFlightFriendActions.delete(lockKey);
   }
 };
 
@@ -389,6 +399,12 @@ export const acceptFriendRequest = async (friendshipId: string): Promise<FriendS
   if (!isSupabaseConfigured()) return { error: UNCONFIGURED_ERROR };
   const client = getSupabaseClient();
   if (!client) return { error: UNCONFIGURED_ERROR };
+
+  const lockKey = `accept:${friendshipId}`;
+  if (inFlightFriendActions.has(lockKey)) {
+    return { error: 'Action is currently processing.' };
+  }
+  inFlightFriendActions.add(lockKey);
 
   try {
     const { data: { user } } = await client.auth.getUser();
@@ -408,6 +424,8 @@ export const acceptFriendRequest = async (friendshipId: string): Promise<FriendS
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Failed to accept request.';
     return { error: msg };
+  } finally {
+    inFlightFriendActions.delete(lockKey);
   }
 };
 
@@ -415,6 +433,12 @@ export const rejectFriendRequest = async (friendshipId: string): Promise<FriendS
   if (!isSupabaseConfigured()) return { error: UNCONFIGURED_ERROR };
   const client = getSupabaseClient();
   if (!client) return { error: UNCONFIGURED_ERROR };
+
+  const lockKey = `reject:${friendshipId}`;
+  if (inFlightFriendActions.has(lockKey)) {
+    return { error: 'Action is currently processing.' };
+  }
+  inFlightFriendActions.add(lockKey);
 
   try {
     const { data: { user } } = await client.auth.getUser();
@@ -434,6 +458,8 @@ export const rejectFriendRequest = async (friendshipId: string): Promise<FriendS
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Failed to decline request.';
     return { error: msg };
+  } finally {
+    inFlightFriendActions.delete(lockKey);
   }
 };
 
@@ -441,6 +467,12 @@ export const removeFriend = async (friendshipId: string): Promise<FriendServiceR
   if (!isSupabaseConfigured()) return { error: UNCONFIGURED_ERROR };
   const client = getSupabaseClient();
   if (!client) return { error: UNCONFIGURED_ERROR };
+
+  const lockKey = `remove:${friendshipId}`;
+  if (inFlightFriendActions.has(lockKey)) {
+    return { error: 'Action is currently processing.' };
+  }
+  inFlightFriendActions.add(lockKey);
 
   try {
     const { data: { user } } = await client.auth.getUser();
@@ -460,6 +492,8 @@ export const removeFriend = async (friendshipId: string): Promise<FriendServiceR
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Failed to remove friend.';
     return { error: msg };
+  } finally {
+    inFlightFriendActions.delete(lockKey);
   }
 };
 
@@ -467,6 +501,12 @@ export const cancelFriendRequest = async (friendshipId: string): Promise<FriendS
   if (!isSupabaseConfigured()) return { error: UNCONFIGURED_ERROR };
   const client = getSupabaseClient();
   if (!client) return { error: UNCONFIGURED_ERROR };
+
+  const lockKey = `cancel:${friendshipId}`;
+  if (inFlightFriendActions.has(lockKey)) {
+    return { error: 'Action is currently processing.' };
+  }
+  inFlightFriendActions.add(lockKey);
 
   try {
     const { data: { user } } = await client.auth.getUser();
@@ -487,5 +527,7 @@ export const cancelFriendRequest = async (friendshipId: string): Promise<FriendS
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Failed to cancel request.';
     return { error: msg };
+  } finally {
+    inFlightFriendActions.delete(lockKey);
   }
 };
