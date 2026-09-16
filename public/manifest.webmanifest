@@ -1,7 +1,7 @@
 {
-  "name": "Luno — Atmospheric Focus Space",
-  "short_name": "Luno",
-  "description": "Luno is a calm, atmospheric Pomodoro timer with immersive soundscapes, ambient visuals, and personalized focus tracking.",
+  "name": "StudyLuno",
+  "short_name": "StudyLuno",
+  "description": "StudyLuno is a calm, atmospheric Pomodoro timer and focus space with curated ambient soundscapes, dynamic visual backdrops, and mindful task tracking.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#050508",
@@ -10,7 +10,7 @@
   "categories": ["productivity", "utilities", "lifestyle"],
   "icons": [
     {
-      "src": "/favicon.svg?v=2",
+      "src": "/favicon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"

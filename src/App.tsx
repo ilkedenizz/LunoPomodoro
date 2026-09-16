@@ -332,13 +332,13 @@ export function App() {
   // Document Title update
   useEffect(() => {
     if (timerState === 'idle') {
-      document.title = 'Luno — Focus in your own atmosphere';
+      document.title = 'StudyLuno — Focus in your own atmosphere';
       return;
     }
     if (timerState === 'completed') {
       const completionText =
         mode === 'pomodoro' ? '🎉 Focus Completed!' : '☕ Break Finished!';
-      document.title = `${completionText} • Luno`;
+      document.title = `${completionText} • StudyLuno`;
       return;
     }
     const mins = Math.floor(timeLeft / 60);
@@ -347,7 +347,7 @@ export function App() {
     const modeName =
       mode === 'pomodoro' ? 'Focus' : mode === 'shortBreak' ? 'Short Break' : 'Long Break';
     const prefix = timerState === 'paused' ? '⏸ ' : '';
-    document.title = `${prefix}(${formatted}) ${modeName} • Luno`;
+    document.title = `${prefix}(${formatted}) ${modeName} • StudyLuno`;
   }, [timeLeft, mode, timerState]);
 
   // Fullscreen change listener
