@@ -1042,150 +1042,314 @@ ALTER TABLE public.focus_sessions ADD COLUMN IF NOT EXISTS group_id UUID REFEREN
 CREATE INDEX IF NOT EXISTS idx_focus_sessions_group ON public.focus_sessions(group_id);
 
 -- ==============================================================================
--- RLS POLICIES FOR STUDY GROUPS
+-- SECURITY DEFINER HELPER FUNCTIONS (Prevent RLS Recursion & Search Path Hijacking)
 -- ==============================================================================
 
--- Cleanup existing policies
-DROP POLICY IF EXISTS "Users can view groups they belong to or public groups" ON public.groups;
-DROP POLICY IF EXISTS "Users can create groups" ON public.groups;
-DROP POLICY IF EXISTS "Owners and admins can update their group" ON public.groups;
-DROP POLICY IF EXISTS "Owners can delete their group" ON public.groups;
-
-DROP POLICY IF EXISTS "Users can view members of accessible groups" ON public.group_members;
-DROP POLICY IF EXISTS "Users can join public groups or be added" ON public.group_members;
-DROP POLICY IF EXISTS "Admins and owners can update roles" ON public.group_members;
-DROP POLICY IF EXISTS "Users can leave or admins can remove members" ON public.group_members;
-
-DROP POLICY IF EXISTS "Group members can view goals" ON public.group_goals;
-DROP POLICY IF EXISTS "Owners and admins can manage goals" ON public.group_goals;
-
-DROP POLICY IF EXISTS "Group members can view activity" ON public.group_activity;
-DROP POLICY IF EXISTS "Group members can insert activity" ON public.group_activity;
-
-DROP POLICY IF EXISTS "Users can view their group invites" ON public.group_invites;
-DROP POLICY IF EXISTS "Group members can create invites" ON public.group_invites;
-DROP POLICY IF EXISTS "Invitees can update invite status" ON public.group_invites;
-DROP POLICY IF EXISTS "Users can delete relevant invites" ON public.group_invites;
-
--- Groups Policies
-CREATE POLICY "Users can view groups they belong to or public groups"
-  ON public.groups FOR SELECT TO authenticated
-  USING (
-    is_discoverable = TRUE
-    OR EXISTS (SELECT 1 FROM public.group_members WHERE group_id = public.groups.id AND user_id = auth.uid())
+CREATE OR REPLACE FUNCTION public.is_group_member(p_group_id UUID, p_user_id UUID DEFAULT auth.uid())
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF p_user_id IS NULL OR p_group_id IS NULL THEN
+    RETURN FALSE;
+  END IF;
+  RETURN EXISTS (
+    SELECT 1 FROM public.group_members
+    WHERE group_id = p_group_id AND user_id = p_user_id
   );
+END;
+$$;
 
-CREATE POLICY "Users can create groups"
-  ON public.groups FOR INSERT TO authenticated
-  WITH CHECK (auth.uid() = owner_id);
-
-CREATE POLICY "Owners and admins can update their group"
-  ON public.groups FOR UPDATE TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.group_members
-      WHERE group_id = public.groups.id AND user_id = auth.uid() AND role IN ('owner', 'admin')
-    )
-  )
-  WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM public.group_members
-      WHERE group_id = public.groups.id AND user_id = auth.uid() AND role IN ('owner', 'admin')
-    )
+CREATE OR REPLACE FUNCTION public.is_group_owner_or_admin(p_group_id UUID, p_user_id UUID DEFAULT auth.uid())
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF p_user_id IS NULL OR p_group_id IS NULL THEN
+    RETURN FALSE;
+  END IF;
+  RETURN EXISTS (
+    SELECT 1 FROM public.group_members
+    WHERE group_id = p_group_id AND user_id = p_user_id AND role IN ('owner', 'admin')
+  ) OR EXISTS (
+    SELECT 1 FROM public.groups
+    WHERE id = p_group_id AND owner_id = p_user_id
   );
+END;
+$$;
 
-CREATE POLICY "Owners can delete their group"
-  ON public.groups FOR DELETE TO authenticated
-  USING (owner_id = auth.uid());
-
--- Group Members Policies
-CREATE POLICY "Users can view members of accessible groups"
-  ON public.group_members FOR SELECT TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.groups g
-      WHERE g.id = public.group_members.group_id
-        AND (g.is_discoverable = TRUE OR EXISTS (SELECT 1 FROM public.group_members m WHERE m.group_id = g.id AND m.user_id = auth.uid()))
-    )
+CREATE OR REPLACE FUNCTION public.is_group_owner(p_group_id UUID, p_user_id UUID DEFAULT auth.uid())
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF p_user_id IS NULL OR p_group_id IS NULL THEN
+    RETURN FALSE;
+  END IF;
+  RETURN EXISTS (
+    SELECT 1 FROM public.groups
+    WHERE id = p_group_id AND owner_id = p_user_id
   );
+END;
+$$;
 
-CREATE POLICY "Users can join public groups or be added"
-  ON public.group_members FOR INSERT TO authenticated
-  WITH CHECK (auth.uid() = user_id OR EXISTS (
-    SELECT 1 FROM public.group_members WHERE group_id = public.group_members.group_id AND user_id = auth.uid() AND role IN ('owner', 'admin')
-  ));
+GRANT EXECUTE ON FUNCTION public.is_group_member(UUID, UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.is_group_owner_or_admin(UUID, UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.is_group_owner(UUID, UUID) TO authenticated;
 
-CREATE POLICY "Admins and owners can update roles"
-  ON public.group_members FOR UPDATE TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.group_members
-      WHERE group_id = public.group_members.group_id AND user_id = auth.uid() AND role IN ('owner', 'admin')
-    )
-  );
+-- ==============================================================================
+-- AUTOMATIC GROUP OWNER MEMBERSHIP TRIGGER
+-- ==============================================================================
 
-CREATE POLICY "Users can leave or admins can remove members"
-  ON public.group_members FOR DELETE TO authenticated
-  USING (
-    auth.uid() = user_id
-    OR EXISTS (
-      SELECT 1 FROM public.group_members
-      WHERE group_id = public.group_members.group_id AND user_id = auth.uid() AND role IN ('owner', 'admin')
-    )
-  );
+CREATE OR REPLACE FUNCTION public.handle_new_group_owner()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  INSERT INTO public.group_members (group_id, user_id, role, joined_at)
+  VALUES (NEW.id, NEW.owner_id, 'owner', timezone('utc'::text, now()))
+  ON CONFLICT (group_id, user_id) DO UPDATE SET role = 'owner';
+  RETURN NEW;
+END;
+$$;
 
--- Group Goals Policies
-CREATE POLICY "Group members can view goals"
-  ON public.group_goals FOR SELECT TO authenticated
-  USING (
-    EXISTS (SELECT 1 FROM public.group_members WHERE group_id = public.group_goals.group_id AND user_id = auth.uid())
-  );
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_trigger WHERE tgname = 'on_group_created_add_owner'
+  ) THEN
+    CREATE TRIGGER on_group_created_add_owner
+      AFTER INSERT ON public.groups
+      FOR EACH ROW
+      EXECUTE FUNCTION public.handle_new_group_owner();
+  END IF;
+END $$;
 
-CREATE POLICY "Owners and admins can manage goals"
-  ON public.group_goals FOR ALL TO authenticated
-  USING (
-    EXISTS (SELECT 1 FROM public.group_members WHERE group_id = public.group_goals.group_id AND user_id = auth.uid() AND role IN ('owner', 'admin'))
-  )
-  WITH CHECK (
-    EXISTS (SELECT 1 FROM public.group_members WHERE group_id = public.group_goals.group_id AND user_id = auth.uid() AND role IN ('owner', 'admin'))
-  );
+-- ==============================================================================
+-- IDEMPOTENT RLS POLICIES FOR STUDY GROUPS (ZERO DROP STATEMENTS)
+-- ==============================================================================
 
--- Group Activity Policies
-CREATE POLICY "Group members can view activity"
-  ON public.group_activity FOR SELECT TO authenticated
-  USING (
-    EXISTS (SELECT 1 FROM public.group_members WHERE group_id = public.group_activity.group_id AND user_id = auth.uid())
-  );
+-- 1. GROUPS POLICIES
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'groups' AND policyname = 'Users can view groups they belong to or public groups'
+  ) THEN
+    CREATE POLICY "Users can view groups they belong to or public groups"
+      ON public.groups FOR SELECT TO authenticated
+      USING (
+        is_discoverable = TRUE
+        OR owner_id = auth.uid()
+        OR public.is_group_member(id, auth.uid())
+      );
+  END IF;
+END $$;
 
-CREATE POLICY "Group members can insert activity"
-  ON public.group_activity FOR INSERT TO authenticated
-  WITH CHECK (
-    auth.uid() = user_id
-    AND EXISTS (SELECT 1 FROM public.group_members WHERE group_id = public.group_activity.group_id AND user_id = auth.uid())
-  );
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'groups' AND policyname = 'Users can create groups'
+  ) THEN
+    CREATE POLICY "Users can create groups"
+      ON public.groups FOR INSERT TO authenticated
+      WITH CHECK (auth.uid() = owner_id);
+  END IF;
+END $$;
 
--- Group Invites Policies
-CREATE POLICY "Users can view their group invites"
-  ON public.group_invites FOR SELECT TO authenticated
-  USING (auth.uid() = inviter_id OR auth.uid() = invitee_id);
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'groups' AND policyname = 'Owners and admins can update their group'
+  ) THEN
+    CREATE POLICY "Owners and admins can update their group"
+      ON public.groups FOR UPDATE TO authenticated
+      USING (public.is_group_owner_or_admin(id, auth.uid()))
+      WITH CHECK (public.is_group_owner_or_admin(id, auth.uid()));
+  END IF;
+END $$;
 
-CREATE POLICY "Group members can create invites"
-  ON public.group_invites FOR INSERT TO authenticated
-  WITH CHECK (
-    auth.uid() = inviter_id
-    AND EXISTS (SELECT 1 FROM public.group_members WHERE group_id = public.group_invites.group_id AND user_id = auth.uid())
-  );
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'groups' AND policyname = 'Owners can delete their group'
+  ) THEN
+    CREATE POLICY "Owners can delete their group"
+      ON public.groups FOR DELETE TO authenticated
+      USING (owner_id = auth.uid());
+  END IF;
+END $$;
 
-CREATE POLICY "Invitees can update invite status"
-  ON public.group_invites FOR UPDATE TO authenticated
-  USING (auth.uid() = invitee_id)
-  WITH CHECK (auth.uid() = invitee_id);
+-- 2. GROUP MEMBERS POLICIES
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'group_members' AND policyname = 'Users can view members of accessible groups'
+  ) THEN
+    CREATE POLICY "Users can view members of accessible groups"
+      ON public.group_members FOR SELECT TO authenticated
+      USING (
+        user_id = auth.uid()
+        OR public.is_group_member(group_id, auth.uid())
+        OR EXISTS (
+          SELECT 1 FROM public.groups g
+          WHERE g.id = public.group_members.group_id AND g.is_discoverable = TRUE
+        )
+      );
+  END IF;
+END $$;
 
-CREATE POLICY "Users can delete relevant invites"
-  ON public.group_invites FOR DELETE TO authenticated
-  USING (auth.uid() = inviter_id OR auth.uid() = invitee_id);
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'group_members' AND policyname = 'Users can join public groups or be added'
+  ) THEN
+    CREATE POLICY "Users can join public groups or be added"
+      ON public.group_members FOR INSERT TO authenticated
+      WITH CHECK (
+        auth.uid() = user_id
+        OR public.is_group_owner_or_admin(group_id, auth.uid())
+      );
+  END IF;
+END $$;
 
--- Grants
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'group_members' AND policyname = 'Admins and owners can update roles'
+  ) THEN
+    CREATE POLICY "Admins and owners can update roles"
+      ON public.group_members FOR UPDATE TO authenticated
+      USING (public.is_group_owner_or_admin(group_id, auth.uid()))
+      WITH CHECK (public.is_group_owner_or_admin(group_id, auth.uid()));
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'group_members' AND policyname = 'Users can leave or admins can remove members'
+  ) THEN
+    CREATE POLICY "Users can leave or admins can remove members"
+      ON public.group_members FOR DELETE TO authenticated
+      USING (
+        auth.uid() = user_id
+        OR public.is_group_owner_or_admin(group_id, auth.uid())
+      );
+  END IF;
+END $$;
+
+-- 3. GROUP GOALS POLICIES
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'group_goals' AND policyname = 'Group members can view goals'
+  ) THEN
+    CREATE POLICY "Group members can view goals"
+      ON public.group_goals FOR SELECT TO authenticated
+      USING (
+        public.is_group_member(group_id, auth.uid())
+        OR public.is_group_owner(group_id, auth.uid())
+      );
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'group_goals' AND policyname = 'Owners and admins can manage goals'
+  ) THEN
+    CREATE POLICY "Owners and admins can manage goals"
+      ON public.group_goals FOR ALL TO authenticated
+      USING (public.is_group_owner_or_admin(group_id, auth.uid()))
+      WITH CHECK (public.is_group_owner_or_admin(group_id, auth.uid()));
+  END IF;
+END $$;
+
+-- 4. GROUP ACTIVITY POLICIES
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'group_activity' AND policyname = 'Group members can view activity'
+  ) THEN
+    CREATE POLICY "Group members can view activity"
+      ON public.group_activity FOR SELECT TO authenticated
+      USING (
+        public.is_group_member(group_id, auth.uid())
+        OR public.is_group_owner(group_id, auth.uid())
+      );
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'group_activity' AND policyname = 'Group members can insert activity'
+  ) THEN
+    CREATE POLICY "Group members can insert activity"
+      ON public.group_activity FOR INSERT TO authenticated
+      WITH CHECK (
+        auth.uid() = user_id
+        AND (
+          public.is_group_member(group_id, auth.uid())
+          OR public.is_group_owner(group_id, auth.uid())
+        )
+      );
+  END IF;
+END $$;
+
+-- 5. GROUP INVITES POLICIES
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'group_invites' AND policyname = 'Users can view their group invites'
+  ) THEN
+    CREATE POLICY "Users can view their group invites"
+      ON public.group_invites FOR SELECT TO authenticated
+      USING (
+        auth.uid() = inviter_id
+        OR auth.uid() = invitee_id
+        OR public.is_group_owner_or_admin(group_id, auth.uid())
+      );
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'group_invites' AND policyname = 'Group members can create invites'
+  ) THEN
+    CREATE POLICY "Group members can create invites"
+      ON public.group_invites FOR INSERT TO authenticated
+      WITH CHECK (
+        auth.uid() = inviter_id
+        AND (
+          public.is_group_member(group_id, auth.uid())
+          OR public.is_group_owner(group_id, auth.uid())
+        )
+      );
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'group_invites' AND policyname = 'Invitees can update invite status'
+  ) THEN
+    CREATE POLICY "Invitees can update invite status"
+      ON public.group_invites FOR UPDATE TO authenticated
+      USING (auth.uid() = invitee_id)
+      WITH CHECK (auth.uid() = invitee_id);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'group_invites' AND policyname = 'Users can delete relevant invites'
+  ) THEN
+    CREATE POLICY "Users can delete relevant invites"
+      ON public.group_invites FOR DELETE TO authenticated
+      USING (
+        auth.uid() = inviter_id
+        OR auth.uid() = invitee_id
+        OR public.is_group_owner_or_admin(group_id, auth.uid())
+      );
+  END IF;
+END $$;
+
+-- Table Grants
 GRANT ALL ON TABLE public.groups TO authenticated;
 GRANT ALL ON TABLE public.group_members TO authenticated;
 GRANT ALL ON TABLE public.group_goals TO authenticated;

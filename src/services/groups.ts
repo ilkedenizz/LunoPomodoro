@@ -78,7 +78,7 @@ export const getUserStudyGroups = async (userId?: string): Promise<StudyGroup[]>
     const { data: memberRows, error: memberErr } = await client
       .from('group_members')
       .select('group_id, role, joined_at')
-      .eq('user_id', userId);
+      .eq('user_id', effectiveId);
 
     if (memberErr || !memberRows || memberRows.length === 0) {
       return [];
