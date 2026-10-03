@@ -41,6 +41,7 @@ import type {
   GroupInvite,
   GroupRole,
   Friend,
+  PublicUserProfile,
 } from '../types';
 import { getTranslations, formatDurationHoursMinutes } from '../utils/translations';
 import {
@@ -71,6 +72,7 @@ interface GroupsModalProps {
   onSelectActiveGroup?: (group: StudyGroup | null) => void;
   onOpenAuth?: () => void;
   onPendingInvitesCountChange?: (count: number) => void;
+  onOpenFriendProfile?: (friend: PublicUserProfile) => void;
 }
 
 type GroupsTab = 'my-groups' | 'discover' | 'invites' | 'create';
@@ -114,6 +116,7 @@ export const GroupsModal: React.FC<GroupsModalProps> = React.memo(({
   onSelectActiveGroup,
   onOpenAuth,
   onPendingInvitesCountChange,
+  onOpenFriendProfile,
 }) => {
   const t = getTranslations(language);
 
@@ -766,7 +769,19 @@ export const GroupsModal: React.FC<GroupsModalProps> = React.memo(({
                   {selectedGroupDetails.members.map((member, idx) => (
                     <div
                       key={member.id}
+                      onClick={() => {
+                        if (onOpenFriendProfile && member.userId !== user?.id) {
+                          onOpenFriendProfile({
+                            id: member.userId,
+                            nickname: member.nickname || 'user',
+                            displayName: member.displayName,
+                            avatarUrl: member.avatarUrl,
+                          });
+                        }
+                      }}
                       className={`p-3 rounded-xl flex items-center justify-between transition-all ${
+                        onOpenFriendProfile && member.userId !== user?.id ? 'cursor-pointer hover:scale-[1.01]' : ''
+                      } ${
                         idx === 0
                           ? 'bg-gradient-to-r from-amber-500/20 to-purple-500/20 border border-amber-500/30'
                           : idx === 1

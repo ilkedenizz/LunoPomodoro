@@ -200,6 +200,12 @@ export interface Translations {
   lastActive: string;
   inviteToGroup: string;
   backToFriends: string;
+  monthFocus: string;
+  activityHeatmap: string;
+  recentActivityTitle: string;
+  alreadyInGroup: string;
+  alreadyInvited: string;
+  noRecentActivity: string;
 
   // Study Groups
   groupsCommunityTooltip: string;
@@ -593,6 +599,12 @@ export const TRANSLATIONS: Record<AppLanguage, Translations> = {
     lastActive: 'Last Active',
     inviteToGroup: 'Invite to Group',
     backToFriends: 'Back to Friends',
+    monthFocus: 'This Month',
+    activityHeatmap: 'Focus Activity Heatmap',
+    recentActivityTitle: 'Recent Activity',
+    alreadyInGroup: 'Already a member of this group',
+    alreadyInvited: 'Invite pending',
+    noRecentActivity: 'No recent activity records yet.',
 
     // Study Groups
     groupsCommunityTooltip: 'Study Groups & Collaborative Space',
@@ -984,6 +996,12 @@ export const TRANSLATIONS: Record<AppLanguage, Translations> = {
     lastActive: 'Son Aktivite',
     inviteToGroup: 'Gruba Davet Et',
     backToFriends: 'Arkadaşlara Dön',
+    monthFocus: 'Bu Ay',
+    activityHeatmap: 'Çalışma Takvimi (Son 30 Gün)',
+    recentActivityTitle: 'Son Aktiviteler',
+    alreadyInGroup: 'Bu kullanıcı zaten grupta',
+    alreadyInvited: 'Davet gönderildi',
+    noRecentActivity: 'Henüz son aktivite kaydı yok.',
 
     // Study Groups
     groupsCommunityTooltip: 'Çalışma Grupları & Ortak Çalışma',

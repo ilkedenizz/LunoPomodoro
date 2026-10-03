@@ -47,6 +47,7 @@ interface FriendsModalProps {
   language?: AppLanguage;
   onOpenAuth?: () => void;
   onRequestCountChange?: (count: number) => void;
+  initialSelectedFriend?: PublicUserProfile | Friend | null;
 }
 
 type FriendsTab = 'friends' | 'requests' | 'search';
@@ -111,6 +112,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
   language = 'en',
   onOpenAuth,
   onRequestCountChange,
+  initialSelectedFriend,
 }) => {
   const t = getTranslations(language);
   const isLight = theme === 'light';
@@ -133,7 +135,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   // Selected Friend Profile & Comparison State
-  const [selectedFriend, setSelectedFriend] = useState<Friend | PublicUserProfile | null>(null);
+  const [selectedFriend, setSelectedFriend] = useState<Friend | PublicUserProfile | null>(initialSelectedFriend || null);
   const [friendStats, setFriendStats] = useState<FriendPublicStats | null>(null);
   const [isLoadingFriendStats, setIsLoadingFriendStats] = useState(false);
 
@@ -145,22 +147,28 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
 
   // User's own focus stats for comparison
   const myStats = useMemo(() => {
-    if (!isOpen) return { todayMinutes: 0, weekMinutes: 0, totalMinutes: 0, totalSessions: 0 };
+    if (!isOpen) return { todayMinutes: 0, weekMinutes: 0, monthMinutes: 0, totalMinutes: 0, totalSessions: 0, dailyAverageMinutes: 0 };
     const sessions = loadSessions();
     const todaySes = sessions.filter((s) => isToday(s.timestamp) && s.mode === 'pomodoro');
     const weekSes = sessions.filter((s) => s.timestamp >= Date.now() - 7 * 86400 * 1000 && s.mode === 'pomodoro');
+    const monthSes = sessions.filter((s) => s.timestamp >= Date.now() - 30 * 86400 * 1000 && s.mode === 'pomodoro');
     const totalSes = sessions.filter((s) => s.mode === 'pomodoro');
 
     const todayMins = todaySes.reduce((acc, s) => acc + getSessionMinutes(s), 0);
     const weekMins = weekSes.reduce((acc, s) => acc + getSessionMinutes(s), 0);
+    const monthMins = monthSes.reduce((acc, s) => acc + getSessionMinutes(s), 0);
     const totalMins = totalSes.reduce((acc, s) => acc + getSessionMinutes(s), 0);
     const totalCount = totalSes.filter((s) => s.completed !== false).length;
+    const activeDaysCount = Math.max(1, new Set(totalSes.map((s) => new Date(s.timestamp).toDateString())).size);
+    const dailyAvgMins = Math.round(totalMins / activeDaysCount);
 
     return {
       todayMinutes: todayMins,
       weekMinutes: weekMins,
+      monthMinutes: monthMins,
       totalMinutes: totalMins,
       totalSessions: totalCount,
+      dailyAverageMinutes: dailyAvgMins,
     };
   }, [isOpen]);
 
@@ -177,6 +185,12 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
       setIsLoadingFriendStats(false);
     }
   }, []);
+
+  useEffect(() => {
+    if (isOpen && initialSelectedFriend) {
+      handleSelectFriend(initialSelectedFriend);
+    }
+  }, [isOpen, initialSelectedFriend, handleSelectFriend]);
 
   const handleOpenGroupInvite = async () => {
     if (!user) {
@@ -811,7 +825,38 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                           </div>
                         </div>
 
-                        {/* Metric 3: Total Focus */}
+                        {/* Metric 3: This Month */}
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-xs font-semibold">
+                            <span className="text-cyan-500">{formatDurationHoursMinutes(myStats.monthMinutes, language)}</span>
+                            <span className={`text-[10px] uppercase tracking-wider ${isLight ? 'text-slate-500' : 'text-white/50'}`}>{t.monthFocus}</span>
+                            <span className="text-cyan-400">{formatDurationHoursMinutes(friendStats?.monthMinutes || 0, language)}</span>
+                          </div>
+                          <div className="h-2 rounded-full bg-black/10 flex overflow-hidden">
+                            <div
+                              className="h-full bg-indigo-500 transition-all duration-500"
+                              style={{
+                                width: `${
+                                  myStats.monthMinutes + (friendStats?.monthMinutes || 0) > 0
+                                    ? (myStats.monthMinutes / (myStats.monthMinutes + (friendStats?.monthMinutes || 0))) * 100
+                                    : 50
+                                }%`,
+                              }}
+                            />
+                            <div
+                              className="h-full bg-purple-500 transition-all duration-500"
+                              style={{
+                                width: `${
+                                  myStats.monthMinutes + (friendStats?.monthMinutes || 0) > 0
+                                    ? ((friendStats?.monthMinutes || 0) / (myStats.monthMinutes + (friendStats?.monthMinutes || 0))) * 100
+                                    : 50
+                                }%`,
+                              }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Metric 4: Total Focus */}
                         <div className="space-y-1">
                           <div className="flex justify-between text-xs font-semibold">
                             <span className="text-purple-500">{formatDurationHoursMinutes(myStats.totalMinutes, language)}</span>
@@ -842,7 +887,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                           </div>
                         </div>
 
-                        {/* Metric 4: Total Sessions */}
+                        {/* Metric 5: Total Sessions */}
                         <div className="space-y-1">
                           <div className="flex justify-between text-xs font-semibold">
                             <span className="text-amber-500">{myStats.totalSessions} {language === 'tr' ? 'Oturum' : 'Sessions'}</span>
@@ -872,6 +917,116 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                             />
                           </div>
                         </div>
+
+                        {/* Metric 6: Daily Average */}
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-xs font-semibold">
+                            <span className="text-teal-500">{formatDurationHoursMinutes(myStats.dailyAverageMinutes, language)}</span>
+                            <span className={`text-[10px] uppercase tracking-wider ${isLight ? 'text-slate-500' : 'text-white/50'}`}>{t.dailyAverage}</span>
+                            <span className="text-teal-400">{formatDurationHoursMinutes(friendStats?.dailyAverageMinutes || 0, language)}</span>
+                          </div>
+                          <div className="h-2 rounded-full bg-black/10 flex overflow-hidden">
+                            <div
+                              className="h-full bg-teal-500 transition-all duration-500"
+                              style={{
+                                width: `${
+                                  myStats.dailyAverageMinutes + (friendStats?.dailyAverageMinutes || 0) > 0
+                                    ? (myStats.dailyAverageMinutes / (myStats.dailyAverageMinutes + (friendStats?.dailyAverageMinutes || 0))) * 100
+                                    : 50
+                                }%`,
+                              }}
+                            />
+                            <div
+                              className="h-full bg-purple-500 transition-all duration-500"
+                              style={{
+                                width: `${
+                                  myStats.dailyAverageMinutes + (friendStats?.dailyAverageMinutes || 0) > 0
+                                    ? ((friendStats?.dailyAverageMinutes || 0) / (myStats.dailyAverageMinutes + (friendStats?.dailyAverageMinutes || 0))) * 100
+                                    : 50
+                                }%`,
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 30-DAY ACTIVITY HEATMAP SECTION */}
+                      <div className={`p-4 rounded-2xl border space-y-3 ${
+                        isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'
+                      }`}>
+                        <div className="flex items-center space-x-2">
+                          <Sparkles className="w-4 h-4 text-indigo-400" />
+                          <h4 className="text-xs font-bold uppercase tracking-wider">{t.activityHeatmap}</h4>
+                        </div>
+
+                        <div className="grid grid-cols-6 sm:grid-cols-10 gap-1.5 pt-1">
+                          {(() => {
+                            const historyMap = new Map((friendStats?.dailyHistory || []).map((h) => [h.date, h.minutes]));
+                            const boxes = [];
+                            const today = new Date();
+                            for (let i = 29; i >= 0; i--) {
+                              const d = new Date(today.valueOf() - i * 86400 * 1000);
+                              const dateStr = d.toISOString().split('T')[0];
+                              const mins = historyMap.get(dateStr) || 0;
+                              const displayLabel = `${d.getDate()} ${d.toLocaleString(language === 'tr' ? 'tr-TR' : 'en-US', { month: 'short' })} — ${formatDurationHoursMinutes(mins, language)}`;
+
+                              let bgClass = isLight ? 'bg-slate-200' : 'bg-white/10';
+                              if (mins > 0 && mins < 30) bgClass = 'bg-indigo-400/40';
+                              else if (mins >= 30 && mins < 60) bgClass = 'bg-indigo-500/70';
+                              else if (mins >= 60 && mins < 120) bgClass = 'bg-indigo-600';
+                              else if (mins >= 120) bgClass = 'bg-purple-500 font-bold';
+
+                              boxes.push(
+                                <div
+                                  key={dateStr}
+                                  className={`h-7 rounded-lg ${bgClass} flex items-center justify-center text-[9px] transition-all hover:scale-110 cursor-pointer shadow-sm`}
+                                  title={displayLabel}
+                                >
+                                  {mins > 0 ? `${mins}m` : ''}
+                                </div>
+                              );
+                            }
+                            return boxes;
+                          })()}
+                        </div>
+                      </div>
+
+                      {/* RECENT ACTIVITIES FEED SECTION */}
+                      <div className={`p-4 rounded-2xl border space-y-3 ${
+                        isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'
+                      }`}>
+                        <div className="flex items-center space-x-2">
+                          <Clock className="w-4 h-4 text-purple-400" />
+                          <h4 className="text-xs font-bold uppercase tracking-wider">{t.recentActivityTitle}</h4>
+                        </div>
+
+                        {!friendStats?.recentActivities || friendStats.recentActivities.length === 0 ? (
+                          <div className={`text-center py-4 text-xs italic ${isLight ? 'text-slate-400' : 'text-white/40'}`}>
+                            {t.noRecentActivity}
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            {friendStats.recentActivities.map((act) => (
+                              <div
+                                key={act.id}
+                                className={`p-2.5 rounded-xl border flex items-center justify-between text-xs ${
+                                  isLight ? 'bg-white border-slate-200' : 'bg-white/5 border-white/10'
+                                }`}
+                              >
+                                <div className="flex items-center space-x-2 min-w-0">
+                                  <Sparkles className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                                  <span className="truncate font-medium">{act.description}</span>
+                                </div>
+                                <span className={`text-[10px] shrink-0 ${isLight ? 'text-slate-400' : 'text-white/40'}`}>
+                                  {new Date(act.timestamp).toLocaleDateString(language === 'tr' ? 'tr-TR' : 'en-US', {
+                                    month: 'short',
+                                    day: 'numeric',
+                                  })}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </>
                   )}

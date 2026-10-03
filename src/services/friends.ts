@@ -532,6 +532,18 @@ export const cancelFriendRequest = async (friendshipId: string): Promise<FriendS
   }
 };
 
+export interface FriendDailyHistoryItem {
+  date: string; // 'YYYY-MM-DD'
+  minutes: number;
+}
+
+export interface FriendRecentActivityItem {
+  id: string;
+  type: 'focus_completed' | 'group_joined' | 'goal_updated';
+  description: string;
+  timestamp: number;
+}
+
 export interface FriendPublicStats {
   userId: string;
   nickname: string;
@@ -540,9 +552,14 @@ export interface FriendPublicStats {
   joinedAt?: number;
   todayMinutes: number;
   weekMinutes: number;
+  monthMinutes: number;
   totalMinutes: number;
   totalSessions: number;
+  dailyAverageMinutes: number;
   lastActiveAt?: number;
+  lastSessionMinutes?: number;
+  dailyHistory?: FriendDailyHistoryItem[];
+  recentActivities?: FriendRecentActivityItem[];
 }
 
 export const getFriendPublicStats = async (targetUserId: string): Promise<FriendPublicStats | null> => {
@@ -561,9 +578,14 @@ export const getFriendPublicStats = async (targetUserId: string): Promise<Friend
         joinedAt: safeParseTimestamp(data.joinedAt),
         todayMinutes: Number(data.todayMinutes) || 0,
         weekMinutes: Number(data.weekMinutes) || 0,
+        monthMinutes: Number(data.monthMinutes) || 0,
         totalMinutes: Number(data.totalMinutes) || 0,
         totalSessions: Number(data.totalSessions) || 0,
+        dailyAverageMinutes: Number(data.dailyAverageMinutes) || 0,
         lastActiveAt: data.lastActiveAt ? safeParseTimestamp(data.lastActiveAt) : undefined,
+        lastSessionMinutes: data.lastSessionMinutes ? Number(data.lastSessionMinutes) : undefined,
+        dailyHistory: Array.isArray(data.dailyHistory) ? data.dailyHistory : [],
+        recentActivities: Array.isArray(data.recentActivities) ? data.recentActivities : [],
       };
     }
 
@@ -584,8 +606,12 @@ export const getFriendPublicStats = async (targetUserId: string): Promise<Friend
       joinedAt: safeParseTimestamp(profile.created_at),
       todayMinutes: 0,
       weekMinutes: 0,
+      monthMinutes: 0,
       totalMinutes: 0,
       totalSessions: 0,
+      dailyAverageMinutes: 0,
+      dailyHistory: [],
+      recentActivities: [],
     };
   } catch (err) {
     if (import.meta.env.DEV) {

@@ -48,6 +48,7 @@ import type {
   AtmospherePreset,
   AppTheme,
   UserProfile,
+  PublicUserProfile,
   SyncStatus,
   StudyGroup,
 } from './types';
@@ -120,6 +121,7 @@ export function App() {
 
   // Friends State
   const [isFriendsOpen, setIsFriendsOpen] = useState(false);
+  const [selectedFriendForModal, setSelectedFriendForModal] = useState<PublicUserProfile | null>(null);
   const [incomingRequestsCount, setIncomingRequestsCount] = useState(0);
 
   // Study Groups State
@@ -1077,7 +1079,10 @@ export function App() {
   const handleCloseHistory = useCallback(() => setIsHistoryOpen(false), []);
 
   const handleOpenFriends = useCallback(() => setIsFriendsOpen(true), []);
-  const handleCloseFriends = useCallback(() => setIsFriendsOpen(false), []);
+  const handleCloseFriends = useCallback(() => {
+    setIsFriendsOpen(false);
+    setSelectedFriendForModal(null);
+  }, []);
 
   const handleOpenGroups = useCallback(() => setIsGroupsOpen(true), []);
   const handleCloseGroups = useCallback(() => setIsGroupsOpen(false), []);
@@ -1396,6 +1401,7 @@ export function App() {
               onOpenAuth={handleOpenAuthFromFriends}
               onRequestCountChange={setIncomingRequestsCount}
               language={settings.language || 'en'}
+              initialSelectedFriend={selectedFriendForModal}
             />
           )}
 
@@ -1411,6 +1417,11 @@ export function App() {
               onOpenAuth={() => {
                 setIsGroupsOpen(false);
                 handleOpenAuth('signin');
+              }}
+              onOpenFriendProfile={(friend) => {
+                setIsGroupsOpen(false);
+                setSelectedFriendForModal(friend);
+                setIsFriendsOpen(true);
               }}
             />
           )}
