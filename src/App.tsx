@@ -31,6 +31,9 @@ const FriendsModal = lazy(() =>
 const AuthModal = lazy(() =>
   import('./components/AuthModal').then((m) => ({ default: m.AuthModal }))
 );
+const GroupsModal = lazy(() =>
+  import('./components/GroupsModal').then((m) => ({ default: m.GroupsModal }))
+);
 
 import type { AuthModalMode } from './components/AuthModal';
 import type {
@@ -46,6 +49,7 @@ import type {
   AppTheme,
   UserProfile,
   SyncStatus,
+  StudyGroup,
 } from './types';
 import {
   loadSettings,
@@ -73,6 +77,7 @@ import { isToday } from './utils/dates';
 import { getSessionMinutes } from './utils/statistics';
 import { onAuthStateChange, signOut, getCurrentUser, handleAuthUrlCallback } from './services/auth';
 import { getIncomingFriendRequests } from './services/friends';
+import { getPendingGroupInvites, recordGroupFocusSession } from './services/groups';
 import {
   SyncEngine,
   markTaskPending,
@@ -116,6 +121,11 @@ export function App() {
   // Friends State
   const [isFriendsOpen, setIsFriendsOpen] = useState(false);
   const [incomingRequestsCount, setIncomingRequestsCount] = useState(0);
+
+  // Study Groups State
+  const [isGroupsOpen, setIsGroupsOpen] = useState(false);
+  const [activeGroup, setActiveGroup] = useState<StudyGroup | null>(null);
+  const [pendingGroupInvitesCount, setPendingGroupInvitesCount] = useState(0);
 
   // 2. Timer State
   const [mode, setMode] = useState<TimerMode>('pomodoro');
@@ -164,6 +174,7 @@ export function App() {
       import('./components/BackgroundSelectorModal');
       import('./components/AmbienceAudioPlayer');
       import('./components/FriendsModal');
+      import('./components/GroupsModal');
       import('./components/FocusHistoryModal');
       import('./components/ShortcutsModal');
       import('./components/AuthModal');
@@ -211,6 +222,9 @@ export function App() {
         getIncomingFriendRequests().then((reqs) => {
           if (isMounted) setIncomingRequestsCount(reqs.length);
         });
+        getPendingGroupInvites().then((invites) => {
+          if (isMounted) setPendingGroupInvitesCount(invites.length);
+        });
         SyncEngine.pullAndMerge(initialUser.id).then(() => {
           if (!isMounted) return;
           const loadedSettings = loadSettings();
@@ -234,8 +248,12 @@ export function App() {
         getIncomingFriendRequests().then((reqs) => {
           if (isMounted) setIncomingRequestsCount(reqs.length);
         });
+        getPendingGroupInvites().then((invites) => {
+          if (isMounted) setPendingGroupInvitesCount(invites.length);
+        });
       } else {
         setIncomingRequestsCount(0);
+        setPendingGroupInvitesCount(0);
         SyncEngine.reset();
       }
 
@@ -540,6 +558,7 @@ export function App() {
       actualDurationSeconds: elapsedSeconds,
       completed: false,
       taskTitle: activeTaskTitle || undefined,
+      groupId: activeGroup?.id,
     };
 
     const updatedSessions = saveSession(partialSession);
@@ -549,7 +568,10 @@ export function App() {
       markSessionPending(partialSession.id);
       SyncEngine.pushSession(partialSession, user.id);
     }
-  }, [mode, timerState, timeLeft, activeTaskTitle, user]);
+    if (activeGroup) {
+      recordGroupFocusSession(activeGroup.id, partialSession, user?.id).catch(console.error);
+    }
+  }, [mode, timerState, timeLeft, activeTaskTitle, activeGroup, user]);
 
   // Handle Session Completion (Strictly Idempotent)
   const handleSessionComplete = useCallback(() => {
@@ -595,6 +617,7 @@ export function App() {
         actualDurationSeconds: targetMins * 60,
         completed: true,
         taskTitle: activeTaskTitle || undefined,
+        groupId: activeGroup?.id,
       };
       sessionStartedAtRef.current = null;
       sessionTargetSecondsRef.current = 0;
@@ -605,6 +628,9 @@ export function App() {
       if (user) {
         markSessionPending(newSession.id);
         SyncEngine.pushSession(newSession, user.id);
+      }
+      if (activeGroup) {
+        recordGroupFocusSession(activeGroup.id, newSession, user?.id).catch(console.error);
       }
 
       // Increment active task pomodoros count if present
@@ -944,6 +970,7 @@ export function App() {
         setIsShortcutsOpen(false);
         setIsHistoryOpen(false);
         setIsFriendsOpen(false);
+        setIsGroupsOpen(false);
         setIsAuthOpen(false);
       }
     };
@@ -1052,6 +1079,9 @@ export function App() {
   const handleOpenFriends = useCallback(() => setIsFriendsOpen(true), []);
   const handleCloseFriends = useCallback(() => setIsFriendsOpen(false), []);
 
+  const handleOpenGroups = useCallback(() => setIsGroupsOpen(true), []);
+  const handleCloseGroups = useCallback(() => setIsGroupsOpen(false), []);
+
   const handleHeaderOpenAuth = useCallback(() => {
     if (user) {
       setSettingsTab('account');
@@ -1073,6 +1103,7 @@ export function App() {
     setIsShortcutsOpen(false);
     setIsHistoryOpen(false);
     setIsFriendsOpen(false);
+    setIsGroupsOpen(false);
     setIsAuthOpen(false);
   }, []);
 
@@ -1141,7 +1172,9 @@ export function App() {
         onOpenShortcuts={handleOpenShortcuts}
         onOpenHistory={handleOpenHistory}
         onOpenFriends={handleOpenFriends}
+        onOpenGroups={handleOpenGroups}
         incomingRequestsCount={incomingRequestsCount}
+        pendingGroupInvitesCount={pendingGroupInvitesCount}
         isAudioPlaying={isAudioPlaying}
         isFullscreen={isFullscreen}
         onToggleFullscreen={toggleFullscreen}
@@ -1179,7 +1212,7 @@ export function App() {
               language={settings.language || 'en'}
             />
 
-            {/* 2. Central Timer Display with Mode Label, 25:00, Sessions, Active Task, and chosen Timer Color */}
+            {/* 2. Central Timer Display with Mode Label, 25:00, Sessions, Active Task, Active Group, and chosen Timer Color */}
             <MainTimerDisplay
               timeLeftSeconds={timeLeft}
               totalDurationSeconds={getModeDurationSeconds(mode)}
@@ -1187,6 +1220,8 @@ export function App() {
               state={timerState}
               completedPomodoros={todayPomodorosCount}
               activeTaskTitle={activeTaskTitle}
+              activeGroup={activeGroup}
+              onClearActiveGroup={() => setActiveGroup(null)}
               theme={settings.theme}
               timerColor={settings.timerColor}
               language={settings.language || 'en'}
@@ -1361,6 +1396,22 @@ export function App() {
               onOpenAuth={handleOpenAuthFromFriends}
               onRequestCountChange={setIncomingRequestsCount}
               language={settings.language || 'en'}
+            />
+          )}
+
+          {isGroupsOpen && (
+            <GroupsModal
+              isOpen={isGroupsOpen}
+              onClose={handleCloseGroups}
+              user={user}
+              language={settings.language || 'en'}
+              theme={settings.theme}
+              activeGroup={activeGroup}
+              onSelectActiveGroup={(group) => setActiveGroup(group)}
+              onOpenAuth={() => {
+                setIsGroupsOpen(false);
+                handleOpenAuth('signin');
+              }}
             />
           )}
 

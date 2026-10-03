@@ -955,6 +955,302 @@ USING (
   )
 );
 
+-- ==============================================================================
+-- 11. STUDY GROUPS — TABLES, RLS & SECURE SCHEMAS
+-- ==============================================================================
+
+-- 11.1 GROUPS TABLE
+CREATE TABLE IF NOT EXISTS public.groups (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL CHECK (char_length(trim(name)) >= 2 AND char_length(name) <= 50),
+  description TEXT,
+  avatar_url TEXT,
+  owner_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  max_members INTEGER NOT NULL DEFAULT 10 CHECK (max_members >= 2 AND max_members <= 100),
+  is_discoverable BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.groups ENABLE ROW LEVEL SECURITY;
+
+CREATE INDEX IF NOT EXISTS idx_groups_owner ON public.groups(owner_id);
+CREATE INDEX IF NOT EXISTS idx_groups_discoverable ON public.groups(is_discoverable);
+
+-- 11.2 GROUP MEMBERS TABLE
+CREATE TABLE IF NOT EXISTS public.group_members (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  group_id UUID NOT NULL REFERENCES public.groups(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  role TEXT NOT NULL DEFAULT 'member' CHECK (role IN ('owner', 'admin', 'member')),
+  joined_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  CONSTRAINT check_group_member_unique UNIQUE (group_id, user_id)
+);
+
+ALTER TABLE public.group_members ENABLE ROW LEVEL SECURITY;
+
+CREATE INDEX IF NOT EXISTS idx_group_members_group ON public.group_members(group_id);
+CREATE INDEX IF NOT EXISTS idx_group_members_user ON public.group_members(user_id);
+
+-- 11.3 GROUP GOALS TABLE
+CREATE TABLE IF NOT EXISTS public.group_goals (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  group_id UUID NOT NULL REFERENCES public.groups(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  target_minutes INTEGER NOT NULL CHECK (target_minutes >= 1),
+  start_date TIMESTAMP WITH TIME ZONE NOT NULL,
+  end_date TIMESTAMP WITH TIME ZONE NOT NULL,
+  created_by UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.group_goals ENABLE ROW LEVEL SECURITY;
+
+CREATE INDEX IF NOT EXISTS idx_group_goals_group ON public.group_goals(group_id);
+
+-- 11.4 GROUP ACTIVITY TABLE
+CREATE TABLE IF NOT EXISTS public.group_activity (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  group_id UUID NOT NULL REFERENCES public.groups(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  activity_type TEXT NOT NULL CHECK (activity_type IN ('member_joined', 'member_left', 'focus_completed', 'goal_completed', 'goal_created')),
+  metadata JSONB DEFAULT '{}'::jsonb,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.group_activity ENABLE ROW LEVEL SECURITY;
+
+CREATE INDEX IF NOT EXISTS idx_group_activity_group_time ON public.group_activity(group_id, created_at DESC);
+
+-- 11.5 GROUP INVITES TABLE
+CREATE TABLE IF NOT EXISTS public.group_invites (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  group_id UUID NOT NULL REFERENCES public.groups(id) ON DELETE CASCADE,
+  inviter_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  invitee_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'rejected')),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  CONSTRAINT check_not_self_group_invite CHECK (inviter_id != invitee_id)
+);
+
+ALTER TABLE public.group_invites ENABLE ROW LEVEL SECURITY;
+
+CREATE INDEX IF NOT EXISTS idx_group_invites_invitee ON public.group_invites(invitee_id, status);
+
+-- Add group_id to focus_sessions
+ALTER TABLE public.focus_sessions ADD COLUMN IF NOT EXISTS group_id UUID REFERENCES public.groups(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS idx_focus_sessions_group ON public.focus_sessions(group_id);
+
+-- ==============================================================================
+-- RLS POLICIES FOR STUDY GROUPS
+-- ==============================================================================
+
+-- Cleanup existing policies
+DROP POLICY IF EXISTS "Users can view groups they belong to or public groups" ON public.groups;
+DROP POLICY IF EXISTS "Users can create groups" ON public.groups;
+DROP POLICY IF EXISTS "Owners and admins can update their group" ON public.groups;
+DROP POLICY IF EXISTS "Owners can delete their group" ON public.groups;
+
+DROP POLICY IF EXISTS "Users can view members of accessible groups" ON public.group_members;
+DROP POLICY IF EXISTS "Users can join public groups or be added" ON public.group_members;
+DROP POLICY IF EXISTS "Admins and owners can update roles" ON public.group_members;
+DROP POLICY IF EXISTS "Users can leave or admins can remove members" ON public.group_members;
+
+DROP POLICY IF EXISTS "Group members can view goals" ON public.group_goals;
+DROP POLICY IF EXISTS "Owners and admins can manage goals" ON public.group_goals;
+
+DROP POLICY IF EXISTS "Group members can view activity" ON public.group_activity;
+DROP POLICY IF EXISTS "Group members can insert activity" ON public.group_activity;
+
+DROP POLICY IF EXISTS "Users can view their group invites" ON public.group_invites;
+DROP POLICY IF EXISTS "Group members can create invites" ON public.group_invites;
+DROP POLICY IF EXISTS "Invitees can update invite status" ON public.group_invites;
+DROP POLICY IF EXISTS "Users can delete relevant invites" ON public.group_invites;
+
+-- Groups Policies
+CREATE POLICY "Users can view groups they belong to or public groups"
+  ON public.groups FOR SELECT TO authenticated
+  USING (
+    is_discoverable = TRUE
+    OR EXISTS (SELECT 1 FROM public.group_members WHERE group_id = public.groups.id AND user_id = auth.uid())
+  );
+
+CREATE POLICY "Users can create groups"
+  ON public.groups FOR INSERT TO authenticated
+  WITH CHECK (auth.uid() = owner_id);
+
+CREATE POLICY "Owners and admins can update their group"
+  ON public.groups FOR UPDATE TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.group_members
+      WHERE group_id = public.groups.id AND user_id = auth.uid() AND role IN ('owner', 'admin')
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.group_members
+      WHERE group_id = public.groups.id AND user_id = auth.uid() AND role IN ('owner', 'admin')
+    )
+  );
+
+CREATE POLICY "Owners can delete their group"
+  ON public.groups FOR DELETE TO authenticated
+  USING (owner_id = auth.uid());
+
+-- Group Members Policies
+CREATE POLICY "Users can view members of accessible groups"
+  ON public.group_members FOR SELECT TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.groups g
+      WHERE g.id = public.group_members.group_id
+        AND (g.is_discoverable = TRUE OR EXISTS (SELECT 1 FROM public.group_members m WHERE m.group_id = g.id AND m.user_id = auth.uid()))
+    )
+  );
+
+CREATE POLICY "Users can join public groups or be added"
+  ON public.group_members FOR INSERT TO authenticated
+  WITH CHECK (auth.uid() = user_id OR EXISTS (
+    SELECT 1 FROM public.group_members WHERE group_id = public.group_members.group_id AND user_id = auth.uid() AND role IN ('owner', 'admin')
+  ));
+
+CREATE POLICY "Admins and owners can update roles"
+  ON public.group_members FOR UPDATE TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.group_members
+      WHERE group_id = public.group_members.group_id AND user_id = auth.uid() AND role IN ('owner', 'admin')
+    )
+  );
+
+CREATE POLICY "Users can leave or admins can remove members"
+  ON public.group_members FOR DELETE TO authenticated
+  USING (
+    auth.uid() = user_id
+    OR EXISTS (
+      SELECT 1 FROM public.group_members
+      WHERE group_id = public.group_members.group_id AND user_id = auth.uid() AND role IN ('owner', 'admin')
+    )
+  );
+
+-- Group Goals Policies
+CREATE POLICY "Group members can view goals"
+  ON public.group_goals FOR SELECT TO authenticated
+  USING (
+    EXISTS (SELECT 1 FROM public.group_members WHERE group_id = public.group_goals.group_id AND user_id = auth.uid())
+  );
+
+CREATE POLICY "Owners and admins can manage goals"
+  ON public.group_goals FOR ALL TO authenticated
+  USING (
+    EXISTS (SELECT 1 FROM public.group_members WHERE group_id = public.group_goals.group_id AND user_id = auth.uid() AND role IN ('owner', 'admin'))
+  )
+  WITH CHECK (
+    EXISTS (SELECT 1 FROM public.group_members WHERE group_id = public.group_goals.group_id AND user_id = auth.uid() AND role IN ('owner', 'admin'))
+  );
+
+-- Group Activity Policies
+CREATE POLICY "Group members can view activity"
+  ON public.group_activity FOR SELECT TO authenticated
+  USING (
+    EXISTS (SELECT 1 FROM public.group_members WHERE group_id = public.group_activity.group_id AND user_id = auth.uid())
+  );
+
+CREATE POLICY "Group members can insert activity"
+  ON public.group_activity FOR INSERT TO authenticated
+  WITH CHECK (
+    auth.uid() = user_id
+    AND EXISTS (SELECT 1 FROM public.group_members WHERE group_id = public.group_activity.group_id AND user_id = auth.uid())
+  );
+
+-- Group Invites Policies
+CREATE POLICY "Users can view their group invites"
+  ON public.group_invites FOR SELECT TO authenticated
+  USING (auth.uid() = inviter_id OR auth.uid() = invitee_id);
+
+CREATE POLICY "Group members can create invites"
+  ON public.group_invites FOR INSERT TO authenticated
+  WITH CHECK (
+    auth.uid() = inviter_id
+    AND EXISTS (SELECT 1 FROM public.group_members WHERE group_id = public.group_invites.group_id AND user_id = auth.uid())
+  );
+
+CREATE POLICY "Invitees can update invite status"
+  ON public.group_invites FOR UPDATE TO authenticated
+  USING (auth.uid() = invitee_id)
+  WITH CHECK (auth.uid() = invitee_id);
+
+CREATE POLICY "Users can delete relevant invites"
+  ON public.group_invites FOR DELETE TO authenticated
+  USING (auth.uid() = inviter_id OR auth.uid() = invitee_id);
+
+-- Grants
+GRANT ALL ON TABLE public.groups TO authenticated;
+GRANT ALL ON TABLE public.group_members TO authenticated;
+GRANT ALL ON TABLE public.group_goals TO authenticated;
+GRANT ALL ON TABLE public.group_activity TO authenticated;
+GRANT ALL ON TABLE public.group_invites TO authenticated;
+
+-- ==============================================================================
+-- 12. PUBLIC PROFILE STATS FUNCTION FOR FRIEND COMPARISON
+-- ==============================================================================
+
+CREATE OR REPLACE FUNCTION public.get_user_public_stats(target_user_id UUID)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  today_mins INT := 0;
+  week_mins INT := 0;
+  total_mins INT := 0;
+  total_sessions_count INT := 0;
+  last_active TIMESTAMP WITH TIME ZONE;
+  nick TEXT;
+  disp TEXT;
+  avatar TEXT;
+  joined_date TIMESTAMP WITH TIME ZONE;
+BEGIN
+  SELECT nickname, display_name, avatar_url, created_at
+  INTO nick, disp, avatar, joined_date
+  FROM public.profiles
+  WHERE id = target_user_id;
+
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Profile not found');
+  END IF;
+
+  SELECT
+    COALESCE(SUM(CASE WHEN timestamp >= date_trunc('day', now()) AND mode = 'pomodoro' THEN COALESCE(duration_minutes, 0) ELSE 0 END), 0),
+    COALESCE(SUM(CASE WHEN timestamp >= date_trunc('week', now()) AND mode = 'pomodoro' THEN COALESCE(duration_minutes, 0) ELSE 0 END), 0),
+    COALESCE(SUM(CASE WHEN mode = 'pomodoro' THEN COALESCE(duration_minutes, 0) ELSE 0 END), 0),
+    COALESCE(COUNT(CASE WHEN mode = 'pomodoro' AND completed = TRUE THEN 1 END), 0),
+    MAX(timestamp)
+  INTO today_mins, week_mins, total_mins, total_sessions_count, last_active
+  FROM public.focus_sessions
+  WHERE user_id = target_user_id;
+
+  RETURN jsonb_build_object(
+    'success', true,
+    'userId', target_user_id,
+    'nickname', nick,
+    'displayName', disp,
+    'avatarUrl', avatar,
+    'joinedAt', joined_date,
+    'todayMinutes', today_mins,
+    'weekMinutes', week_mins,
+    'totalMinutes', total_mins,
+    'totalSessions', total_sessions_count,
+    'lastActiveAt', last_active
+  );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.get_user_public_stats(UUID) TO anon, authenticated;
+
+
 
 
 

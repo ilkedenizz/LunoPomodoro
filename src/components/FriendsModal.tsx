@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   X,
   Users,
@@ -14,9 +14,13 @@ import {
   Sparkles,
   Calendar,
   AtSign,
+  ArrowLeft,
+  Eye,
+  Swords,
+  BookOpen,
 } from 'lucide-react';
-import type { AppTheme, UserProfile, Friend, FriendRequest, PublicUserProfile, AppLanguage } from '../types';
-import { getTranslations } from '../utils/translations';
+import type { AppTheme, UserProfile, Friend, FriendRequest, PublicUserProfile, AppLanguage, StudyGroup } from '../types';
+import { getTranslations, formatDurationHoursMinutes } from '../utils/translations';
 import {
   searchUsers,
   getFriendsList,
@@ -27,7 +31,13 @@ import {
   rejectFriendRequest,
   removeFriend,
   cancelFriendRequest,
+  getFriendPublicStats,
+  type FriendPublicStats,
 } from '../services/friends';
+import { getUserStudyGroups, inviteFriendToGroup } from '../services/groups';
+import { loadSessions } from '../utils/storage';
+import { isToday } from '../utils/dates';
+import { getSessionMinutes } from '../utils/statistics';
 
 interface FriendsModalProps {
   isOpen: boolean;
@@ -117,11 +127,107 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
   const [searchResults, setSearchResults] = useState<PublicUserProfile[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastReportedCountRef = useRef<number>(-1);
 
   // Action loading IDs
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
-  const lastReportedCountRef = useRef<number>(-1);
+  // Selected Friend Profile & Comparison State
+  const [selectedFriend, setSelectedFriend] = useState<Friend | PublicUserProfile | null>(null);
+  const [friendStats, setFriendStats] = useState<FriendPublicStats | null>(null);
+  const [isLoadingFriendStats, setIsLoadingFriendStats] = useState(false);
+
+  // Group Invite Modal State
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+  const [userGroups, setUserGroups] = useState<StudyGroup[]>([]);
+  const [isLoadingUserGroups, setIsLoadingUserGroups] = useState(false);
+  const [sendingInviteGroupId, setSendingInviteGroupId] = useState<string | null>(null);
+
+  // User's own focus stats for comparison
+  const myStats = useMemo(() => {
+    if (!isOpen) return { todayMinutes: 0, weekMinutes: 0, totalMinutes: 0, totalSessions: 0 };
+    const sessions = loadSessions();
+    const todaySes = sessions.filter((s) => isToday(s.timestamp) && s.mode === 'pomodoro');
+    const weekSes = sessions.filter((s) => s.timestamp >= Date.now() - 7 * 86400 * 1000 && s.mode === 'pomodoro');
+    const totalSes = sessions.filter((s) => s.mode === 'pomodoro');
+
+    const todayMins = todaySes.reduce((acc, s) => acc + getSessionMinutes(s), 0);
+    const weekMins = weekSes.reduce((acc, s) => acc + getSessionMinutes(s), 0);
+    const totalMins = totalSes.reduce((acc, s) => acc + getSessionMinutes(s), 0);
+    const totalCount = totalSes.filter((s) => s.completed !== false).length;
+
+    return {
+      todayMinutes: todayMins,
+      weekMinutes: weekMins,
+      totalMinutes: totalMins,
+      totalSessions: totalCount,
+    };
+  }, [isOpen]);
+
+  const handleSelectFriend = useCallback(async (friend: Friend | PublicUserProfile) => {
+    setSelectedFriend(friend);
+    setIsLoadingFriendStats(true);
+    setFriendStats(null);
+    try {
+      const stats = await getFriendPublicStats(friend.id);
+      setFriendStats(stats);
+    } catch (err) {
+      if (import.meta.env.DEV) console.error('[Luno getFriendPublicStats Error]:', err);
+    } finally {
+      setIsLoadingFriendStats(false);
+    }
+  }, []);
+
+  const handleOpenGroupInvite = async () => {
+    if (!user) {
+      setFeedback({
+        type: 'error',
+        message: language === 'tr' ? 'Gruba davet etmek için hesabınızla giriş yapmalısınız.' : 'Please sign in to invite friends to a study group.',
+      });
+      setTimeout(() => setFeedback(null), 3500);
+      return;
+    }
+    setIsInviteModalOpen(true);
+    setIsLoadingUserGroups(true);
+    try {
+      const groups = await getUserStudyGroups(user.id);
+      setUserGroups(groups);
+    } catch (err) {
+      if (import.meta.env.DEV) console.error('[Luno invite friend load groups error]:', err);
+    } finally {
+      setIsLoadingUserGroups(false);
+    }
+  };
+
+  const handleSendGroupInvite = async (groupId: string) => {
+    if (!selectedFriend || !user) return;
+    setSendingInviteGroupId(groupId);
+    try {
+      const res = await inviteFriendToGroup(groupId, selectedFriend.id, user.id);
+      if (res.success) {
+        setFeedback({
+          type: 'success',
+          message: language === 'tr' ? `@${selectedFriend.nickname || 'kullanıcı'} gruba davet edildi!` : `Invited @${selectedFriend.nickname || 'user'} to group!`,
+        });
+        setTimeout(() => setFeedback(null), 3500);
+        setIsInviteModalOpen(false);
+      } else {
+        setFeedback({
+          type: 'error',
+          message: res.error || (language === 'tr' ? 'Davet gönderilemedi.' : 'Failed to send invite.'),
+        });
+        setTimeout(() => setFeedback(null), 3500);
+      }
+    } catch (err: any) {
+      setFeedback({
+        type: 'error',
+        message: err.message || (language === 'tr' ? 'Hata oluştu.' : 'An error occurred.'),
+      });
+      setTimeout(() => setFeedback(null), 3500);
+    } finally {
+      setSendingInviteGroupId(null);
+    }
+  };
 
   const showFeedback = (type: 'success' | 'error', message: string) => {
     setFeedback({ type, message });
@@ -422,8 +528,9 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
           </div>
         ) : (
           <>
-            {/* Tabs Bar */}
-            <div className="grid grid-cols-3 gap-1.5 p-1 my-4 rounded-2xl bg-black/20 border border-white/5 shrink-0">
+            {/* Tabs Bar (hidden when friend profile is selected) */}
+            {!selectedFriend && (
+              <div className="grid grid-cols-3 gap-1.5 p-1 my-4 rounded-2xl bg-black/20 border border-white/5 shrink-0">
               <button
                 type="button"
                 onClick={() => setActiveTab('friends')}
@@ -494,11 +601,285 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                 <span>{t.findFriendsTab}</span>
               </button>
             </div>
+            )}
 
             {/* Modal Body / Tab Contents */}
             <div className="flex-1 overflow-y-auto pr-1 space-y-3 min-h-[280px]">
+              {/* FRIEND PROFILE & COMPARISON DETAIL VIEW */}
+              {selectedFriend ? (
+                <div className="space-y-4 animate-in fade-in duration-200">
+                  {/* Profile Header Banner */}
+                  <div className={`p-4 rounded-2xl border flex flex-col sm:flex-row items-center justify-between gap-4 ${
+                    isLight ? 'bg-slate-100/90 border-slate-200' : 'bg-white/10 border-white/15'
+                  }`}>
+                    <div className="flex items-center space-x-3.5">
+                      <FriendAvatar
+                        avatarUrl={friendStats?.avatarUrl || selectedFriend.avatarUrl}
+                        nickname={friendStats?.nickname || selectedFriend.nickname}
+                        displayName={friendStats?.displayName || selectedFriend.displayName}
+                        size="md"
+                      />
+                      <div>
+                        <div className="flex items-center space-x-2">
+                          <h3 className="text-base font-bold tracking-tight">
+                            @{selectedFriend.nickname || 'user'}
+                          </h3>
+                        </div>
+                        {selectedFriend.displayName && (
+                          <p className={`text-xs ${isLight ? 'text-slate-600' : 'text-white/70'}`}>
+                            {selectedFriend.displayName}
+                          </p>
+                        )}
+                        <div className={`flex items-center space-x-2 text-[10px] mt-1 ${
+                          isLight ? 'text-slate-500' : 'text-white/50'
+                        }`}>
+                          <Calendar className="w-3 h-3" />
+                          <span>{formatFriendSinceDate('since' in selectedFriend ? selectedFriend.since : undefined, language)}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center space-x-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={handleOpenGroupInvite}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition-all cursor-pointer ${
+                          isLight
+                            ? 'bg-indigo-100 hover:bg-indigo-200 text-indigo-700'
+                            : 'bg-indigo-500/25 hover:bg-indigo-500/40 text-indigo-200 border border-indigo-500/30'
+                        }`}
+                      >
+                        <BookOpen className="w-3.5 h-3.5" />
+                        <span>{t.inviteToGroup}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setSelectedFriend(null)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition-all cursor-pointer ${
+                          isLight ? 'bg-slate-200 hover:bg-slate-300 text-slate-700' : 'bg-white/15 hover:bg-white/25 text-white'
+                        }`}
+                      >
+                        <ArrowLeft className="w-4 h-4" />
+                        <span>{t.backToFriends}</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Friend Stats Summary Cards */}
+                  {isLoadingFriendStats ? (
+                    <div className="py-8 flex flex-col items-center justify-center space-y-2 text-white/50">
+                      <Loader2 className="w-6 h-6 animate-spin text-indigo-400" />
+                      <span className="text-xs">{t.searching}</span>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                        <div className={`p-3 rounded-2xl border text-center ${
+                          isLight ? 'bg-slate-100 border-slate-200' : 'bg-white/5 border-white/10'
+                        }`}>
+                          <span className={`text-[10px] uppercase font-mono tracking-wider block mb-1 ${
+                            isLight ? 'text-slate-500' : 'text-white/50'
+                          }`}>{t.friendTodayFocus}</span>
+                          <span className="text-base font-bold text-emerald-400">
+                            {formatDurationHoursMinutes(friendStats?.todayMinutes || 0, language)}
+                          </span>
+                        </div>
+
+                        <div className={`p-3 rounded-2xl border text-center ${
+                          isLight ? 'bg-slate-100 border-slate-200' : 'bg-white/5 border-white/10'
+                        }`}>
+                          <span className={`text-[10px] uppercase font-mono tracking-wider block mb-1 ${
+                            isLight ? 'text-slate-500' : 'text-white/50'
+                          }`}>{t.friendWeekFocus}</span>
+                          <span className="text-base font-bold text-indigo-400">
+                            {formatDurationHoursMinutes(friendStats?.weekMinutes || 0, language)}
+                          </span>
+                        </div>
+
+                        <div className={`p-3 rounded-2xl border text-center ${
+                          isLight ? 'bg-slate-100 border-slate-200' : 'bg-white/5 border-white/10'
+                        }`}>
+                          <span className={`text-[10px] uppercase font-mono tracking-wider block mb-1 ${
+                            isLight ? 'text-slate-500' : 'text-white/50'
+                          }`}>{t.friendTotalFocus}</span>
+                          <span className="text-base font-bold text-purple-400">
+                            {formatDurationHoursMinutes(friendStats?.totalMinutes || 0, language)}
+                          </span>
+                        </div>
+
+                        <div className={`p-3 rounded-2xl border text-center ${
+                          isLight ? 'bg-slate-100 border-slate-200' : 'bg-white/5 border-white/10'
+                        }`}>
+                          <span className={`text-[10px] uppercase font-mono tracking-wider block mb-1 ${
+                            isLight ? 'text-slate-500' : 'text-white/50'
+                          }`}>{t.totalSessions}</span>
+                          <span className="text-base font-bold text-amber-400">
+                            {friendStats?.totalSessions || 0}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* SIDE-BY-SIDE STATS COMPARISON SECTION */}
+                      <div className={`p-4 rounded-2xl border space-y-3 ${
+                        isLight
+                          ? 'bg-indigo-50/70 border-indigo-200 text-slate-800'
+                          : 'bg-indigo-500/10 border-indigo-500/30 text-white'
+                      }`}>
+                        <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
+                          <div className="flex items-center space-x-2 text-indigo-400">
+                            <Swords className="w-4 h-4" />
+                            <h4 className="text-xs font-bold uppercase tracking-wider">{t.comparison}</h4>
+                          </div>
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-semibold">
+                            {t.compareStats}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3 text-center font-bold text-[11px] uppercase tracking-wider mb-1">
+                          <div className={`py-1 px-2.5 rounded-xl border ${
+                            isLight ? 'bg-indigo-100 border-indigo-300 text-indigo-800' : 'bg-indigo-600/30 border-indigo-500/30 text-indigo-200'
+                          }`}>
+                            {t.youLabel} ({user?.nickname ? `@${user.nickname}` : 'You'})
+                          </div>
+                          <div className={`py-1 px-2.5 rounded-xl border ${
+                            isLight ? 'bg-purple-100 border-purple-300 text-purple-800' : 'bg-purple-600/30 border-purple-500/30 text-purple-200'
+                          }`}>
+                            @{selectedFriend.nickname || 'friend'}
+                          </div>
+                        </div>
+
+                        {/* Metric 1: Today */}
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-xs font-semibold">
+                            <span className="text-emerald-500">{formatDurationHoursMinutes(myStats.todayMinutes, language)}</span>
+                            <span className={`text-[10px] uppercase tracking-wider ${isLight ? 'text-slate-500' : 'text-white/50'}`}>{t.friendTodayFocus}</span>
+                            <span className="text-emerald-400">{formatDurationHoursMinutes(friendStats?.todayMinutes || 0, language)}</span>
+                          </div>
+                          <div className="h-2 rounded-full bg-black/10 flex overflow-hidden">
+                            <div
+                              className="h-full bg-indigo-500 transition-all duration-500"
+                              style={{
+                                width: `${
+                                  myStats.todayMinutes + (friendStats?.todayMinutes || 0) > 0
+                                    ? (myStats.todayMinutes / (myStats.todayMinutes + (friendStats?.todayMinutes || 0))) * 100
+                                    : 50
+                                }%`,
+                              }}
+                            />
+                            <div
+                              className="h-full bg-purple-500 transition-all duration-500"
+                              style={{
+                                width: `${
+                                  myStats.todayMinutes + (friendStats?.todayMinutes || 0) > 0
+                                    ? ((friendStats?.todayMinutes || 0) / (myStats.todayMinutes + (friendStats?.todayMinutes || 0))) * 100
+                                    : 50
+                                }%`,
+                              }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Metric 2: This Week */}
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-xs font-semibold">
+                            <span className="text-indigo-500">{formatDurationHoursMinutes(myStats.weekMinutes, language)}</span>
+                            <span className={`text-[10px] uppercase tracking-wider ${isLight ? 'text-slate-500' : 'text-white/50'}`}>{t.friendWeekFocus}</span>
+                            <span className="text-purple-400">{formatDurationHoursMinutes(friendStats?.weekMinutes || 0, language)}</span>
+                          </div>
+                          <div className="h-2 rounded-full bg-black/10 flex overflow-hidden">
+                            <div
+                              className="h-full bg-indigo-500 transition-all duration-500"
+                              style={{
+                                width: `${
+                                  myStats.weekMinutes + (friendStats?.weekMinutes || 0) > 0
+                                    ? (myStats.weekMinutes / (myStats.weekMinutes + (friendStats?.weekMinutes || 0))) * 100
+                                    : 50
+                                }%`,
+                              }}
+                            />
+                            <div
+                              className="h-full bg-purple-500 transition-all duration-500"
+                              style={{
+                                width: `${
+                                  myStats.weekMinutes + (friendStats?.weekMinutes || 0) > 0
+                                    ? ((friendStats?.weekMinutes || 0) / (myStats.weekMinutes + (friendStats?.weekMinutes || 0))) * 100
+                                    : 50
+                                }%`,
+                              }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Metric 3: Total Focus */}
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-xs font-semibold">
+                            <span className="text-purple-500">{formatDurationHoursMinutes(myStats.totalMinutes, language)}</span>
+                            <span className={`text-[10px] uppercase tracking-wider ${isLight ? 'text-slate-500' : 'text-white/50'}`}>{t.friendTotalFocus}</span>
+                            <span className="text-pink-400">{formatDurationHoursMinutes(friendStats?.totalMinutes || 0, language)}</span>
+                          </div>
+                          <div className="h-2 rounded-full bg-black/10 flex overflow-hidden">
+                            <div
+                              className="h-full bg-indigo-500 transition-all duration-500"
+                              style={{
+                                width: `${
+                                  myStats.totalMinutes + (friendStats?.totalMinutes || 0) > 0
+                                    ? (myStats.totalMinutes / (myStats.totalMinutes + (friendStats?.totalMinutes || 0))) * 100
+                                    : 50
+                                }%`,
+                              }}
+                            />
+                            <div
+                              className="h-full bg-purple-500 transition-all duration-500"
+                              style={{
+                                width: `${
+                                  myStats.totalMinutes + (friendStats?.totalMinutes || 0) > 0
+                                    ? ((friendStats?.totalMinutes || 0) / (myStats.totalMinutes + (friendStats?.totalMinutes || 0))) * 100
+                                    : 50
+                                }%`,
+                              }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Metric 4: Total Sessions */}
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-xs font-semibold">
+                            <span className="text-amber-500">{myStats.totalSessions} {language === 'tr' ? 'Oturum' : 'Sessions'}</span>
+                            <span className={`text-[10px] uppercase tracking-wider ${isLight ? 'text-slate-500' : 'text-white/50'}`}>{t.totalSessions}</span>
+                            <span className="text-amber-400">{friendStats?.totalSessions || 0} {language === 'tr' ? 'Oturum' : 'Sessions'}</span>
+                          </div>
+                          <div className="h-2 rounded-full bg-black/10 flex overflow-hidden">
+                            <div
+                              className="h-full bg-amber-500 transition-all duration-500"
+                              style={{
+                                width: `${
+                                  myStats.totalSessions + (friendStats?.totalSessions || 0) > 0
+                                    ? (myStats.totalSessions / (myStats.totalSessions + (friendStats?.totalSessions || 0))) * 100
+                                    : 50
+                                }%`,
+                              }}
+                            />
+                            <div
+                              className="h-full bg-purple-500 transition-all duration-500"
+                              style={{
+                                width: `${
+                                  myStats.totalSessions + (friendStats?.totalSessions || 0) > 0
+                                    ? ((friendStats?.totalSessions || 0) / (myStats.totalSessions + (friendStats?.totalSessions || 0))) * 100
+                                    : 50
+                                }%`,
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ) : null}
+
               {/* TAB 1: FRIENDS LIST */}
-              {activeTab === 'friends' && (
+              {!selectedFriend && activeTab === 'friends' && (
                 <div className="space-y-2.5">
                   {isLoadingLists ? (
                     <div className="py-12 flex flex-col items-center justify-center space-y-2 text-white/50">
@@ -532,11 +913,12 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                     safeFriends.map((friend) => (
                       <div
                         key={friend.friendshipId || friend.id}
-                        className={`p-3.5 rounded-2xl border flex items-center justify-between gap-3 transition-all ${
+                        className={`p-3.5 rounded-2xl border flex items-center justify-between gap-3 transition-all cursor-pointer ${
                           isLight
                             ? 'bg-slate-50 hover:bg-slate-100/80 border-slate-200'
                             : 'bg-white/5 hover:bg-white/10 border-white/10'
                         }`}
+                        onClick={() => handleSelectFriend(friend)}
                       >
                         <div className="flex items-center space-x-3 min-w-0">
                           <FriendAvatar
@@ -566,24 +948,40 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                           </div>
                         </div>
 
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveFriend(friend.friendshipId, friend.nickname)}
-                          disabled={actionLoadingId === friend.friendshipId}
-                          className={`p-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50 shrink-0 ${
-                            isLight
-                              ? 'text-slate-500 hover:text-rose-600 hover:bg-rose-50'
-                              : 'text-white/50 hover:text-rose-400 hover:bg-rose-500/10'
-                          }`}
-                          title={t.removeFriend}
-                          aria-label={`Remove @${friend.nickname}`}
-                        >
-                          {actionLoadingId === friend.friendshipId ? (
-                            <Loader2 className="w-4 h-4 animate-spin text-rose-400" />
-                          ) : (
-                            <UserX className="w-4 h-4" />
-                          )}
-                        </button>
+                        <div className="flex items-center space-x-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            type="button"
+                            onClick={() => handleSelectFriend(friend)}
+                            className={`px-2.5 py-1 rounded-xl text-xs font-semibold transition-all flex items-center gap-1 cursor-pointer ${
+                              isLight
+                                ? 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'
+                                : 'bg-indigo-500/20 text-indigo-300 hover:bg-indigo-500/30'
+                            }`}
+                            title={t.viewProfile}
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">{t.viewProfile}</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveFriend(friend.friendshipId, friend.nickname)}
+                            disabled={actionLoadingId === friend.friendshipId}
+                            className={`p-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50 ${
+                              isLight
+                                ? 'text-slate-500 hover:text-rose-600 hover:bg-rose-50'
+                                : 'text-white/50 hover:text-rose-400 hover:bg-rose-500/10'
+                            }`}
+                            title={t.removeFriend}
+                            aria-label={`Remove @${friend.nickname}`}
+                          >
+                            {actionLoadingId === friend.friendshipId ? (
+                              <Loader2 className="w-4 h-4 animate-spin text-rose-400" />
+                            ) : (
+                              <UserX className="w-4 h-4" />
+                            )}
+                          </button>
+                        </div>
                       </div>
                     ))
                   )}
@@ -591,7 +989,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
               )}
 
               {/* TAB 2: REQUESTS (INCOMING & OUTGOING) */}
-              {activeTab === 'requests' && (
+              {!selectedFriend && activeTab === 'requests' && (
                 <div className="space-y-4">
                   {/* Incoming Requests Section */}
                   <div className="space-y-2">
@@ -733,7 +1131,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
               )}
 
               {/* TAB 3: SEARCH & ADD FRIENDS */}
-              {activeTab === 'search' && (
+              {!selectedFriend && activeTab === 'search' && (
                 <div className="space-y-4">
                   {/* Search Input */}
                   <div className="relative">
@@ -869,6 +1267,96 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
               )}
             </div>
           </>
+        )}
+        {/* GROUP INVITE SELECTION MODAL */}
+        {isInviteModalOpen && selectedFriend && (
+          <div
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsInviteModalOpen(false);
+            }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className={`w-full max-w-md p-6 rounded-3xl border shadow-2xl space-y-4 ${
+                isLight ? 'bg-white border-slate-200 text-slate-900' : 'bg-slate-900 border-white/15 text-white'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <BookOpen className="w-5 h-5 text-indigo-400" />
+                  <h3 className="text-base font-bold">
+                    {language === 'tr' ? 'Gruba Davet Et' : 'Invite to Study Group'}
+                  </h3>
+                </div>
+                <button
+                  onClick={() => setIsInviteModalOpen(false)}
+                  className={`p-1.5 rounded-xl transition-all ${
+                    isLight ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-white/10 text-white/60'
+                  }`}
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <p className={`text-xs ${isLight ? 'text-slate-600' : 'text-white/70'}`}>
+                {language === 'tr'
+                  ? `@${selectedFriend.nickname || 'kullanıcı'} için bir çalışma grubu seçin:`
+                  : `Select a group to invite @${selectedFriend.nickname || 'user'}:`}
+              </p>
+
+              <div className="max-h-60 overflow-y-auto space-y-2">
+                {isLoadingUserGroups ? (
+                  <div className="py-6 text-center">
+                    <Loader2 className="w-5 h-5 animate-spin mx-auto text-indigo-400" />
+                  </div>
+                ) : userGroups.length === 0 ? (
+                  <div className="py-6 text-center space-y-2">
+                    <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-white/50'}`}>
+                      {language === 'tr' ? 'Henüz yönettiğiniz veya katıldığınız bir grup yok.' : 'You have not created or joined any groups yet.'}
+                    </p>
+                  </div>
+                ) : (
+                  userGroups.map((group) => (
+                    <div
+                      key={group.id}
+                      className={`p-3 rounded-2xl border flex items-center justify-between gap-3 ${
+                        isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'
+                      }`}
+                    >
+                      <div className="min-w-0">
+                        <h4 className="text-xs font-bold truncate">{group.name}</h4>
+                        <p className={`text-[10px] truncate ${isLight ? 'text-slate-500' : 'text-white/50'}`}>
+                          {group.memberCount} {language === 'tr' ? 'üye' : 'members'}
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleSendGroupInvite(group.id)}
+                        disabled={sendingInviteGroupId === group.id}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition-all cursor-pointer disabled:opacity-50 ${
+                          isLight
+                            ? 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                            : 'bg-indigo-500 hover:bg-indigo-600 text-white'
+                        }`}
+                      >
+                        {sendingInviteGroupId === group.id ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <>
+                            <UserPlus className="w-3.5 h-3.5" />
+                            <span>{language === 'tr' ? 'Davet Et' : 'Invite'}</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>

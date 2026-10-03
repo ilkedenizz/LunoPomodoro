@@ -11,6 +11,7 @@ import {
   Sun,
   Cloud,
   Users,
+  BookOpen,
 } from 'lucide-react';
 import type { AtmosphereTheme, AppTheme, UserProfile, SyncStatus, AppLanguage } from '../types';
 import { getTranslations, formatDurationHoursMinutes } from '../utils/translations';
@@ -25,7 +26,9 @@ interface HeaderProps {
   onOpenShortcuts: () => void;
   onOpenHistory: () => void;
   onOpenFriends: () => void;
+  onOpenGroups?: () => void;
   incomingRequestsCount?: number;
+  pendingGroupInvitesCount?: number;
   isAudioPlaying: boolean;
   isFullscreen: boolean;
   onToggleFullscreen: () => void;
@@ -48,7 +51,9 @@ export const Header: React.FC<HeaderProps> = React.memo(({
   onOpenShortcuts,
   onOpenHistory,
   onOpenFriends,
+  onOpenGroups,
   incomingRequestsCount = 0,
+  pendingGroupInvitesCount = 0,
   isAudioPlaying,
   isFullscreen,
   onToggleFullscreen,
@@ -213,7 +218,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
         <button
           onClick={onOpenFriends}
           aria-label={`${t.friendsCommunityTooltip} ${incomingRequestsCount > 0 ? `(${incomingRequestsCount})` : ''}`}
-          className={`relative p-2 sm:p-2.5 rounded-xl glass-panel glass-panel-hover transition-all focus:outline-none focus-visible:ring-2 cursor-pointer flex items-center justify-center min-w-[34px] min-h-[34px] sm:min-w-[40px] sm:min-h-[40px] ${
+          className={`relative p-2 sm:px-3 sm:py-2.5 rounded-xl glass-panel glass-panel-hover transition-all focus:outline-none focus-visible:ring-2 cursor-pointer flex items-center justify-center space-x-1.5 min-w-[34px] min-h-[34px] sm:min-h-[40px] ${
             incomingRequestsCount > 0
               ? isLight
                 ? 'text-indigo-600 bg-indigo-50/80 border-indigo-200'
@@ -224,13 +229,40 @@ export const Header: React.FC<HeaderProps> = React.memo(({
           }`}
           title={incomingRequestsCount > 0 ? `${t.friendsCommunityTooltip} (${incomingRequestsCount} ${t.newRequest})` : t.friendsCommunityTooltip}
         >
-          <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+          <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+          <span className="hidden xl:inline text-xs font-semibold">{language === 'tr' ? 'Arkadaşlar' : 'Friends'}</span>
           {incomingRequestsCount > 0 && (
             <span className="absolute -top-1 -right-1 flex h-3.5 min-w-3.5 px-0.5 sm:h-4 sm:min-w-4 sm:px-1 items-center justify-center rounded-full bg-indigo-500 text-[9px] sm:text-[10px] font-bold text-white shadow-md animate-pulse">
               {incomingRequestsCount}
             </span>
           )}
         </button>
+
+        {/* Study Groups Button */}
+        {onOpenGroups && (
+          <button
+            onClick={onOpenGroups}
+            aria-label={t.groupsCommunityTooltip}
+            className={`relative p-2 sm:px-3 sm:py-2.5 rounded-xl glass-panel glass-panel-hover transition-all focus:outline-none focus-visible:ring-2 cursor-pointer flex items-center justify-center space-x-1.5 min-w-[34px] min-h-[34px] sm:min-h-[40px] ${
+              pendingGroupInvitesCount > 0
+                ? isLight
+                  ? 'text-purple-600 bg-purple-50/80 border-purple-200'
+                  : 'text-purple-300 bg-purple-500/20 border-purple-400/30'
+                : isLight
+                ? 'text-slate-700 hover:text-slate-900 focus-visible:ring-slate-400'
+                : 'text-white/80 hover:text-white focus-visible:ring-white/50'
+            }`}
+            title={t.groupsCommunityTooltip}
+          >
+            <BookOpen className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+            <span className="hidden lg:inline text-xs font-semibold">{language === 'tr' ? 'Gruplar' : 'Groups'}</span>
+            {pendingGroupInvitesCount > 0 && (
+              <span className="absolute -top-1 -right-1 flex h-3.5 min-w-3.5 px-0.5 sm:h-4 sm:min-w-4 sm:px-1 items-center justify-center rounded-full bg-rose-500 text-[9px] sm:text-[10px] font-bold text-white shadow-md animate-pulse">
+                {pendingGroupInvitesCount}
+              </span>
+            )}
+          </button>
+        )}
 
         {/* Account / Sync Button */}
         <button

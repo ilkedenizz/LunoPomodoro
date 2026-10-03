@@ -531,3 +531,66 @@ export const cancelFriendRequest = async (friendshipId: string): Promise<FriendS
     inFlightFriendActions.delete(lockKey);
   }
 };
+
+export interface FriendPublicStats {
+  userId: string;
+  nickname: string;
+  displayName?: string;
+  avatarUrl?: string;
+  joinedAt?: number;
+  todayMinutes: number;
+  weekMinutes: number;
+  totalMinutes: number;
+  totalSessions: number;
+  lastActiveAt?: number;
+}
+
+export const getFriendPublicStats = async (targetUserId: string): Promise<FriendPublicStats | null> => {
+  if (!isSupabaseConfigured()) return null;
+  const client = getSupabaseClient();
+  if (!client) return null;
+
+  try {
+    const { data, error } = await client.rpc('get_user_public_stats', { target_user_id: targetUserId });
+    if (!error && data && data.success) {
+      return {
+        userId: data.userId,
+        nickname: data.nickname,
+        displayName: data.displayName || undefined,
+        avatarUrl: data.avatarUrl || undefined,
+        joinedAt: safeParseTimestamp(data.joinedAt),
+        todayMinutes: Number(data.todayMinutes) || 0,
+        weekMinutes: Number(data.weekMinutes) || 0,
+        totalMinutes: Number(data.totalMinutes) || 0,
+        totalSessions: Number(data.totalSessions) || 0,
+        lastActiveAt: data.lastActiveAt ? safeParseTimestamp(data.lastActiveAt) : undefined,
+      };
+    }
+
+    // Fallback direct select on profiles
+    const { data: profile } = await client
+      .from('profiles')
+      .select('id, nickname, display_name, avatar_url, created_at')
+      .eq('id', targetUserId)
+      .single();
+
+    if (!profile) return null;
+
+    return {
+      userId: profile.id,
+      nickname: profile.nickname,
+      displayName: profile.display_name || undefined,
+      avatarUrl: profile.avatar_url || undefined,
+      joinedAt: safeParseTimestamp(profile.created_at),
+      todayMinutes: 0,
+      weekMinutes: 0,
+      totalMinutes: 0,
+      totalSessions: 0,
+    };
+  } catch (err) {
+    if (import.meta.env.DEV) {
+      console.error('[Luno getFriendPublicStats Error]:', err);
+    }
+    return null;
+  }
+};

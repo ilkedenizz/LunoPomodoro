@@ -1,5 +1,6 @@
 import React from 'react';
-import type { TimerMode, TimerState, AppTheme, TimerColorId, AppLanguage } from '../types';
+import { X } from 'lucide-react';
+import type { TimerMode, TimerState, AppTheme, TimerColorId, AppLanguage, StudyGroup } from '../types';
 import { getTimerColor } from '../utils/timerColors';
 import { getTranslations } from '../utils/translations';
 
@@ -10,6 +11,8 @@ interface MainTimerDisplayProps {
   state: TimerState;
   completedPomodoros: number;
   activeTaskTitle?: string | null;
+  activeGroup?: StudyGroup | null;
+  onClearActiveGroup?: () => void;
   theme?: AppTheme;
   timerColor?: TimerColorId;
   language?: AppLanguage;
@@ -22,6 +25,8 @@ export const MainTimerDisplay: React.FC<MainTimerDisplayProps> = React.memo(({
   state,
   completedPomodoros,
   activeTaskTitle,
+  activeGroup,
+  onClearActiveGroup,
   theme = 'dark',
   timerColor = 'default',
   language = 'en',
@@ -240,6 +245,38 @@ export const MainTimerDisplay: React.FC<MainTimerDisplayProps> = React.memo(({
             {language === 'tr' ? 'ODAKLANILAN GÖREV:' : 'FOCUSING ON:'}
           </span>
           <span className="truncate font-semibold">{activeTaskTitle}</span>
+        </div>
+      )}
+
+      {/* Active Group Floating Pill below Timer */}
+      {activeGroup && (
+        <div
+          className={`mt-2 px-3.5 py-1.5 rounded-full glass-pill flex items-center space-x-2 text-xs font-medium max-w-[280px] sm:max-w-sm transition-all duration-300 animate-fadeIn ${
+            isLight
+              ? 'border-purple-300/80 text-purple-900 bg-purple-50/70 shadow-sm'
+              : 'border-purple-400/30 text-purple-200 bg-purple-500/20'
+          }`}
+        >
+          <span className="text-sm shrink-0">{activeGroup.avatarUrl || '📚'}</span>
+          <span
+            className={`uppercase tracking-widest text-[9px] font-mono shrink-0 ${
+              isLight ? 'text-purple-600 font-semibold' : 'text-purple-300/80'
+            }`}
+          >
+            {language === 'tr' ? 'GRUP İLE ÇALIŞILIYOR:' : 'GROUP STUDYING:'}
+          </span>
+          <span className="truncate font-semibold max-w-[120px]">{activeGroup.name}</span>
+          {onClearActiveGroup && (
+            <button
+              onClick={onClearActiveGroup}
+              className={`p-0.5 rounded-full hover:bg-black/10 transition-colors ${
+                isLight ? 'text-purple-700' : 'text-purple-300'
+              }`}
+              title={language === 'tr' ? 'Gruptan Çık' : 'Clear Group'}
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
       )}
     </div>

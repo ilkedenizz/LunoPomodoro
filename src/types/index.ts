@@ -38,6 +38,7 @@ export interface FocusSession {
   actualDurationSeconds?: number;
   completed?: boolean;
   taskTitle?: string;
+  groupId?: string;
 }
 
 export interface AtmosphereTheme {
@@ -146,5 +147,88 @@ export interface SyncStatus {
   pendingCount: number;
   errorMessage?: string;
 }
+
+// --- STUDY GROUPS TYPES ---
+
+export type GroupRole = 'owner' | 'admin' | 'member';
+
+export type GroupActivityType =
+  | 'member_joined'
+  | 'member_left'
+  | 'focus_completed'
+  | 'goal_completed'
+  | 'goal_created';
+
+export interface StudyGroup {
+  id: string;
+  name: string;
+  description?: string;
+  avatarUrl?: string;
+  ownerId: string;
+  maxMembers: number;
+  isDiscoverable: boolean;
+  createdAt: number;
+  updatedAt: number;
+  // Computed fields
+  memberCount?: number;
+  userRole?: GroupRole;
+  weeklyFocusMinutes?: number;
+  currentGoal?: GroupGoal;
+}
+
+export interface GroupMember {
+  id: string;
+  groupId: string;
+  userId: string;
+  role: GroupRole;
+  joinedAt: number;
+  // Join fields
+  nickname?: string;
+  displayName?: string;
+  avatarUrl?: string;
+  weeklyFocusMinutes?: number;
+}
+
+export interface GroupGoal {
+  id: string;
+  groupId: string;
+  title: string;
+  targetMinutes: number;
+  startDate: number;
+  endDate: number;
+  createdBy: string;
+  createdAt: number;
+  // Computed fields
+  currentMinutes?: number;
+  completed?: boolean;
+}
+
+export interface GroupActivity {
+  id: string;
+  groupId: string;
+  userId: string;
+  activityType: GroupActivityType;
+  metadata?: Record<string, any>;
+  createdAt: number;
+  // Join fields
+  userNickname?: string;
+  userDisplayName?: string;
+  userAvatarUrl?: string;
+}
+
+export interface GroupInvite {
+  id: string;
+  groupId: string;
+  inviterId: string;
+  inviteeId: string;
+  status: 'pending' | 'accepted' | 'rejected';
+  createdAt: number;
+  // Join fields
+  groupName?: string;
+  groupAvatarUrl?: string;
+  inviterNickname?: string;
+  inviterAvatarUrl?: string;
+}
+
 
 

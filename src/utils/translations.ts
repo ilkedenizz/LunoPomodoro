@@ -188,6 +188,90 @@ export interface Translations {
   noUsersFound: string;
   pendingRequestBadge: string;
   streakDays: string;
+  viewProfile: string;
+  friendProfile: string;
+  compareStats: string;
+  comparison: string;
+  youLabel: string;
+  friendTodayFocus: string;
+  friendWeekFocus: string;
+  friendTotalFocus: string;
+  totalSessions: string;
+  lastActive: string;
+  inviteToGroup: string;
+  backToFriends: string;
+
+  // Study Groups
+  groupsCommunityTooltip: string;
+  studyGroupsTitle: string;
+  myGroupsTab: string;
+  discoverGroupsTab: string;
+  groupInvitesTab: string;
+  createGroupTab: string;
+  noGroupsYet: string;
+  noGroupsHint: string;
+  createFirstGroupBtn: string;
+  discoverGroupsPrompt: string;
+  noDiscoverableGroups: string;
+  membersCount: string;
+  memberSingle: string;
+  memberPlural: string;
+  thisWeekFocus: string;
+  weeklyGoalLabel: string;
+  startGroupFocus: string;
+  focusingWithGroup: string;
+  loading: string;
+  stopGroupFocus: string;
+  roleOwner: string;
+  roleAdmin: string;
+  roleMember: string;
+  groupNameLabel: string;
+  groupNamePlaceholder: string;
+  groupDescLabel: string;
+  groupDescPlaceholder: string;
+  groupIconLabel: string;
+  maxMembersLabel: string;
+  visibilityLabel: string;
+  publicDiscoverable: string;
+  publicDiscoverableDesc: string;
+  privateInviteOnly: string;
+  privateInviteOnlyDesc: string;
+  createGroupSubmit: string;
+  creatingGroup: string;
+  inviteFriendsToGroup: string;
+  groupSettings: string;
+  leaveGroup: string;
+  leaveGroupConfirm: string;
+  deleteGroup: string;
+  deleteGroupConfirm: string;
+  joinGroup: string;
+  joiningGroup: string;
+  alreadyMember: string;
+  groupFull: string;
+  setWeeklyGoalTitle: string;
+  goalTitleLabel: string;
+  goalTitlePlaceholder: string;
+  goalTargetHoursLabel: string;
+  saveGoalBtn: string;
+  leaderboardTitle: string;
+  groupTotalFocus: string;
+  activityFeedTitle: string;
+  noActivityYet: string;
+  memberJoinedActivity: string;
+  memberLeftActivity: string;
+  focusCompletedActivity: string;
+  goalCreatedActivity: string;
+  goalCompletedActivity: string;
+  memberManagementTitle: string;
+  promoteToAdmin: string;
+  demoteToMember: string;
+  kickMember: string;
+  kickMemberConfirm: string;
+  groupInvitesTitle: string;
+  noGroupInvites: string;
+  invitedYouToJoin: string;
+  acceptInvite: string;
+  declineInvite: string;
 
   // Auth Modal
   authWelcome: string;
@@ -497,6 +581,90 @@ export const TRANSLATIONS: Record<AppLanguage, Translations> = {
     noUsersFound: 'No users found matching that query.',
     pendingRequestBadge: 'pending',
     streakDays: 'streak',
+    viewProfile: 'View Profile',
+    friendProfile: 'Friend Profile',
+    compareStats: 'Compare Stats',
+    comparison: 'Comparison',
+    youLabel: 'YOU',
+    friendTodayFocus: 'Today',
+    friendWeekFocus: 'This Week',
+    friendTotalFocus: 'Total Focus',
+    totalSessions: 'Focus Sessions',
+    lastActive: 'Last Active',
+    inviteToGroup: 'Invite to Group',
+    backToFriends: 'Back to Friends',
+
+    // Study Groups
+    groupsCommunityTooltip: 'Study Groups & Collaborative Space',
+    studyGroupsTitle: 'Study Groups & Leaderboards',
+    myGroupsTab: 'My Groups',
+    discoverGroupsTab: 'Discover',
+    groupInvitesTab: 'Invites',
+    createGroupTab: 'Create Group',
+    noGroupsYet: 'No study groups joined yet.',
+    noGroupsHint: 'Create your own study room or join public study groups to track focus time together!',
+    createFirstGroupBtn: 'Create Your First Group',
+    discoverGroupsPrompt: 'Find active study groups and join focus rooms.',
+    noDiscoverableGroups: 'No public discoverable groups available right now.',
+    membersCount: 'members',
+    memberSingle: 'member',
+    memberPlural: 'members',
+    thisWeekFocus: 'this week',
+    weeklyGoalLabel: 'Weekly Goal',
+    startGroupFocus: 'Start Group Focus',
+    focusingWithGroup: 'Focusing with Group',
+    loading: 'Loading...',
+    stopGroupFocus: 'Stop Group Focus',
+    roleOwner: 'Owner',
+    roleAdmin: 'Admin',
+    roleMember: 'Member',
+    groupNameLabel: 'Group Name',
+    groupNamePlaceholder: 'e.g. KPSS Study Lounge, CS Deep Focus...',
+    groupDescLabel: 'Description',
+    groupDescPlaceholder: 'What is this study group aiming for?',
+    groupIconLabel: 'Group Icon',
+    maxMembersLabel: 'Max Members',
+    visibilityLabel: 'Group Visibility',
+    publicDiscoverable: 'Public & Discoverable',
+    publicDiscoverableDesc: 'Anyone can search and join this group.',
+    privateInviteOnly: 'Private (Invite Only)',
+    privateInviteOnlyDesc: 'Only invited friends can join.',
+    createGroupSubmit: 'Create Group',
+    creatingGroup: 'Creating Group...',
+    inviteFriendsToGroup: 'Invite Friends',
+    groupSettings: 'Group Settings',
+    leaveGroup: 'Leave Group',
+    leaveGroupConfirm: 'Are you sure you want to leave this study group?',
+    deleteGroup: 'Delete Group',
+    deleteGroupConfirm: 'Are you sure you want to permanently delete this group? This action cannot be undone.',
+    joinGroup: 'Join Group',
+    joiningGroup: 'Joining...',
+    alreadyMember: 'Already Member',
+    groupFull: 'Group Full',
+    setWeeklyGoalTitle: 'Set Group Weekly Goal',
+    goalTitleLabel: 'Goal Title',
+    goalTitlePlaceholder: 'e.g. 50 Hours Team Sprint',
+    goalTargetHoursLabel: 'Target Hours (This Week)',
+    saveGoalBtn: 'Save Goal',
+    leaderboardTitle: 'Weekly Member Leaderboard',
+    groupTotalFocus: 'Group Total Focus',
+    activityFeedTitle: 'Activity Feed',
+    noActivityYet: 'No activity logged in this group yet.',
+    memberJoinedActivity: 'joined the group',
+    memberLeftActivity: 'left the group',
+    focusCompletedActivity: 'completed a focus session',
+    goalCreatedActivity: 'created a new weekly goal',
+    goalCompletedActivity: 'achieved the weekly group goal!',
+    memberManagementTitle: 'Member Management',
+    promoteToAdmin: 'Promote to Admin',
+    demoteToMember: 'Demote to Member',
+    kickMember: 'Kick Member',
+    kickMemberConfirm: 'Are you sure you want to remove this member from the group?',
+    groupInvitesTitle: 'Group Invitations',
+    noGroupInvites: 'No pending group invitations.',
+    invitedYouToJoin: 'invited you to join',
+    acceptInvite: 'Accept',
+    declineInvite: 'Decline',
 
     // Auth Modal
     authWelcome: 'Welcome to Luno',
@@ -804,6 +972,90 @@ export const TRANSLATIONS: Record<AppLanguage, Translations> = {
     noUsersFound: 'Bu aramayla eşleşen kullanıcı bulunamadı.',
     pendingRequestBadge: 'bekliyor',
     streakDays: 'seri',
+    viewProfile: 'Profili Gör',
+    friendProfile: 'Arkadaş Profili',
+    compareStats: 'Karşılaştır',
+    comparison: 'Karşılaştırma',
+    youLabel: 'SEN',
+    friendTodayFocus: 'Bugün',
+    friendWeekFocus: 'Bu Hafta',
+    friendTotalFocus: 'Toplam Çalışma',
+    totalSessions: 'Focus Oturumu',
+    lastActive: 'Son Aktivite',
+    inviteToGroup: 'Gruba Davet Et',
+    backToFriends: 'Arkadaşlara Dön',
+
+    // Study Groups
+    groupsCommunityTooltip: 'Çalışma Grupları & Ortak Çalışma',
+    studyGroupsTitle: 'Ders Çalışma Grupları',
+    myGroupsTab: 'Gruplarım',
+    discoverGroupsTab: 'Grup Keşfet',
+    groupInvitesTab: 'Davetler',
+    createGroupTab: 'Grup Oluştur',
+    noGroupsYet: 'Henüz katıldığınız bir çalışma grubu yok.',
+    noGroupsHint: 'Kendi çalışma odanızı kurun veya topluluk gruplarına katılarak sürelerinizi birlikte takip edin!',
+    createFirstGroupBtn: 'İlk Grubunu Oluştur',
+    discoverGroupsPrompt: 'Aktif çalışma gruplarını arayın ve odalara katılın.',
+    noDiscoverableGroups: 'Şu anda keşfedilebilir açık grup bulunmuyor.',
+    membersCount: 'üye',
+    memberSingle: 'üye',
+    memberPlural: 'üye',
+    thisWeekFocus: 'bu hafta',
+    weeklyGoalLabel: 'Haftalık Hedef',
+    startGroupFocus: 'Grup İle Çalışmaya Başla',
+    focusingWithGroup: 'Grup İle Odaklanılıyor',
+    loading: 'Yükleniyor...',
+    stopGroupFocus: 'Grup Odaklanmasını Bitir',
+    roleOwner: 'Kurucu',
+    roleAdmin: 'Yönetici',
+    roleMember: 'Üye',
+    groupNameLabel: 'Grup Adı',
+    groupNamePlaceholder: 'Örn. KPSS Son 30 Gün, YKS Sayısal Tayfa...',
+    groupDescLabel: 'Açıklama',
+    groupDescPlaceholder: 'Bu çalışma grubu neyi hedefliyor?',
+    groupIconLabel: 'Grup İkonu',
+    maxMembersLabel: 'Maksimum Üye',
+    visibilityLabel: 'Grup Görünürlüğü',
+    publicDiscoverable: 'Açık & Keşfedilebilir',
+    publicDiscoverableDesc: 'Herkes bu grubu arayıp katılabilir.',
+    privateInviteOnly: 'Özel (Sadece Davetle)',
+    privateInviteOnlyDesc: 'Sadece davet edilen arkadaşlar katılabilir.',
+    createGroupSubmit: 'Grup Oluştur',
+    creatingGroup: 'Grup Oluşturuluyor...',
+    inviteFriendsToGroup: 'Üye Davet Et',
+    groupSettings: 'Grup Ayarları',
+    leaveGroup: 'Gruptan Ayrıl',
+    leaveGroupConfirm: 'Bu çalışma grubundan ayrılmak istediğinizden emin misiniz?',
+    deleteGroup: 'Grubu Sil',
+    deleteGroupConfirm: 'Bu grubu kalıcı olarak silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.',
+    joinGroup: 'Gruba Katıl',
+    joiningGroup: 'Katılınıyor...',
+    alreadyMember: 'Zaten Üyesiniz',
+    groupFull: 'Grup Dolu',
+    setWeeklyGoalTitle: 'Haftalık Grup Hedefi Belirle',
+    goalTitleLabel: 'Hedef Başlığı',
+    goalTitlePlaceholder: 'Örn. Bu Hafta 50 Saat Maratonu',
+    goalTargetHoursLabel: 'Hedef Saat (Bu Hafta)',
+    saveGoalBtn: 'Hedefi Kaydet',
+    leaderboardTitle: 'Haftalık Üye Sıralaması',
+    groupTotalFocus: 'Grup Toplamı',
+    activityFeedTitle: 'Aktivite Akışı',
+    noActivityYet: 'Henüz bu grupta bir aktivite yok.',
+    memberJoinedActivity: 'gruba katıldı',
+    memberLeftActivity: 'gruptan ayrıldı',
+    focusCompletedActivity: 'odaklanma oturumu tamamladı',
+    goalCreatedActivity: 'yeni bir haftalık hedef oluşturdu',
+    goalCompletedActivity: 'haftalık grup hedefini tamamladı!',
+    memberManagementTitle: 'Üye Yönetimi',
+    promoteToAdmin: 'Yönetici Yap',
+    demoteToMember: 'Üyeliğe Düşür',
+    kickMember: 'Üyeyi Çıkar',
+    kickMemberConfirm: 'Bu üyeyi gruptan çıkarmak istediğinizden emin misiniz?',
+    groupInvitesTitle: 'Grup Davetleri',
+    noGroupInvites: 'Bekleyen grup davetiniz yok.',
+    invitedYouToJoin: 'sizi gruba davet etti:',
+    acceptInvite: 'Kabul Et',
+    declineInvite: 'Reddet',
 
     // Auth Modal
     authWelcome: "Luno'ya Hoş Geldin",
