@@ -74,18 +74,38 @@ export const getUserStudyGroups = async (userId?: string): Promise<StudyGroup[]>
   if (!client) return [];
 
   try {
-    // Fetch group memberships for calling user
-    const { data: memberRows, error: memberErr } = await client
+    // Fetch group memberships for calling user AND groups owned by calling user
+    const { data: memberRows } = await client
       .from('group_members')
       .select('group_id, role, joined_at')
       .eq('user_id', effectiveId);
 
-    if (memberErr || !memberRows || memberRows.length === 0) {
-      return [];
+    const { data: ownedGroupRows } = await client
+      .from('groups')
+      .select('id')
+      .eq('owner_id', effectiveId);
+
+    const groupIdsSet = new Set<string>();
+    const roleMap = new Map<string, GroupRole>();
+
+    if (memberRows && Array.isArray(memberRows)) {
+      memberRows.forEach((m: any) => {
+        groupIdsSet.add(m.group_id);
+        roleMap.set(m.group_id, m.role as GroupRole);
+      });
     }
 
-    const groupIds = memberRows.map((m: any) => m.group_id);
-    const roleMap = new Map(memberRows.map((m: any) => [m.group_id, m.role as GroupRole]));
+    if (ownedGroupRows && Array.isArray(ownedGroupRows)) {
+      ownedGroupRows.forEach((g: any) => {
+        groupIdsSet.add(g.id);
+        if (!roleMap.has(g.id)) {
+          roleMap.set(g.id, 'owner');
+        }
+      });
+    }
+
+    const groupIds = Array.from(groupIdsSet);
+    if (groupIds.length === 0) return [];
 
     // Fetch groups
     const { data: groupRows, error: groupErr } = await client
@@ -429,61 +449,107 @@ export const getGroupDetails = async (
     const startOfWeekISO = new Date(getStartOfWeek()).toISOString();
 
     // 2. Fetch Members & Profiles
-    const { data: memberRows } = await client.from('group_members').select('*').eq('group_id', groupId);
+    const { data: memberRows, error: memberErr } = await client.from('group_members').select('*').eq('group_id', groupId);
+    if (memberErr && import.meta.env.DEV) {
+      console.error('[Luno getGroupDetails memberErr]:', memberErr);
+    }
+
     const members: GroupMember[] = [];
     let userRole: GroupRole | undefined = undefined;
 
+    if (g.owner_id === effectiveUserId) {
+      userRole = 'owner';
+    }
+
+    const allMemberUserIds = new Set<string>();
     if (memberRows && Array.isArray(memberRows)) {
-      const userIds = memberRows.map((m: any) => m.user_id);
-      const { data: profileRows } = await client
+      memberRows.forEach((m: any) => {
+        if (m && m.user_id) allMemberUserIds.add(m.user_id);
+      });
+    }
+    if (g.owner_id) {
+      allMemberUserIds.add(g.owner_id);
+    }
+
+    const userIdsArray = Array.from(allMemberUserIds).filter(Boolean);
+    let profileMap = new Map<string, any>();
+
+    if (userIdsArray.length > 0) {
+      const { data: profileRows, error: profErr } = await client
         .from('profiles')
         .select('id, nickname, display_name, avatar_url')
-        .in('id', userIds);
+        .in('id', userIdsArray);
 
-      const profileMap = new Map((profileRows || []).map((p: any) => [p.id, p]));
-
-      // Fetch weekly focus per member in this group
-      const { data: memberSessions } = await client
-        .from('focus_sessions')
-        .select('user_id, duration_minutes, actual_duration_seconds')
-        .eq('group_id', groupId)
-        .gte('timestamp', startOfWeekISO);
-
-      const memberFocusMap = new Map<string, number>();
-      if (memberSessions) {
-        for (const s of memberSessions) {
-          const mins =
-            typeof s.actual_duration_seconds === 'number' && s.actual_duration_seconds > 0
-              ? Math.max(1, Math.round(s.actual_duration_seconds / 60))
-              : s.duration_minutes || 0;
-          memberFocusMap.set(s.user_id, (memberFocusMap.get(s.user_id) || 0) + mins);
-        }
+      if (profErr && import.meta.env.DEV) {
+        console.error('[Luno getGroupDetails profErr]:', profErr);
       }
 
+      profileMap = new Map((profileRows || []).filter(Boolean).map((p: any) => [p.id, p]));
+    }
+
+    // Fetch weekly focus per member in this group
+    const { data: memberSessions } = await client
+      .from('focus_sessions')
+      .select('user_id, duration_minutes, actual_duration_seconds')
+      .eq('group_id', groupId)
+      .gte('timestamp', startOfWeekISO);
+
+    const memberFocusMap = new Map<string, number>();
+    if (memberSessions) {
+      for (const s of memberSessions) {
+        if (!s || !s.user_id) continue;
+        const mins =
+          typeof s.actual_duration_seconds === 'number' && s.actual_duration_seconds > 0
+            ? Math.max(1, Math.round(s.actual_duration_seconds / 60))
+            : s.duration_minutes || 0;
+        memberFocusMap.set(s.user_id, (memberFocusMap.get(s.user_id) || 0) + mins);
+      }
+    }
+
+    if (memberRows && Array.isArray(memberRows)) {
       for (const m of memberRows) {
+        if (!m || !m.user_id) continue;
         if (m.user_id === effectiveUserId) {
           userRole = m.role as GroupRole;
         }
         const prof = profileMap.get(m.user_id);
+        const safeUserId = String(m.user_id);
         members.push({
-          id: m.id,
-          groupId: m.group_id,
-          userId: m.user_id,
-          role: m.role as GroupRole,
+          id: m.id || `m_${safeUserId}`,
+          groupId: m.group_id || groupId,
+          userId: safeUserId,
+          role: (m.role as GroupRole) || 'member',
           joinedAt: safeParseTimestamp(m.joined_at),
-          nickname: prof?.nickname || prof?.display_name || `Member_${m.user_id.slice(0, 5)}`,
+          nickname: prof?.nickname || prof?.display_name || `Member_${safeUserId.slice(0, 5)}`,
           displayName: prof?.display_name || undefined,
           avatarUrl: prof?.avatar_url || undefined,
-          weeklyFocusMinutes: memberFocusMap.get(m.user_id) || 0,
+          weeklyFocusMinutes: memberFocusMap.get(safeUserId) || 0,
         });
       }
     }
 
+    // Ensure owner is present in members array if missing from group_members table
+    if (g.owner_id && !members.some((m) => m && m.userId === g.owner_id)) {
+      const ownerProf = profileMap.get(g.owner_id);
+      const safeOwnerId = String(g.owner_id);
+      members.unshift({
+        id: `owner_${g.id}`,
+        groupId: g.id,
+        userId: safeOwnerId,
+        role: 'owner',
+        joinedAt: safeParseTimestamp(g.created_at),
+        nickname: ownerProf?.nickname || ownerProf?.display_name || 'Group Owner',
+        displayName: ownerProf?.display_name || undefined,
+        avatarUrl: ownerProf?.avatar_url || undefined,
+        weeklyFocusMinutes: memberFocusMap.get(safeOwnerId) || 0,
+      });
+    }
+
     // Sort members by weekly focus minutes descending for leaderboard
-    members.sort((a, b) => (b.weeklyFocusMinutes || 0) - (a.weeklyFocusMinutes || 0));
+    members.sort((a, b) => ((b?.weeklyFocusMinutes || 0) - (a?.weeklyFocusMinutes || 0)));
 
     // Calculate total group weekly focus
-    const totalWeeklyFocus = members.reduce((acc, m) => acc + (m.weeklyFocusMinutes || 0), 0);
+    const totalWeeklyFocus = members.reduce((acc, m) => acc + (m?.weeklyFocusMinutes || 0), 0);
 
     // 3. Fetch Goals
     const { data: goalRows } = await client
@@ -495,17 +561,18 @@ export const getGroupDetails = async (
     const goals: GroupGoal[] = [];
     if (goalRows) {
       for (const goalData of goalRows) {
+        if (!goalData) continue;
         goals.push({
           id: goalData.id,
           groupId: goalData.group_id,
-          title: goalData.title,
-          targetMinutes: goalData.target_minutes,
+          title: goalData.title || 'Weekly Goal',
+          targetMinutes: goalData.target_minutes || 60,
           startDate: safeParseTimestamp(goalData.start_date),
           endDate: safeParseTimestamp(goalData.end_date),
           createdBy: goalData.created_by,
           createdAt: safeParseTimestamp(goalData.created_at),
           currentMinutes: totalWeeklyFocus,
-          completed: totalWeeklyFocus >= goalData.target_minutes,
+          completed: totalWeeklyFocus >= (goalData.target_minutes || 60),
         });
       }
     }
@@ -520,24 +587,26 @@ export const getGroupDetails = async (
 
     const activities: GroupActivity[] = [];
     if (actRows && actRows.length > 0) {
-      const actUserIds = Array.from(new Set(actRows.map((a: any) => a.user_id)));
+      const actUserIds = Array.from(new Set(actRows.map((a: any) => a?.user_id).filter(Boolean)));
       const { data: actProfiles } = await client
         .from('profiles')
         .select('id, nickname, display_name, avatar_url')
         .in('id', actUserIds);
 
-      const actProfMap = new Map((actProfiles || []).map((p: any) => [p.id, p]));
+      const actProfMap = new Map((actProfiles || []).filter(Boolean).map((p: any) => [p.id, p]));
 
       for (const a of actRows) {
+        if (!a || !a.user_id) continue;
         const prof = actProfMap.get(a.user_id);
+        const safeUserId = String(a.user_id);
         activities.push({
-          id: a.id,
-          groupId: a.group_id,
-          userId: a.user_id,
-          activityType: a.activity_type,
+          id: a.id || `act_${Math.random()}`,
+          groupId: a.group_id || groupId,
+          userId: safeUserId,
+          activityType: a.activity_type || 'member_joined',
           metadata: a.metadata || {},
           createdAt: safeParseTimestamp(a.created_at),
-          userNickname: prof?.nickname || prof?.display_name || `Member_${a.user_id.slice(0, 5)}`,
+          userNickname: prof?.nickname || prof?.display_name || `Member_${safeUserId.slice(0, 5)}`,
           userDisplayName: prof?.display_name || undefined,
           userAvatarUrl: prof?.avatar_url || undefined,
         });

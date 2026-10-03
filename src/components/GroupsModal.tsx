@@ -199,18 +199,48 @@ export const GroupsModal: React.FC<GroupsModalProps> = React.memo(({
     }
   }, [user?.id]);
 
+  // Ref tracking current selected group ID to prevent race conditions during async fetches
+  const selectedGroupIdRef = React.useRef(selectedGroupId);
+  useEffect(() => {
+    selectedGroupIdRef.current = selectedGroupId;
+  }, [selectedGroupId]);
+
   // Load Selected Group Detail
-  const loadGroupDetail = useCallback(async (groupId: string) => {
-    setIsLoadingDetail(true);
+  const loadGroupDetail = useCallback(async (groupId: string, silent = false) => {
+    if (!groupId) return;
+    if (!silent) setIsLoadingDetail(true);
     try {
       const details = await getGroupDetails(groupId, user?.id);
-      setSelectedGroupDetails(details);
+      if (selectedGroupIdRef.current === groupId) {
+        setSelectedGroupDetails(details);
+      }
     } catch (err) {
       if (import.meta.env.DEV) console.error('[Luno loadGroupDetail Error]:', err);
     } finally {
-      setIsLoadingDetail(false);
+      if (!silent && selectedGroupIdRef.current === groupId) {
+        setIsLoadingDetail(false);
+      }
     }
   }, [user?.id]);
+
+  useEffect(() => {
+    if (import.meta.env.DEV && selectedGroupDetails && selectedGroupDetails.group && Array.isArray(selectedGroupDetails.members)) {
+      try {
+        console.log('[Luno Group UI Render Debug] selectedGroupId:', selectedGroupId);
+        console.log('[Luno Group UI Render Debug] selectedGroupDetails.group.id:', selectedGroupDetails.group.id);
+        console.log('[Luno Group UI Render Debug] selectedGroupDetails.group.name:', selectedGroupDetails.group.name);
+        console.log('[Luno Group UI Render Debug] selectedGroupDetails.members:', selectedGroupDetails.members);
+        console.log('[Luno Group UI Render Debug] selectedGroupDetails.members.length:', selectedGroupDetails.members.length);
+        selectedGroupDetails.members.forEach((m, idx) => {
+          if (m) {
+            console.log(`  [Member #${idx + 1}] user_id: ${m.userId}, nickname: ${m.nickname}, display_name: ${m.displayName || 'N/A'}, role: ${m.role}`);
+          }
+        });
+      } catch (err) {
+        console.error('[Luno Group UI Render Debug Error]:', err);
+      }
+    }
+  }, [selectedGroupDetails, selectedGroupId]);
 
   useEffect(() => {
     if (isOpen) {
@@ -233,7 +263,9 @@ export const GroupsModal: React.FC<GroupsModalProps> = React.memo(({
     loadGroupDetail(selectedGroupId);
 
     const interval = setInterval(() => {
-      loadGroupDetail(selectedGroupId);
+      if (selectedGroupIdRef.current === selectedGroupId) {
+        loadGroupDetail(selectedGroupId, true);
+      }
     }, 10000);
 
     return () => clearInterval(interval);
@@ -497,11 +529,11 @@ export const GroupsModal: React.FC<GroupsModalProps> = React.memo(({
             </div>
             <div>
               <h2 id="groups-title" className="text-lg sm:text-xl font-bold text-white tracking-tight flex items-center space-x-2">
-                <span>{selectedGroupDetails ? selectedGroupDetails.group.name : t.studyGroupsTitle}</span>
+                <span>{selectedGroupDetails?.group?.name || t.studyGroupsTitle}</span>
               </h2>
               <p className="text-xs text-white/60 font-medium">
-                {selectedGroupDetails
-                  ? selectedGroupDetails.group.description || `${selectedGroupDetails.group.memberCount} ${t.membersCount}`
+                {selectedGroupDetails?.group
+                  ? selectedGroupDetails.group.description || `${selectedGroupDetails.group.memberCount || 1} ${t.membersCount}`
                   : t.groupsCommunityTooltip}
               </p>
             </div>
@@ -603,7 +635,7 @@ export const GroupsModal: React.FC<GroupsModalProps> = React.memo(({
                 <Loader2 className="w-8 h-8 animate-spin text-purple-400" />
                 <span className="text-xs font-medium tracking-wide">{t.loading}</span>
               </div>
-            ) : selectedGroupDetails ? (
+            ) : selectedGroupDetails && selectedGroupDetails.group ? (
               <div className="space-y-6 animate-in fade-in duration-200">
                 {/* Active Group Indicator Banner */}
                 {activeGroup?.id === selectedGroupDetails.group.id && (
@@ -635,7 +667,7 @@ export const GroupsModal: React.FC<GroupsModalProps> = React.memo(({
                     </div>
                     <p className="text-xs text-white/70 mt-1 max-w-xl">{selectedGroupDetails.group.description || t.noGroupsHint}</p>
                     <div className="flex items-center space-x-3 text-xs text-white/60 mt-2 font-medium">
-                      <span>👥 {selectedGroupDetails.members.length} / {selectedGroupDetails.group.maxMembers} {t.membersCount}</span>
+                      <span>👥 {selectedGroupDetails.members?.length || 0} / {selectedGroupDetails.group.maxMembers || 10} {t.membersCount}</span>
                       <span>•</span>
                       <span>⏱ {formatDurationHoursMinutes(selectedGroupDetails.group.weeklyFocusMinutes || 0, language)} {t.thisWeekFocus}</span>
                     </div>
@@ -721,7 +753,7 @@ export const GroupsModal: React.FC<GroupsModalProps> = React.memo(({
                           100,
                           Math.round(
                             ((selectedGroupDetails.group.weeklyFocusMinutes || 0) /
-                              selectedGroupDetails.group.currentGoal.targetMinutes) *
+                              (selectedGroupDetails.group.currentGoal.targetMinutes || 1)) *
                               100
                           )
                         )}
@@ -741,7 +773,7 @@ export const GroupsModal: React.FC<GroupsModalProps> = React.memo(({
                             100,
                             Math.round(
                               ((selectedGroupDetails.group.weeklyFocusMinutes || 0) /
-                                selectedGroupDetails.group.currentGoal.targetMinutes) *
+                                (selectedGroupDetails.group.currentGoal.targetMinutes || 1)) *
                                 100
                             )
                           )}%`,
@@ -775,67 +807,70 @@ export const GroupsModal: React.FC<GroupsModalProps> = React.memo(({
                 </div>
 
                 <div className="space-y-2">
-                  {selectedGroupDetails.members.map((member, idx) => (
-                    <div
-                      key={member.id}
-                      onClick={() => {
-                        if (onOpenFriendProfile && member.userId !== user?.id) {
-                          onOpenFriendProfile({
-                            id: member.userId,
-                            nickname: member.nickname || 'user',
-                            displayName: member.displayName,
-                            avatarUrl: member.avatarUrl,
-                          });
-                        }
-                      }}
-                      className={`p-3 rounded-xl flex items-center justify-between transition-all ${
-                        onOpenFriendProfile && member.userId !== user?.id ? 'cursor-pointer hover:scale-[1.01]' : ''
-                      } ${
-                        idx === 0
-                          ? 'bg-gradient-to-r from-amber-500/20 to-purple-500/20 border border-amber-500/30'
-                          : idx === 1
-                          ? 'bg-white/5 border border-white/10'
-                          : idx === 2
-                          ? 'bg-white/5 border border-white/10'
-                          : 'hover:bg-white/5 border border-transparent'
-                      }`}
-                    >
-                      <div className="flex items-center space-x-3">
-                        <div className="w-6 text-center font-bold text-xs shrink-0">
-                          {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`}
-                        </div>
-                        <div className="w-8 h-8 rounded-full bg-indigo-500/30 text-white flex items-center justify-center font-bold text-xs overflow-hidden shrink-0 border border-white/15">
-                          {member.avatarUrl ? (
-                            <img src={member.avatarUrl} alt={member.nickname} className="w-full h-full object-cover" />
-                          ) : (
-                            <span>{(member.nickname || 'U').slice(0, 2).toUpperCase()}</span>
-                          )}
-                        </div>
-                        <div>
-                          <div className="flex items-center space-x-2">
-                            <span className="text-xs font-semibold text-white">@{member.nickname}</span>
-                            {member.role === 'owner' && (
-                              <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/30 text-amber-300 border border-amber-500/40">
-                                {t.roleOwner}
-                              </span>
-                            )}
-                            {member.role === 'admin' && (
-                              <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-indigo-500/30 text-indigo-300 border border-indigo-500/40">
-                                {t.roleAdmin}
-                              </span>
+                  {(selectedGroupDetails.members || []).map((member, idx) => {
+                    if (!member) return null;
+                    return (
+                      <div
+                        key={member.id || `mem_${idx}`}
+                        onClick={() => {
+                          if (onOpenFriendProfile && member.userId !== user?.id) {
+                            onOpenFriendProfile({
+                              id: member.userId,
+                              nickname: member.nickname || 'user',
+                              displayName: member.displayName,
+                              avatarUrl: member.avatarUrl,
+                            });
+                          }
+                        }}
+                        className={`p-3 rounded-xl flex items-center justify-between transition-all ${
+                          onOpenFriendProfile && member.userId !== user?.id ? 'cursor-pointer hover:scale-[1.01]' : ''
+                        } ${
+                          idx === 0
+                            ? 'bg-gradient-to-r from-amber-500/20 to-purple-500/20 border border-amber-500/30'
+                            : idx === 1
+                            ? 'bg-white/5 border border-white/10'
+                            : idx === 2
+                            ? 'bg-white/5 border border-white/10'
+                            : 'hover:bg-white/5 border border-transparent'
+                        }`}
+                      >
+                        <div className="flex items-center space-x-3">
+                          <div className="w-6 text-center font-bold text-xs shrink-0">
+                            {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`}
+                          </div>
+                          <div className="w-8 h-8 rounded-full bg-indigo-500/30 text-white flex items-center justify-center font-bold text-xs overflow-hidden shrink-0 border border-white/15">
+                            {member.avatarUrl ? (
+                              <img src={member.avatarUrl} alt={member.nickname} className="w-full h-full object-cover" />
+                            ) : (
+                              <span>{(member.nickname || 'U').slice(0, 2).toUpperCase()}</span>
                             )}
                           </div>
-                          {member.displayName && (
-                            <p className="text-[10px] text-white/60">{member.displayName}</p>
-                          )}
+                          <div>
+                            <div className="flex items-center space-x-2">
+                              <span className="text-xs font-semibold text-white">@{member.nickname}</span>
+                              {member.role === 'owner' && (
+                                <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/30 text-amber-300 border border-amber-500/40">
+                                  {t.roleOwner}
+                                </span>
+                              )}
+                              {member.role === 'admin' && (
+                                <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-indigo-500/30 text-indigo-300 border border-indigo-500/40">
+                                  {t.roleAdmin}
+                                </span>
+                              )}
+                            </div>
+                            {member.displayName && (
+                              <p className="text-[10px] text-white/60">{member.displayName}</p>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="text-xs font-bold text-emerald-400">
+                          {formatDurationHoursMinutes(member.weeklyFocusMinutes || 0, language)}
                         </div>
                       </div>
-
-                      <div className="text-xs font-bold text-emerald-400">
-                        {formatDurationHoursMinutes(member.weeklyFocusMinutes || 0, language)}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 
@@ -846,36 +881,39 @@ export const GroupsModal: React.FC<GroupsModalProps> = React.memo(({
                   <h4 className="text-sm font-bold text-white">{t.activityFeedTitle}</h4>
                 </div>
 
-                {selectedGroupDetails.activities.length === 0 ? (
+                {(!selectedGroupDetails.activities || selectedGroupDetails.activities.length === 0) ? (
                   <p className="text-xs text-white/50 text-center py-4">{t.noActivityYet}</p>
                 ) : (
                   <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
-                    {selectedGroupDetails.activities.map((act) => (
-                      <div key={act.id} className="text-xs flex items-start space-x-2 text-white/80 p-2 rounded-xl bg-white/5">
-                        <span className="mt-0.5">
-                          {act.activityType === 'member_joined'
-                            ? '👋'
-                            : act.activityType === 'focus_completed'
-                            ? '🟢'
-                            : act.activityType === 'goal_created'
-                            ? '🎯'
-                            : '🎉'}
-                        </span>
-                        <div className="flex-1">
-                          <span className="font-semibold text-white">@{act.userNickname}</span>{' '}
-                          {act.activityType === 'member_joined' && t.memberJoinedActivity}
-                          {act.activityType === 'member_left' && t.memberLeftActivity}
-                          {act.activityType === 'focus_completed' &&
-                            `${t.focusCompletedActivity} (${act.metadata?.durationMinutes || 25} ${t.min})`}
-                          {act.activityType === 'goal_created' &&
-                            `${t.goalCreatedActivity}: ${act.metadata?.title || ''}`}
-                          {act.activityType === 'goal_completed' && t.goalCompletedActivity}
+                    {(selectedGroupDetails.activities || []).map((act, idx) => {
+                      if (!act) return null;
+                      return (
+                        <div key={act.id || `act_${idx}`} className="text-xs flex items-start space-x-2 text-white/80 p-2 rounded-xl bg-white/5">
+                          <span className="mt-0.5">
+                            {act.activityType === 'member_joined'
+                              ? '👋'
+                              : act.activityType === 'focus_completed'
+                              ? '🟢'
+                              : act.activityType === 'goal_created'
+                              ? '🎯'
+                              : '🎉'}
+                          </span>
+                          <div className="flex-1">
+                            <span className="font-semibold text-white">@{act.userNickname || 'Member'}</span>{' '}
+                            {act.activityType === 'member_joined' && t.memberJoinedActivity}
+                            {act.activityType === 'member_left' && t.memberLeftActivity}
+                            {act.activityType === 'focus_completed' &&
+                              `${t.focusCompletedActivity} (${act.metadata?.durationMinutes || 25} ${t.min})`}
+                            {act.activityType === 'goal_created' &&
+                              `${t.goalCreatedActivity}: ${act.metadata?.title || ''}`}
+                            {act.activityType === 'goal_completed' && t.goalCompletedActivity}
+                          </div>
+                          <span className="text-[10px] text-white/40 shrink-0">
+                            {new Date(act.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
                         </div>
-                        <span className="text-[10px] text-white/40 shrink-0">
-                          {new Date(act.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -889,39 +927,53 @@ export const GroupsModal: React.FC<GroupsModalProps> = React.memo(({
                   </div>
 
                   <div className="space-y-2">
-                    {selectedGroupDetails.members.map((m) => (
-                      <div key={m.id} className="p-3 rounded-xl bg-white/5 flex items-center justify-between text-xs">
-                        <div className="flex items-center space-x-2">
-                          <span className="font-semibold text-white">@{m.nickname}</span>
-                          <span className="text-white/50">({m.role})</span>
-                        </div>
-
-                        {m.userId !== user?.id && m.role !== 'owner' && (
+                    {(selectedGroupDetails.members || []).map((m, idx) => {
+                      if (!m) return null;
+                      return (
+                        <div key={m.id || `manage_m_${idx}`} className="p-3 rounded-xl bg-white/5 flex items-center justify-between text-xs">
                           <div className="flex items-center space-x-2">
-                            {selectedGroupDetails.group.userRole === 'owner' && (
-                              <button
-                                onClick={() => handleRoleChange(m.userId, m.role === 'admin' ? 'member' : 'admin')}
-                                className="px-2 py-1 rounded bg-indigo-500/20 text-indigo-300 hover:bg-indigo-500/30 text-[10px] font-semibold"
-                              >
-                                {m.role === 'admin' ? t.demoteToMember : t.promoteToAdmin}
-                              </button>
-                            )}
-
-                            <button
-                              onClick={() => handleKickMember(m.userId)}
-                              className="px-2 py-1 rounded bg-rose-500/20 text-rose-300 hover:bg-rose-500/30 text-[10px] font-semibold"
-                            >
-                              {t.kickMember}
-                            </button>
+                            <span className="font-semibold text-white">@{m.nickname}</span>
+                            <span className="text-white/50">({m.role})</span>
                           </div>
-                        )}
-                      </div>
-                    ))}
+
+                          {m.userId !== user?.id && m.role !== 'owner' && (
+                            <div className="flex items-center space-x-2">
+                              {selectedGroupDetails.group.userRole === 'owner' && (
+                                <button
+                                  onClick={() => handleRoleChange(m.userId, m.role === 'admin' ? 'member' : 'admin')}
+                                  className="px-2 py-1 rounded bg-indigo-500/20 text-indigo-300 hover:bg-indigo-500/30 text-[10px] font-semibold"
+                                >
+                                  {m.role === 'admin' ? t.demoteToMember : t.promoteToAdmin}
+                                </button>
+                              )}
+
+                              <button
+                                onClick={() => handleKickMember(m.userId)}
+                                className="px-2 py-1 rounded bg-rose-500/20 text-rose-300 hover:bg-rose-500/30 text-[10px] font-semibold"
+                              >
+                                {t.kickMember}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
             </div>
-          ) : null) : null}
+          ) : (
+            <div className="py-12 text-center text-white/50 flex flex-col items-center space-y-3">
+              <AlertCircle className="w-8 h-8 text-amber-400" />
+              <p className="text-xs font-medium">Group details could not be loaded.</p>
+              <button
+                onClick={() => setSelectedGroupId(null)}
+                className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs transition-all cursor-pointer"
+              >
+                Back to Groups
+              </button>
+            </div>
+          )) : null}
 
           {/* TAB 1: MY GROUPS LIST */}
           {!selectedGroupId && activeTab === 'my-groups' && (
