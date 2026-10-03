@@ -403,6 +403,23 @@ GRANT ALL ON TABLE public.group_goals TO authenticated;
 GRANT ALL ON TABLE public.group_activity TO authenticated;
 GRANT ALL ON TABLE public.group_invites TO authenticated;
 
+-- Allow authenticated users to view profiles of fellow group members
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'profiles' AND policyname = 'Users can view profiles of fellow group members'
+  ) THEN
+    CREATE POLICY "Users can view profiles of fellow group members"
+      ON public.profiles FOR SELECT TO authenticated
+      USING (
+        EXISTS (
+          SELECT 1 FROM public.group_members m
+          WHERE m.user_id = public.profiles.id
+            AND public.is_group_member(m.group_id, auth.uid())
+        )
+      );
+  END IF;
+END $$;
+
 -- ==============================================================================
 -- PUBLIC PROFILE STATS FUNCTION (SECURITY DEFINER with safe search_path)
 -- ==============================================================================

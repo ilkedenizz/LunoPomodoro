@@ -36,8 +36,7 @@ DROP POLICY IF EXISTS "Users can insert their own profile" ON public.profiles;
 DROP POLICY IF EXISTS "Users can update their own profile" ON public.profiles;
 DROP POLICY IF EXISTS "Users can delete their own profile" ON public.profiles;
 
--- Allow authenticated users to view only their own profile and connected friends/requests
--- Prevents mass enumeration/scraping while preserving all app social features
+-- Allow authenticated users to view their own profile, connected friends, or fellow group members
 CREATE POLICY "Users can view their own profile and connected friends"
   ON public.profiles
   FOR SELECT
@@ -50,6 +49,11 @@ CREATE POLICY "Users can view their own profile and connected friends"
         (requester_id = auth.uid() AND addressee_id = public.profiles.id)
         OR (addressee_id = auth.uid() AND requester_id = public.profiles.id)
       )
+    )
+    OR EXISTS (
+      SELECT 1 FROM public.group_members m
+      WHERE m.user_id = public.profiles.id
+        AND public.is_group_member(m.group_id, auth.uid())
     )
   );
 

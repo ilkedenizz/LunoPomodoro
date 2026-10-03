@@ -393,12 +393,13 @@ export const getGroupDetails = async (
   activities: GroupActivity[];
   invites: GroupInvite[];
 } | null> => {
-  if (!isSupabaseConfigured() || !userId) {
+  const effectiveUserId = await getEffectiveUserId(userId);
+  if (!isSupabaseConfigured() || !effectiveUserId) {
     const localGroups = loadLocal<StudyGroup>(LOCAL_GROUPS_KEY);
     const group = localGroups.find((g) => g.id === groupId);
     if (!group) return null;
 
-    const currentId = userId || 'guest_user';
+    const currentId = effectiveUserId || 'guest_user';
     const localMembers = loadLocal<GroupMember>(LOCAL_MEMBERS_KEY).filter((m) => m.groupId === groupId);
     const localGoals = loadLocal<GroupGoal>(LOCAL_GOALS_KEY).filter((g) => g.groupId === groupId);
     const localActivities = loadLocal<GroupActivity>(LOCAL_ACTIVITIES_KEY).filter((a) => a.groupId === groupId);
@@ -460,7 +461,7 @@ export const getGroupDetails = async (
       }
 
       for (const m of memberRows) {
-        if (m.user_id === userId) {
+        if (m.user_id === effectiveUserId) {
           userRole = m.role as GroupRole;
         }
         const prof = profileMap.get(m.user_id);
@@ -470,7 +471,7 @@ export const getGroupDetails = async (
           userId: m.user_id,
           role: m.role as GroupRole,
           joinedAt: safeParseTimestamp(m.joined_at),
-          nickname: prof?.nickname || 'Study Buddy',
+          nickname: prof?.nickname || prof?.display_name || `Member_${m.user_id.slice(0, 5)}`,
           displayName: prof?.display_name || undefined,
           avatarUrl: prof?.avatar_url || undefined,
           weeklyFocusMinutes: memberFocusMap.get(m.user_id) || 0,
@@ -536,7 +537,7 @@ export const getGroupDetails = async (
           activityType: a.activity_type,
           metadata: a.metadata || {},
           createdAt: safeParseTimestamp(a.created_at),
-          userNickname: prof?.nickname || 'Study Buddy',
+          userNickname: prof?.nickname || prof?.display_name || `Member_${a.user_id.slice(0, 5)}`,
           userDisplayName: prof?.display_name || undefined,
           userAvatarUrl: prof?.avatar_url || undefined,
         });
@@ -588,8 +589,9 @@ export const joinStudyGroup = async (
   groupId: string,
   userId?: string
 ): Promise<{ success: boolean; error?: string }> => {
-  if (!isSupabaseConfigured() || !userId) {
-    const currentId = userId || 'guest_user';
+  const effectiveUserId = await getEffectiveUserId(userId);
+  if (!isSupabaseConfigured() || !effectiveUserId) {
+    const currentId = effectiveUserId || 'guest_user';
     const localMembers = loadLocal<GroupMember>(LOCAL_MEMBERS_KEY);
     if (localMembers.some((m) => m.groupId === groupId && m.userId === currentId)) {
       return { success: true };
@@ -639,7 +641,7 @@ export const joinStudyGroup = async (
 
     const { error: insertErr } = await client.from('group_members').insert({
       group_id: groupId,
-      user_id: userId,
+      user_id: effectiveUserId,
       role: 'member',
     });
 
@@ -653,7 +655,7 @@ export const joinStudyGroup = async (
     // Log activity
     await client.from('group_activity').insert({
       group_id: groupId,
-      user_id: userId,
+      user_id: effectiveUserId,
       activity_type: 'member_joined',
     });
 

@@ -225,12 +225,19 @@ export const GroupsModal: React.FC<GroupsModalProps> = React.memo(({
   }, [isOpen, activeTab, loadDiscover]);
 
   useEffect(() => {
-    if (selectedGroupId) {
-      loadGroupDetail(selectedGroupId);
-    } else {
-      setSelectedGroupDetails(null);
+    if (!isOpen || !selectedGroupId) {
+      if (!selectedGroupId) setSelectedGroupDetails(null);
+      return;
     }
-  }, [selectedGroupId, loadGroupDetail]);
+
+    loadGroupDetail(selectedGroupId);
+
+    const interval = setInterval(() => {
+      loadGroupDetail(selectedGroupId);
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [isOpen, selectedGroupId, loadGroupDetail]);
 
   if (!isOpen) return null;
 
@@ -272,6 +279,7 @@ export const GroupsModal: React.FC<GroupsModalProps> = React.memo(({
         setCreateIsDiscoverable(true);
         await loadInitialData();
         setSelectedGroupId(res.group.id);
+        await loadGroupDetail(res.group.id);
         setActiveTab('my-groups');
       } else {
         showFeedback('error', res.error || (language === 'tr' ? 'Grup oluşturulamadı.' : 'Failed to create group.'));
@@ -290,6 +298,7 @@ export const GroupsModal: React.FC<GroupsModalProps> = React.memo(({
         showFeedback('success', 'Joined group!');
         await loadInitialData();
         setSelectedGroupId(groupId);
+        await loadGroupDetail(groupId);
         setActiveTab('my-groups');
       } else {
         showFeedback('error', res.error || 'Failed to join group.');
