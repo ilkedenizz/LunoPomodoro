@@ -174,6 +174,17 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
   }, [isOpen]);
 
   const handleSelectFriend = useCallback(async (friend: Friend | PublicUserProfile) => {
+    if (import.meta.env.DEV) {
+      console.log('[Luno DEV Log] FRIEND PROFILE CLICK:', {
+        clickedFriendId: friend.id,
+        clickedFriendName: friend.nickname || friend.displayName || 'N/A'
+      });
+      console.log('[Luno DEV Log] FRIEND PROFILE LOAD:', {
+        targetUserId: friend.id,
+        authUserId: user?.id
+      });
+    }
+
     setSelectedFriend(friend);
     setIsLoadingFriendStats(true);
     setFriendStats(null);
@@ -185,7 +196,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
     } finally {
       setIsLoadingFriendStats(false);
     }
-  }, []);
+  }, [user?.id]);
 
   useEffect(() => {
     if (isOpen && initialSelectedFriend) {
@@ -622,6 +633,20 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
             <div className="flex-1 overflow-y-auto pr-1 space-y-3 min-h-[280px]">
               {/* FRIEND PROFILE & COMPARISON DETAIL VIEW */}
               {selectedFriend ? (
+                <>
+                {import.meta.env.DEV && (() => {
+                  console.log('FRIEND_RENDER_DEBUG:', {
+                    selectedFriendId: selectedFriend.id,
+                    'selectedFriend.nickname': friendStats?.nickname || selectedFriend.nickname,
+                    friendStats: friendStats,
+                    totalFocusMinutes: friendStats?.totalMinutes || 0,
+                    totalSessions: friendStats?.totalSessions || 0,
+                    weeklyMinutes: friendStats?.weekMinutes || 0,
+                    loading: isLoadingFriendStats,
+                    error: null,
+                  });
+                  return null;
+                })()}
                 <div className="space-y-4 animate-in fade-in duration-200">
                   {/* Profile Header Banner */}
                   <div className={`p-4 rounded-2xl border flex flex-col sm:flex-row items-center justify-between gap-4 ${
@@ -637,7 +662,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                       <div>
                         <div className="flex items-center space-x-2">
                           <h3 className="text-base font-bold tracking-tight">
-                            @{selectedFriend.nickname || 'user'}
+                            @{friendStats?.nickname || selectedFriend.nickname || 'user'}
                           </h3>
                         </div>
                         {selectedFriend.displayName && (
@@ -760,7 +785,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                           <div className={`py-1 px-2.5 rounded-xl border ${
                             isLight ? 'bg-purple-100 border-purple-300 text-purple-800' : 'bg-purple-600/30 border-purple-500/30 text-purple-200'
                           }`}>
-                            @{selectedFriend.nickname || 'friend'}
+                            @{friendStats?.nickname || selectedFriend.nickname || 'friend'}
                           </div>
                         </div>
 
@@ -1032,6 +1057,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                     </>
                   )}
                 </div>
+                </>
               ) : null}
 
               {/* TAB 1: FRIENDS LIST */}

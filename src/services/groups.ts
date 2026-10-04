@@ -543,16 +543,22 @@ export const getGroupDetails = async (
         const safeUserId = String(m.user_id);
         const safeUserLower = safeUserId.toLowerCase();
 
+        const isGenericName = (val?: string | null) => {
+          if (!val || !val.trim()) return true;
+          const s = val.trim().toLowerCase();
+          return s === 'member' || s === 'user' || s === 'unknown';
+        };
+
         const resolvedNickname =
-          (prof?.nickname && prof.nickname.trim() && prof.nickname.trim() !== 'Member' ? prof.nickname.trim() : null) ||
-          (prof?.display_name && prof.display_name.trim() && prof.display_name.trim() !== 'Member' ? prof.display_name.trim() : null) ||
-          (m.nickname && m.nickname.trim() && m.nickname.trim() !== 'Member' ? m.nickname.trim() : null) ||
-          (m.displayName && m.displayName.trim() && m.displayName.trim() !== 'Member' ? m.displayName.trim() : null) ||
+          (!isGenericName(prof?.nickname) ? prof!.nickname.trim() : null) ||
+          (!isGenericName(prof?.display_name) ? prof!.display_name.trim() : null) ||
+          (!isGenericName(m.nickname) ? m.nickname.trim() : null) ||
+          (!isGenericName(m.displayName) ? m.displayName.trim() : null) ||
           `user_${safeUserId.slice(0, 6)}`;
 
         const resolvedDisplayName =
-          (prof?.display_name && prof.display_name.trim() !== resolvedNickname ? prof.display_name.trim() : undefined) ||
-          (m.displayName && m.displayName.trim() !== resolvedNickname ? m.displayName.trim() : undefined);
+          (prof?.display_name && prof.display_name.trim() !== resolvedNickname && !isGenericName(prof.display_name) ? prof.display_name.trim() : undefined) ||
+          (m.displayName && m.displayName.trim() !== resolvedNickname && !isGenericName(m.displayName) ? m.displayName.trim() : undefined);
 
         members.push({
           id: m.id || `m_${safeUserId}`,
@@ -574,9 +580,15 @@ export const getGroupDetails = async (
       const safeOwnerId = String(g.owner_id);
       const safeOwnerLower = safeOwnerId.toLowerCase();
 
+      const isGenericName = (val?: string | null) => {
+        if (!val || !val.trim()) return true;
+        const s = val.trim().toLowerCase();
+        return s === 'member' || s === 'user' || s === 'unknown';
+      };
+
       const ownerNick =
-        (ownerProf?.nickname && ownerProf.nickname.trim() && ownerProf.nickname.trim() !== 'Member' ? ownerProf.nickname.trim() : null) ||
-        (ownerProf?.display_name && ownerProf.display_name.trim() && ownerProf.display_name.trim() !== 'Member' ? ownerProf.display_name.trim() : null) ||
+        (!isGenericName(ownerProf?.nickname) ? ownerProf!.nickname.trim() : null) ||
+        (!isGenericName(ownerProf?.display_name) ? ownerProf!.display_name.trim() : null) ||
         `user_${safeOwnerId.slice(0, 6)}`;
 
       members.unshift({
@@ -594,6 +606,29 @@ export const getGroupDetails = async (
 
     // Sort members by weekly focus minutes descending for leaderboard
     members.sort((a, b) => ((b?.weeklyFocusMinutes || 0) - (a?.weeklyFocusMinutes || 0)));
+
+    if (import.meta.env.DEV) {
+      console.log('GROUP_DETAILS_REAL_DEBUG:', {
+        groupId,
+        membersCount: members.length,
+        members: members.map((m) => ({ userId: m.userId, nickname: m.nickname, displayName: m.displayName })),
+      });
+      members.forEach((m, idx) => {
+        const prof = getProf(m.userId);
+        console.log('GROUP_MEMBER_REAL_DEBUG:', {
+          authUserId: effectiveUserId,
+          memberId: m.id,
+          memberUserId: m.userId,
+          memberNickname: m.nickname,
+          memberDisplayName: m.displayName,
+          memberRole: m.role,
+        });
+        if (!prof?.nickname) {
+          console.warn(`NO NICKNAME FOR USER ${m.userId.slice(0, 8)}...`);
+        }
+        console.log(`[Luno Chain Debug] group_members.user_id (${m.userId}) -> profiles.id (${prof?.id || 'NOT_FOUND'}) -> profiles.nickname (${prof?.nickname || 'NULL'}) -> profiles.display_name (${prof?.display_name || 'NULL'}) -> getGroupDetails().members[${idx}]: nickname=${m.nickname}, role=${m.role}`);
+      });
+    }
 
     // Calculate total group weekly focus
     const totalWeeklyFocus = members.reduce((acc, m) => acc + (m?.weeklyFocusMinutes || 0), 0);

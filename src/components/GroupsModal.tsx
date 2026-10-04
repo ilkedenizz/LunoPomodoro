@@ -814,11 +814,26 @@ export const GroupsModal: React.FC<GroupsModalProps> = React.memo(({
                 <div className="space-y-2">
                   {(selectedGroupDetails.members || []).map((member, idx) => {
                     if (!member) return null;
+                    if (import.meta.env.DEV) {
+                      console.log('GROUP_RENDER_DEBUG:', {
+                        memberUserId: member.userId,
+                        memberNickname: member.nickname,
+                        memberDisplayName: member.displayName,
+                        displayedName: member.nickname || member.displayName,
+                      });
+                    }
                     return (
                       <div
                         key={member.id || `mem_${idx}`}
                         onClick={() => {
                           if (onOpenFriendProfile && member.userId !== user?.id) {
+                            if (import.meta.env.DEV) {
+                              console.log('[Luno DEV Log] GROUP MEMBER CLICK:', {
+                                memberUserId: member.userId,
+                                memberNickname: member.nickname,
+                                currentUserId: user?.id
+                              });
+                            }
                             onOpenFriendProfile({
                               id: member.userId,
                               nickname: member.nickname || 'user',

@@ -620,6 +620,24 @@ export const getFriendPublicStats = async (targetUserId: string): Promise<Friend
       });
     }
 
+    if (import.meta.env.DEV) {
+      const { data: { user: authUser } } = await client.auth.getUser();
+      console.log('FRIEND_REAL_DEBUG:', {
+        clickedFriendId: cleanId,
+        selectedFriendId: cleanId,
+        profileUserId: cleanId,
+        statsTargetUserId: cleanId,
+        authUserId: authUser?.id || null,
+      });
+      console.log('FOCUS_REAL_DEBUG:', {
+        targetUserId: cleanId,
+        rowCount: directSessions?.length || 0,
+        rows: directSessions,
+        error: null,
+      });
+      console.log('[Luno DEV Log] FRIEND STATS REQUEST:', { targetUserId: cleanId });
+    }
+
     // 2. Call RPC get_user_public_stats
     const { data, error } = await client.rpc('get_user_public_stats', { target_user_id: cleanId });
 
@@ -633,9 +651,9 @@ export const getFriendPublicStats = async (targetUserId: string): Promise<Friend
       const rpcMonth = Number(data.monthMinutes ?? data.month_minutes) || 0;
       const rpcTotal = Number(data.totalMinutes ?? data.total_minutes) || 0;
 
-      return {
+      const res = {
         userId: data.userId || data.user_id || cleanId,
-        nickname: data.nickname || 'User',
+        nickname: data.nickname || data.displayName || `user_${cleanId.slice(0, 6)}`,
         displayName: data.displayName || data.display_name || undefined,
         avatarUrl: data.avatarUrl || data.avatar_url || undefined,
         joinedAt: safeParseTimestamp(data.joinedAt || data.joined_at),
@@ -650,6 +668,18 @@ export const getFriendPublicStats = async (targetUserId: string): Promise<Friend
         dailyHistory: Array.isArray(data.dailyHistory || data.daily_history) ? (data.dailyHistory || data.daily_history) : [],
         recentActivities: Array.isArray(data.recentActivities || data.recent_activities) ? (data.recentActivities || data.recent_activities) : [],
       };
+
+      if (import.meta.env.DEV) {
+        console.log('[Luno DEV Log] FRIEND STATS RESPONSE:', {
+          targetUserId: res.userId,
+          totalFocusMinutes: res.totalMinutes,
+          totalSessions: res.totalSessions,
+          weeklyMinutes: res.weekMinutes,
+          error: null
+        });
+      }
+
+      return res;
     }
 
     // 3. Direct Profile Fallback
@@ -658,6 +688,15 @@ export const getFriendPublicStats = async (targetUserId: string): Promise<Friend
       .select('id, nickname, display_name, avatar_url, created_at')
       .eq('id', cleanId)
       .maybeSingle();
+
+    if (import.meta.env.DEV) {
+      console.log('PROFILE_REAL_DEBUG:', {
+        requestedUserId: cleanId,
+        returnedRows: profile ? 1 : 0,
+        returnedProfile: profile,
+        error: profErr ? profErr.message : null,
+      });
+    }
 
     if (import.meta.env.DEV && profErr) {
       console.error('[Luno getFriendPublicStats Fallback Profile Error]:', profErr);
