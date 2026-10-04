@@ -48,15 +48,15 @@ const saveLocal = <T>(key: string, data: T[]): void => {
 // --- SERVICE HELPER FOR AUTH RESOLUTION ---
 
 export const getEffectiveUserId = async (passedId?: string): Promise<string | null> => {
-  if (passedId) return passedId;
-  if (!isSupabaseConfigured()) return null;
+  if (!isSupabaseConfigured()) return passedId || null;
   const client = getSupabaseClient();
-  if (!client) return null;
+  if (!client) return passedId || null;
   try {
     const { data: { user } } = await client.auth.getUser();
-    return user?.id || null;
+    if (user?.id) return user.id;
+    return passedId || null;
   } catch {
-    return null;
+    return passedId || null;
   }
 };
 
@@ -658,11 +658,32 @@ export const joinStudyGroup = async (
   groupId: string,
   userId?: string
 ): Promise<{ success: boolean; error?: string }> => {
-  const effectiveUserId = await getEffectiveUserId(userId);
+  const client = getSupabaseClient();
+  let authUid: string | null = null;
+  if (isSupabaseConfigured() && client) {
+    try {
+      const { data: { user: authUser } } = await client.auth.getUser();
+      authUid = authUser?.id || null;
+    } catch {}
+  }
+
+  const effectiveUserId = authUid || (await getEffectiveUserId(userId));
+
+  if (import.meta.env.DEV) {
+    console.log('[JOIN DEBUG] auth.uid =', authUid);
+    console.log('[JOIN DEBUG] requested group =', groupId);
+    console.log('[JOIN DEBUG] resolved group_id =', groupId);
+    console.log('[JOIN DEBUG] join user_id =', effectiveUserId);
+  }
+
   if (!isSupabaseConfigured() || !effectiveUserId) {
     const currentId = effectiveUserId || 'guest_user';
     const localMembers = loadLocal<GroupMember>(LOCAL_MEMBERS_KEY);
     if (localMembers.some((m) => m.groupId === groupId && m.userId === currentId)) {
+      if (import.meta.env.DEV) {
+        console.log('[JOIN DEBUG] INSERT result = PASS (Local)');
+        console.log('[JOIN DEBUG] REAL MEMBER CREATED = PASS (Local)');
+      }
       return { success: true };
     }
     saveLocal(LOCAL_MEMBERS_KEY, [
@@ -688,16 +709,26 @@ export const joinStudyGroup = async (
       },
       ...localActivities,
     ]);
+    if (import.meta.env.DEV) {
+      console.log('[JOIN DEBUG] INSERT result = PASS (Local)');
+      console.log('[JOIN DEBUG] REAL MEMBER CREATED = PASS (Local)');
+    }
     return { success: true };
   }
 
-  const client = getSupabaseClient();
   if (!client) return { success: false, error: 'Cloud service unconfigured.' };
 
   try {
     // Check max members limit
-    const { data: groupData } = await client.from('groups').select('max_members, is_discoverable').eq('id', groupId).single();
-    if (!groupData) return { success: false, error: 'Group not found.' };
+    const { data: groupData, error: groupErr } = await client.from('groups').select('max_members, is_discoverable').eq('id', groupId).single();
+    if (groupErr || !groupData) {
+      if (import.meta.env.DEV) {
+        console.log('[JOIN DEBUG] INSERT result = FAIL');
+        console.log('[JOIN DEBUG] INSERT error = Group not found:', groupErr?.message);
+        console.log('[JOIN DEBUG] REAL MEMBER CREATED = FAIL');
+      }
+      return { success: false, error: 'Group not found.' };
+    }
 
     const { count: memberCount } = await client
       .from('group_members')
@@ -705,20 +736,52 @@ export const joinStudyGroup = async (
       .eq('group_id', groupId);
 
     if ((memberCount || 0) >= (groupData.max_members || 10)) {
+      if (import.meta.env.DEV) {
+        console.log('[JOIN DEBUG] INSERT result = FAIL');
+        console.log('[JOIN DEBUG] INSERT error = Maximum member capacity reached');
+        console.log('[JOIN DEBUG] REAL MEMBER CREATED = FAIL');
+      }
       return { success: false, error: 'This group has reached its maximum member capacity.' };
     }
 
-    const { error: insertErr } = await client.from('group_members').insert({
-      group_id: groupId,
-      user_id: effectiveUserId,
-      role: 'member',
-    });
+    const { data: insertRow, error: insertErr } = await client
+      .from('group_members')
+      .insert({
+        group_id: groupId,
+        user_id: effectiveUserId,
+        role: 'member',
+      })
+      .select()
+      .maybeSingle();
+
+    if (import.meta.env.DEV) {
+      console.log('[JOIN DEBUG] INSERT result =', insertErr ? 'FAIL' : 'PASS');
+      console.log('[JOIN DEBUG] INSERT error =', insertErr ? insertErr.message : 'none');
+    }
 
     if (insertErr) {
-      if (insertErr.code === '23505') {
-        return { success: true }; // Already joined
+      if (insertErr.code === '23505') { // Unique constraint: already joined
+        if (import.meta.env.DEV) {
+          console.log('[JOIN DEBUG] REAL MEMBER CREATED = PASS (Already Joined)');
+        }
+        return { success: true };
+      }
+      if (import.meta.env.DEV) {
+        console.log('[JOIN DEBUG] REAL MEMBER CREATED = FAIL');
       }
       return { success: false, error: insertErr.message };
+    }
+
+    // Verify row read after insert
+    const { data: verifyMember } = await client
+      .from('group_members')
+      .select('id, user_id, group_id, role')
+      .eq('group_id', groupId)
+      .eq('user_id', effectiveUserId)
+      .maybeSingle();
+
+    if (import.meta.env.DEV) {
+      console.log('[JOIN DEBUG] REAL MEMBER CREATED =', (verifyMember || insertRow) ? 'PASS' : 'FAIL');
     }
 
     // Log activity
@@ -730,6 +793,11 @@ export const joinStudyGroup = async (
 
     return { success: true };
   } catch (err: any) {
+    if (import.meta.env.DEV) {
+      console.log('[JOIN DEBUG] INSERT result = FAIL');
+      console.log('[JOIN DEBUG] INSERT error = Exception:', err.message);
+      console.log('[JOIN DEBUG] REAL MEMBER CREATED = FAIL');
+    }
     return { success: false, error: err.message || 'Failed to join group.' };
   }
 };
