@@ -737,29 +737,45 @@ export const joinStudyGroup = async (
   if (!client) return { success: false, error: 'Cloud service unconfigured.' };
 
   try {
-    // Check max members limit
-    const { data: groupData, error: groupErr } = await client.from('groups').select('max_members, is_discoverable').eq('id', groupId).single();
-    if (groupErr || !groupData) {
-      if (import.meta.env.DEV) {
-        console.log('[JOIN DEBUG] INSERT result = FAIL');
-        console.log('[JOIN DEBUG] INSERT error = Group not found:', groupErr?.message);
-        console.log('[JOIN DEBUG] REAL MEMBER CREATED = FAIL');
+    // 1. Try atomic SECURITY DEFINER RPC join if available
+    try {
+      const { data: rpcRes, error: rpcErr } = await client.rpc('join_study_group', { p_group_id: groupId });
+      if (!rpcErr && rpcRes && typeof rpcRes === 'object') {
+        const resObj = rpcRes as { success?: boolean; error?: string };
+        if (resObj.success) {
+          if (import.meta.env.DEV) {
+            console.log('[JOIN DEBUG] RPC join result = PASS');
+            console.log('[JOIN DEBUG] REAL MEMBER CREATED = PASS');
+          }
+          return { success: true };
+        }
+        if (resObj.error) {
+          return { success: false, error: resObj.error };
+        }
       }
-      return { success: false, error: 'Group not found.' };
-    }
+    } catch {}
 
-    const { count: memberCount } = await client
-      .from('group_members')
-      .select('*', { count: 'exact', head: true })
-      .eq('group_id', groupId);
+    // 2. Direct database fallback: safe capacity check (doesn't fail if private group pre-query returns null)
+    const { data: groupData } = await client
+      .from('groups')
+      .select('max_members')
+      .eq('id', groupId)
+      .maybeSingle();
 
-    if ((memberCount || 0) >= (groupData.max_members || 10)) {
-      if (import.meta.env.DEV) {
-        console.log('[JOIN DEBUG] INSERT result = FAIL');
-        console.log('[JOIN DEBUG] INSERT error = Maximum member capacity reached');
-        console.log('[JOIN DEBUG] REAL MEMBER CREATED = FAIL');
+    if (groupData && groupData.max_members) {
+      const { count: memberCount } = await client
+        .from('group_members')
+        .select('*', { count: 'exact', head: true })
+        .eq('group_id', groupId);
+
+      if ((memberCount || 0) >= groupData.max_members) {
+        if (import.meta.env.DEV) {
+          console.log('[JOIN DEBUG] INSERT result = FAIL');
+          console.log('[JOIN DEBUG] INSERT error = Maximum member capacity reached');
+          console.log('[JOIN DEBUG] REAL MEMBER CREATED = FAIL');
+        }
+        return { success: false, error: 'This group has reached its maximum member capacity.' };
       }
-      return { success: false, error: 'This group has reached its maximum member capacity.' };
     }
 
     const { data: insertRow, error: insertErr } = await client
@@ -783,6 +799,12 @@ export const joinStudyGroup = async (
           console.log('[JOIN DEBUG] REAL MEMBER CREATED = PASS (Already Joined)');
         }
         return { success: true };
+      }
+      if (insertErr.code === '23503') { // FK constraint: invalid group ID
+        if (import.meta.env.DEV) {
+          console.log('[JOIN DEBUG] REAL MEMBER CREATED = FAIL (Group not found)');
+        }
+        return { success: false, error: 'Group not found.' };
       }
       if (import.meta.env.DEV) {
         console.log('[JOIN DEBUG] REAL MEMBER CREATED = FAIL');
@@ -1130,7 +1152,10 @@ export const respondToGroupInvite = async (
     }
 
     if (accept) {
-      await joinStudyGroup(inviteRow.group_id, effectiveUserId);
+      const joinRes = await joinStudyGroup(inviteRow.group_id, effectiveUserId);
+      if (!joinRes.success) {
+        return { success: false, error: joinRes.error || 'Failed to join group.' };
+      }
     }
 
     return { success: true };
