@@ -623,12 +623,14 @@ export const getFriendPublicStats = async (targetUserId: string): Promise<Friend
 
     const now = new Date();
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-    const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay())).getTime();
+    const dayOfWeek = now.getDay();
+    const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dayOfWeek).getTime();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
 
     if (sessions && Array.isArray(sessions)) {
       sessions.forEach((s: any) => {
-        if (s.mode === 'pomodoro' && s.completed !== false) {
+        const isFocusMode = s.mode === 'pomodoro' || s.mode === 'stopwatch' || s.mode === 'focus';
+        if (isFocusMode && s.completed !== false) {
           const mins = typeof s.actual_duration_seconds === 'number' && s.actual_duration_seconds > 0
             ? Math.max(1, Math.round(s.actual_duration_seconds / 60))
             : (s.duration_minutes || 0);
