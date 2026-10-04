@@ -502,8 +502,16 @@ export const getGroupDetails = async (
         console.error('[Luno getGroupDetails profErr]:', profErr);
       }
 
-      profileMap = new Map((profileRows || []).filter(Boolean).map((p: any) => [p.id, p]));
+      if (profileRows && Array.isArray(profileRows)) {
+        profileRows.forEach((p: any) => {
+          if (p && p.id) {
+            profileMap.set(String(p.id).toLowerCase(), p);
+          }
+        });
+      }
     }
+
+    const getProf = (uid: string) => profileMap.get(String(uid).toLowerCase());
 
     // Fetch weekly focus per member in this group
     const { data: memberSessions } = await client
@@ -520,7 +528,8 @@ export const getGroupDetails = async (
           typeof s.actual_duration_seconds === 'number' && s.actual_duration_seconds > 0
             ? Math.max(1, Math.round(s.actual_duration_seconds / 60))
             : s.duration_minutes || 0;
-        memberFocusMap.set(s.user_id, (memberFocusMap.get(s.user_id) || 0) + mins);
+        const safeUid = String(s.user_id).toLowerCase();
+        memberFocusMap.set(safeUid, (memberFocusMap.get(safeUid) || 0) + mins);
       }
     }
 
@@ -530,36 +539,55 @@ export const getGroupDetails = async (
         if (m.user_id === effectiveUserId) {
           userRole = m.role as GroupRole;
         }
-        const prof = profileMap.get(m.user_id);
+        const prof = getProf(m.user_id);
         const safeUserId = String(m.user_id);
+        const safeUserLower = safeUserId.toLowerCase();
+
+        const resolvedNickname =
+          (prof?.nickname && prof.nickname.trim()) ||
+          (prof?.display_name && prof.display_name.trim()) ||
+          (m.nickname && m.nickname.trim() && m.nickname !== 'Member' ? m.nickname.trim() : null) ||
+          'Member';
+
+        const resolvedDisplayName =
+          (prof?.display_name && prof.display_name.trim() !== resolvedNickname ? prof.display_name.trim() : undefined) ||
+          (m.displayName && m.displayName.trim() !== resolvedNickname ? m.displayName.trim() : undefined);
+
         members.push({
           id: m.id || `m_${safeUserId}`,
           groupId: m.group_id || groupId,
           userId: safeUserId,
           role: (m.role as GroupRole) || 'member',
           joinedAt: safeParseTimestamp(m.joined_at),
-          nickname: prof?.nickname || prof?.display_name || `Member_${safeUserId.slice(0, 5)}`,
-          displayName: prof?.display_name || undefined,
-          avatarUrl: prof?.avatar_url || undefined,
-          weeklyFocusMinutes: memberFocusMap.get(safeUserId) || 0,
+          nickname: resolvedNickname,
+          displayName: resolvedDisplayName,
+          avatarUrl: prof?.avatar_url || m.avatarUrl || undefined,
+          weeklyFocusMinutes: memberFocusMap.get(safeUserLower) || 0,
         });
       }
     }
 
     // Ensure owner is present in members array if missing from group_members table
     if (g.owner_id && !members.some((m) => m && m.userId === g.owner_id)) {
-      const ownerProf = profileMap.get(g.owner_id);
+      const ownerProf = getProf(g.owner_id);
       const safeOwnerId = String(g.owner_id);
+      const safeOwnerLower = safeOwnerId.toLowerCase();
+
+      const ownerNick =
+        (ownerProf?.nickname && ownerProf.nickname.trim()) ||
+        (ownerProf?.display_name && ownerProf.display_name.trim()) ||
+        'Member';
+
       members.unshift({
         id: `owner_${g.id}`,
         groupId: g.id,
         userId: safeOwnerId,
         role: 'owner',
         joinedAt: safeParseTimestamp(g.created_at),
-        nickname: ownerProf?.nickname || ownerProf?.display_name || 'Group Owner',
+        nickname: ownerNick,
         displayName: ownerProf?.display_name || undefined,
         avatarUrl: ownerProf?.avatar_url || undefined,
-        weeklyFocusMinutes: memberFocusMap.get(safeOwnerId) || 0,
+        weeklyFocusMinutes: memberFocusMap.get(safeOwnerLower) || 0,
       });
     }
 
