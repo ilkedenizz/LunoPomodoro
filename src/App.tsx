@@ -173,6 +173,11 @@ export function App() {
   const timeLeftRef = useRef(timeLeft);
   const activeTaskTitleRef = useRef<string | null>(null);
   const userRef = useRef(user);
+  const activeGroupRef = useRef(activeGroup);
+
+  useEffect(() => {
+    activeGroupRef.current = activeGroup;
+  }, [activeGroup]);
 
   // Preload lazy modals during browser idle time for zero-delay modal opening
   useEffect(() => {

@@ -544,10 +544,11 @@ export const getGroupDetails = async (
         const safeUserLower = safeUserId.toLowerCase();
 
         const resolvedNickname =
-          (prof?.nickname && prof.nickname.trim()) ||
-          (prof?.display_name && prof.display_name.trim()) ||
-          (m.nickname && m.nickname.trim() && m.nickname !== 'Member' ? m.nickname.trim() : null) ||
-          'Member';
+          (prof?.nickname && prof.nickname.trim() && prof.nickname.trim() !== 'Member' ? prof.nickname.trim() : null) ||
+          (prof?.display_name && prof.display_name.trim() && prof.display_name.trim() !== 'Member' ? prof.display_name.trim() : null) ||
+          (m.nickname && m.nickname.trim() && m.nickname.trim() !== 'Member' ? m.nickname.trim() : null) ||
+          (m.displayName && m.displayName.trim() && m.displayName.trim() !== 'Member' ? m.displayName.trim() : null) ||
+          `user_${safeUserId.slice(0, 6)}`;
 
         const resolvedDisplayName =
           (prof?.display_name && prof.display_name.trim() !== resolvedNickname ? prof.display_name.trim() : undefined) ||
@@ -574,9 +575,9 @@ export const getGroupDetails = async (
       const safeOwnerLower = safeOwnerId.toLowerCase();
 
       const ownerNick =
-        (ownerProf?.nickname && ownerProf.nickname.trim()) ||
-        (ownerProf?.display_name && ownerProf.display_name.trim()) ||
-        'Member';
+        (ownerProf?.nickname && ownerProf.nickname.trim() && ownerProf.nickname.trim() !== 'Member' ? ownerProf.nickname.trim() : null) ||
+        (ownerProf?.display_name && ownerProf.display_name.trim() && ownerProf.display_name.trim() !== 'Member' ? ownerProf.display_name.trim() : null) ||
+        `user_${safeOwnerId.slice(0, 6)}`;
 
       members.unshift({
         id: `owner_${g.id}`,

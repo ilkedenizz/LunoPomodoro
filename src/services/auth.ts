@@ -267,25 +267,28 @@ export const fetchOrCreateProfile = async (
       .eq('id', user.id)
       .maybeSingle();
 
-    if (profileRow) {
+    if (profileRow && profileRow.nickname && profileRow.nickname.trim() && profileRow.nickname !== 'Member') {
       return profileRow;
     }
 
     let defaultNick =
       (typeof user.user_metadata?.nickname === 'string' && user.user_metadata.nickname.trim()) ||
+      (typeof user.user_metadata?.display_name === 'string' && user.user_metadata.display_name.trim()) ||
       (user.email ? user.email.split('@')[0] : 'user');
     defaultNick = defaultNick.replace(/[^a-zA-Z0-9_]/g, '').slice(0, 20);
     if (defaultNick.length < 3) defaultNick = defaultNick.padEnd(3, '0');
 
     const defaultDisplay =
+      (profileRow?.display_name && profileRow.display_name.trim()) ||
       (typeof user.user_metadata?.display_name === 'string' && user.user_metadata.display_name.trim()) ||
       (typeof user.user_metadata?.full_name === 'string' && user.user_metadata.full_name.trim()) ||
       defaultNick;
 
     const defaultAvatar =
-      typeof user.user_metadata?.avatar_url === 'string' && user.user_metadata.avatar_url.trim()
+      profileRow?.avatar_url ||
+      (typeof user.user_metadata?.avatar_url === 'string' && user.user_metadata.avatar_url.trim()
         ? user.user_metadata.avatar_url.trim()
-        : null;
+        : null);
 
     try {
       await client.from('profiles').upsert({

@@ -149,16 +149,17 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
   const myStats = useMemo(() => {
     if (!isOpen) return { todayMinutes: 0, weekMinutes: 0, monthMinutes: 0, totalMinutes: 0, totalSessions: 0, dailyAverageMinutes: 0 };
     const sessions = loadSessions();
-    const todaySes = sessions.filter((s) => isToday(s.timestamp) && s.mode === 'pomodoro');
-    const weekSes = sessions.filter((s) => s.timestamp >= Date.now() - 7 * 86400 * 1000 && s.mode === 'pomodoro');
-    const monthSes = sessions.filter((s) => s.timestamp >= Date.now() - 30 * 86400 * 1000 && s.mode === 'pomodoro');
-    const totalSes = sessions.filter((s) => s.mode === 'pomodoro');
+    const isFocusMode = (m?: string) => m === 'pomodoro' || m === 'stopwatch' || m === 'focus';
+    const todaySes = sessions.filter((s) => isToday(s.timestamp) && isFocusMode(s.mode));
+    const weekSes = sessions.filter((s) => s.timestamp >= Date.now() - 7 * 86400 * 1000 && isFocusMode(s.mode));
+    const monthSes = sessions.filter((s) => s.timestamp >= Date.now() - 30 * 86400 * 1000 && isFocusMode(s.mode));
+    const totalSes = sessions.filter((s) => isFocusMode(s.mode));
 
     const todayMins = todaySes.reduce((acc, s) => acc + getSessionMinutes(s), 0);
     const weekMins = weekSes.reduce((acc, s) => acc + getSessionMinutes(s), 0);
     const monthMins = monthSes.reduce((acc, s) => acc + getSessionMinutes(s), 0);
     const totalMins = totalSes.reduce((acc, s) => acc + getSessionMinutes(s), 0);
-    const totalCount = totalSes.filter((s) => s.completed !== false).length;
+    const totalCount = totalSes.length;
     const activeDaysCount = Math.max(1, new Set(totalSes.map((s) => new Date(s.timestamp).toDateString())).size);
     const dailyAvgMins = Math.round(totalMins / activeDaysCount);
 

@@ -570,6 +570,57 @@ export const getFriendPublicStats = async (targetUserId: string): Promise<Friend
 
   try {
     const cleanId = targetUserId.trim();
+
+    // 1. Fetch direct focus_sessions to ensure stopwatch and partial sessions with duration are calculated
+    const { data: directSessions } = await client
+      .from('focus_sessions')
+      .select('duration_minutes, actual_duration_seconds, timestamp, mode, completed')
+      .eq('user_id', cleanId);
+
+    let directTodayMins = 0;
+    let directWeekMins = 0;
+    let directMonthMins = 0;
+    let directTotalMins = 0;
+    let directTotalSess = 0;
+    let directLastActive: number | undefined = undefined;
+    let directLastSessionMins: number | undefined = undefined;
+
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const dayOfWeek = now.getDay();
+    const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dayOfWeek).getTime();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+
+    if (directSessions && Array.isArray(directSessions)) {
+      const sorted = [...directSessions].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+      sorted.forEach((s: any) => {
+        const isFocusMode = s.mode === 'pomodoro' || s.mode === 'stopwatch' || s.mode === 'focus';
+        const hasTime = (typeof s.actual_duration_seconds === 'number' && s.actual_duration_seconds > 0) ||
+                        (typeof s.duration_minutes === 'number' && s.duration_minutes > 0);
+
+        if (isFocusMode && (s.completed !== false || hasTime)) {
+          const mins = typeof s.actual_duration_seconds === 'number' && s.actual_duration_seconds > 0
+            ? Math.max(1, Math.round(s.actual_duration_seconds / 60))
+            : (s.duration_minutes || 0);
+
+          const time = new Date(s.timestamp).getTime();
+          directTotalMins += mins;
+          directTotalSess += 1;
+
+          if (time >= startOfDay) directTodayMins += mins;
+          if (time >= startOfWeek) directWeekMins += mins;
+          if (time >= startOfMonth) directMonthMins += mins;
+
+          if (!directLastActive || time > directLastActive) {
+            directLastActive = time;
+            directLastSessionMins = mins;
+          }
+        }
+      });
+    }
+
+    // 2. Call RPC get_user_public_stats
     const { data, error } = await client.rpc('get_user_public_stats', { target_user_id: cleanId });
 
     if (import.meta.env.DEV && error) {
@@ -577,26 +628,31 @@ export const getFriendPublicStats = async (targetUserId: string): Promise<Friend
     }
 
     if (!error && data && (data.success !== false)) {
+      const rpcToday = Number(data.todayMinutes ?? data.today_minutes) || 0;
+      const rpcWeek = Number(data.weekMinutes ?? data.week_minutes) || 0;
+      const rpcMonth = Number(data.monthMinutes ?? data.month_minutes) || 0;
+      const rpcTotal = Number(data.totalMinutes ?? data.total_minutes) || 0;
+
       return {
         userId: data.userId || data.user_id || cleanId,
         nickname: data.nickname || 'User',
         displayName: data.displayName || data.display_name || undefined,
         avatarUrl: data.avatarUrl || data.avatar_url || undefined,
         joinedAt: safeParseTimestamp(data.joinedAt || data.joined_at),
-        todayMinutes: Number(data.todayMinutes ?? data.today_minutes) || 0,
-        weekMinutes: Number(data.weekMinutes ?? data.week_minutes) || 0,
-        monthMinutes: Number(data.monthMinutes ?? data.month_minutes) || 0,
-        totalMinutes: Number(data.totalMinutes ?? data.total_minutes) || 0,
-        totalSessions: Number(data.totalSessions ?? data.total_sessions) || 0,
-        dailyAverageMinutes: Number(data.dailyAverageMinutes ?? data.daily_average_minutes) || 0,
-        lastActiveAt: (data.lastActiveAt || data.last_active_at) ? safeParseTimestamp(data.lastActiveAt || data.last_active_at) : undefined,
-        lastSessionMinutes: (data.lastSessionMinutes ?? data.last_session_minutes) ? Number(data.lastSessionMinutes ?? data.last_session_minutes) : undefined,
+        todayMinutes: Math.max(rpcToday, directTodayMins),
+        weekMinutes: Math.max(rpcWeek, directWeekMins),
+        monthMinutes: Math.max(rpcMonth, directMonthMins),
+        totalMinutes: Math.max(rpcTotal, directTotalMins),
+        totalSessions: Math.max(Number(data.totalSessions ?? data.total_sessions) || 0, directTotalSess),
+        dailyAverageMinutes: Math.max(Number(data.dailyAverageMinutes ?? data.daily_average_minutes) || 0, directTotalSess > 0 ? Math.round(directTotalMins / Math.max(1, directTotalSess)) : 0),
+        lastActiveAt: (data.lastActiveAt || data.last_active_at) ? safeParseTimestamp(data.lastActiveAt || data.last_active_at) : directLastActive,
+        lastSessionMinutes: (data.lastSessionMinutes ?? data.last_session_minutes) ? Number(data.lastSessionMinutes ?? data.last_session_minutes) : directLastSessionMins,
         dailyHistory: Array.isArray(data.dailyHistory || data.daily_history) ? (data.dailyHistory || data.daily_history) : [],
         recentActivities: Array.isArray(data.recentActivities || data.recent_activities) ? (data.recentActivities || data.recent_activities) : [],
       };
     }
 
-    // Fallback direct select on profiles if RPC is not present or failed
+    // 3. Direct Profile Fallback
     const { data: profile, error: profErr } = await client
       .from('profiles')
       .select('id, nickname, display_name, avatar_url, created_at')
@@ -609,55 +665,20 @@ export const getFriendPublicStats = async (targetUserId: string): Promise<Friend
 
     if (!profile) return null;
 
-    // Fetch friend's focus_sessions for direct stats calculation
-    const { data: sessions } = await client
-      .from('focus_sessions')
-      .select('duration_minutes, actual_duration_seconds, timestamp, mode, completed')
-      .eq('user_id', cleanId);
-
-    let todayMins = 0;
-    let weekMins = 0;
-    let monthMins = 0;
-    let totalMins = 0;
-    let totalSess = 0;
-
-    const now = new Date();
-    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-    const dayOfWeek = now.getDay();
-    const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dayOfWeek).getTime();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
-
-    if (sessions && Array.isArray(sessions)) {
-      sessions.forEach((s: any) => {
-        const isFocusMode = s.mode === 'pomodoro' || s.mode === 'stopwatch' || s.mode === 'focus';
-        if (isFocusMode && s.completed !== false) {
-          const mins = typeof s.actual_duration_seconds === 'number' && s.actual_duration_seconds > 0
-            ? Math.max(1, Math.round(s.actual_duration_seconds / 60))
-            : (s.duration_minutes || 0);
-
-          const time = new Date(s.timestamp).getTime();
-          totalMins += mins;
-          totalSess += 1;
-
-          if (time >= startOfDay) todayMins += mins;
-          if (time >= startOfWeek) weekMins += mins;
-          if (time >= startOfMonth) monthMins += mins;
-        }
-      });
-    }
-
     return {
       userId: profile.id,
-      nickname: profile.nickname || 'User',
+      nickname: profile.nickname || profile.display_name || 'User',
       displayName: profile.display_name || undefined,
       avatarUrl: profile.avatar_url || undefined,
       joinedAt: safeParseTimestamp(profile.created_at),
-      todayMinutes: todayMins,
-      weekMinutes: weekMins,
-      monthMinutes: monthMins,
-      totalMinutes: totalMins,
-      totalSessions: totalSess,
-      dailyAverageMinutes: totalSess > 0 ? Math.round(totalMins / Math.max(1, totalSess)) : 0,
+      todayMinutes: directTodayMins,
+      weekMinutes: directWeekMins,
+      monthMinutes: directMonthMins,
+      totalMinutes: directTotalMins,
+      totalSessions: directTotalSess,
+      dailyAverageMinutes: directTotalSess > 0 ? Math.round(directTotalMins / Math.max(1, directTotalSess)) : 0,
+      lastActiveAt: directLastActive,
+      lastSessionMinutes: directLastSessionMins,
       dailyHistory: [],
       recentActivities: [],
     };
