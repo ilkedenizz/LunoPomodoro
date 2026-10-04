@@ -10,7 +10,7 @@ export const getSessionMinutes = (s: FocusSession): number => {
 };
 
 export const getPomodoroSessions = (sessions: FocusSession[]): FocusSession[] => {
-  return sessions.filter((s) => s.mode === 'pomodoro');
+  return sessions.filter((s) => s.mode === 'pomodoro' || s.mode === 'stopwatch');
 };
 
 export const getTotalFocusMinutes = (sessions: FocusSession[]): number => {

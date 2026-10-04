@@ -242,7 +242,7 @@ const sanitizeTimerColor = (val: unknown, fallback: TimerColorId): TimerColorId 
 };
 
 const sanitizeTimerMode = (val: unknown): TimerMode => {
-  if (val === 'shortBreak' || val === 'longBreak') return val;
+  if (val === 'shortBreak' || val === 'longBreak' || val === 'stopwatch') return val;
   return 'pomodoro';
 };
 

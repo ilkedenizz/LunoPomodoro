@@ -134,7 +134,14 @@ export const loadSessions = (): FocusSession[] => {
 
 export const saveSession = (session: FocusSession): FocusSession[] => {
   const current = loadSessions();
-  const updated = [session, ...current];
+  const index = current.findIndex((s) => s.id === session.id);
+  let updated: FocusSession[];
+  if (index >= 0) {
+    updated = [...current];
+    updated[index] = session;
+  } else {
+    updated = [session, ...current];
+  }
   try {
     localStorage.setItem(SESSIONS_KEY, JSON.stringify(updated));
   } catch (err) {

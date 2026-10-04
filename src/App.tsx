@@ -160,6 +160,8 @@ export function App() {
   const expectedEndRef = useRef<number | null>(null);
   const stopwatchStartRef = useRef<number | null>(null);
   const stopwatchAccumulatedRef = useRef<number>(0);
+  const stopwatchSessionIdRef = useRef<string | null>(null);
+  const stopwatchStartedAtRef = useRef<number | null>(null);
   const isCompletingRef = useRef<boolean>(false);
   const autoStartTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sessionStartedAtRef = useRef<number | null>(null);
@@ -588,6 +590,57 @@ export function App() {
     }
   }, [mode, timerState, timeLeft, activeTaskTitle, activeGroup, user]);
 
+  // Save / Update Stopwatch Session (Idempotent upsert by stopwatchSessionIdRef)
+  const saveStopwatchSession = useCallback((finalizing = false) => {
+    if (modeRef.current !== 'stopwatch') return;
+
+    let nowSecs = stopwatchAccumulatedRef.current;
+    if (timerStateRef.current === 'running' && stopwatchStartRef.current) {
+      nowSecs += Math.floor((Date.now() - stopwatchStartRef.current) / 1000);
+    }
+
+    if (nowSecs < 10) return;
+
+    if (!stopwatchSessionIdRef.current) {
+      stopwatchSessionIdRef.current = `sw_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    }
+    if (!stopwatchStartedAtRef.current) {
+      stopwatchStartedAtRef.current = Date.now() - nowSecs * 1000;
+    }
+
+    const durationMins = Math.max(1, Math.round(nowSecs / 60));
+
+    const session: FocusSession = {
+      id: stopwatchSessionIdRef.current,
+      timestamp: stopwatchStartedAtRef.current,
+      mode: 'stopwatch',
+      durationMinutes: durationMins,
+      targetDurationMinutes: durationMins,
+      actualDurationSeconds: nowSecs,
+      completed: true,
+      taskTitle: activeTaskTitleRef.current || undefined,
+      groupId: activeGroupRef.current?.id,
+    };
+
+    const updatedSessions = saveSession(session);
+    setSessions(updatedSessions);
+
+    if (userRef.current) {
+      markSessionPending(session.id);
+      SyncEngine.pushSession(session, userRef.current.id);
+    }
+    if (activeGroupRef.current) {
+      recordGroupFocusSession(activeGroupRef.current.id, session, userRef.current?.id).catch(console.error);
+    }
+
+    if (finalizing) {
+      stopwatchSessionIdRef.current = null;
+      stopwatchStartedAtRef.current = null;
+      stopwatchStartRef.current = null;
+      stopwatchAccumulatedRef.current = 0;
+    }
+  }, []);
+
   // Handle Session Completion (Strictly Idempotent)
   const handleSessionComplete = useCallback(() => {
     if (isCompletingRef.current) return;
@@ -813,6 +866,7 @@ export function App() {
             stopwatchAccumulatedRef.current +
             Math.floor((now - stopwatchStartRef.current) / 1000);
           setTimeLeft(elapsedSecs);
+          saveStopwatchSession(false);
         } else if (expectedEndRef.current) {
           const now = Date.now();
           const remainingMs = expectedEndRef.current - now;
@@ -829,12 +883,17 @@ export function App() {
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [mode, timerState, handleSessionComplete]);
+  }, [mode, timerState, handleSessionComplete, saveStopwatchSession]);
 
   // Window beforeunload listener: save partial session if user closes tab or navigates away
   useEffect(() => {
     const handleBeforeUnload = () => {
       if (
+        modeRef.current === 'stopwatch' &&
+        (timerStateRef.current === 'running' || timerStateRef.current === 'paused')
+      ) {
+        saveStopwatchSession(false);
+      } else if (
         modeRef.current === 'pomodoro' &&
         (timerStateRef.current === 'running' || timerStateRef.current === 'paused') &&
         sessionTargetSecondsRef.current > 0
@@ -868,7 +927,7 @@ export function App() {
 
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, []);
+  }, [saveStopwatchSession]);
 
   // Timer Controls
   const handleStart = useCallback(() => {
@@ -878,6 +937,10 @@ export function App() {
     }
     isCompletingRef.current = false;
     if (mode === 'stopwatch') {
+      if (!stopwatchSessionIdRef.current) {
+        stopwatchSessionIdRef.current = `sw_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+        stopwatchStartedAtRef.current = Date.now();
+      }
       stopwatchStartRef.current = Date.now();
       setTimerState('running');
       return;
@@ -904,6 +967,7 @@ export function App() {
       }
       setTimeLeft(stopwatchAccumulatedRef.current);
       setTimerState('paused');
+      saveStopwatchSession(false);
       return;
     }
     if (expectedEndRef.current) {
@@ -912,7 +976,7 @@ export function App() {
     }
     setTimerState('paused');
     expectedEndRef.current = null;
-  }, [mode]);
+  }, [mode, saveStopwatchSession]);
 
   const handleResume = useCallback(() => {
     if (autoStartTimeoutRef.current) {
@@ -921,6 +985,10 @@ export function App() {
     }
     isCompletingRef.current = false;
     if (mode === 'stopwatch') {
+      if (!stopwatchSessionIdRef.current) {
+        stopwatchSessionIdRef.current = `sw_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+        stopwatchStartedAtRef.current = Date.now();
+      }
       stopwatchStartRef.current = Date.now();
       setTimerState('running');
       return;
@@ -939,8 +1007,7 @@ export function App() {
       autoStartTimeoutRef.current = null;
     }
     if (mode === 'stopwatch') {
-      stopwatchStartRef.current = null;
-      stopwatchAccumulatedRef.current = 0;
+      saveStopwatchSession(true);
       setTimeLeft(0);
       setTimerState('idle');
       return;
@@ -952,7 +1019,7 @@ export function App() {
     setTimerState('idle');
     expectedEndRef.current = null;
     setTimeLeft(getModeDurationSeconds(mode));
-  }, [mode, getModeDurationSeconds, recordPartialSession]);
+  }, [mode, getModeDurationSeconds, recordPartialSession, saveStopwatchSession]);
 
   const handleSkip = useCallback(() => {
     if (autoStartTimeoutRef.current) {
@@ -1015,11 +1082,15 @@ export function App() {
     }
     setMode((prevMode) => {
       if (newMode === prevMode && timerState !== 'completed') return prevMode;
-      if (prevMode !== 'stopwatch') {
+      if (prevMode === 'stopwatch') {
+        saveStopwatchSession(true);
+      } else {
         recordPartialSession();
       }
       stopwatchStartRef.current = null;
       stopwatchAccumulatedRef.current = 0;
+      stopwatchSessionIdRef.current = null;
+      stopwatchStartedAtRef.current = null;
       isCompletingRef.current = false;
       sessionStartedAtRef.current = null;
       sessionTargetSecondsRef.current = 0;
@@ -1028,7 +1099,7 @@ export function App() {
       setTimeLeft(getModeDurationSeconds(newMode));
       return newMode;
     });
-  }, [timerState, getModeDurationSeconds, recordPartialSession]);
+  }, [timerState, getModeDurationSeconds, recordPartialSession, saveStopwatchSession]);
 
   // Keyboard Shortcuts Listener
   useEffect(() => {
