@@ -1131,34 +1131,133 @@ export const respondToGroupInvite = async (
   inviteId: string,
   accept: boolean,
   userId?: string
-): Promise<{ success: boolean; error?: string }> => {
-  const effectiveUserId = await getEffectiveUserId(userId);
-  if (!isSupabaseConfigured() || !effectiveUserId) return { success: true };
+): Promise<{ success: boolean; groupId?: string; error?: string }> => {
   const client = getSupabaseClient();
-  if (!client) return { success: false, error: 'Cloud unconfigured.' };
+  let authUid: string | null = null;
+  if (isSupabaseConfigured() && client) {
+    try {
+      const { data: { user: authUser } } = await client.auth.getUser();
+      authUid = authUser?.id || null;
+    } catch {}
+  }
+  const effectiveUserId = authUid || (await getEffectiveUserId(userId));
+
+  if (!isSupabaseConfigured() || !effectiveUserId) return { success: true };
+  if (!client) return { success: false, error: 'Cloud service unconfigured.' };
+
+  const actionStr = accept ? 'accepted' : 'rejected';
 
   try {
-    const status = accept ? 'accepted' : 'rejected';
-    const { data: inviteRow, error: updateErr } = await client
-      .from('group_invites')
-      .update({ status })
-      .eq('id', inviteId)
-      .eq('invitee_id', effectiveUserId)
-      .select()
-      .single();
+    // 1. Try atomic SECURITY DEFINER RPC
+    try {
+      const { data: rpcRes, error: rpcErr } = await client.rpc('respond_to_group_invite', {
+        p_invite_id: inviteId,
+        p_response: actionStr,
+      });
 
-    if (updateErr || !inviteRow) {
-      return { success: false, error: updateErr?.message || 'Failed to update invite.' };
+      if (import.meta.env.DEV) {
+        console.log('[INVITE RESPOND DEBUG] INVITE ID =', inviteId);
+        console.log('[INVITE RESPOND DEBUG] AUTH UID =', authUid);
+        console.log('[INVITE RESPOND DEBUG] INVITEE ID =', effectiveUserId);
+        console.log('[INVITE RESPOND DEBUG] JOIN RPC RESULT =', rpcRes);
+        console.log('[INVITE RESPOND DEBUG] JOIN RPC ERROR =', rpcErr ? rpcErr.message : 'NONE');
+      }
+
+      if (!rpcErr && rpcRes && typeof rpcRes === 'object') {
+        const resObj = rpcRes as { success?: boolean; groupId?: string; error?: string };
+        if (resObj.success) {
+          if (accept && resObj.groupId) {
+            // Verify membership read after RPC
+            const { data: memCheck } = await client
+              .from('group_members')
+              .select('id, user_id, group_id')
+              .eq('group_id', resObj.groupId)
+              .eq('user_id', effectiveUserId)
+              .maybeSingle();
+
+            if (import.meta.env.DEV) {
+              console.log('[INVITE RESPOND DEBUG] INVITE GROUP ID =', resObj.groupId);
+              console.log('[INVITE RESPOND DEBUG] MEMBERSHIP AFTER JOIN =', memCheck);
+              console.log('[INVITE RESPOND DEBUG] INVITE UPDATE RESULT = PASS');
+            }
+          }
+          return { success: true, groupId: resObj.groupId };
+        }
+        if (resObj.error) {
+          return { success: false, error: resObj.error };
+        }
+      }
+    } catch (e: any) {
+      if (import.meta.env.DEV) console.warn('[INVITE RESPOND DEBUG] RPC execution fallback:', e.message);
     }
 
+    // 2. Direct Fallback: Insert membership FIRST, then update invite status
     if (accept) {
-      const joinRes = await joinStudyGroup(inviteRow.group_id, effectiveUserId);
+      // First get invite info without modifying status
+      const { data: invRow, error: invFetchErr } = await client
+        .from('group_invites')
+        .select('group_id, invitee_id, status')
+        .eq('id', inviteId)
+        .eq('invitee_id', effectiveUserId)
+        .eq('status', 'pending')
+        .maybeSingle();
+
+      if (invFetchErr || !invRow) {
+        return { success: false, error: invFetchErr?.message || 'Pending invite not found.' };
+      }
+
+      if (import.meta.env.DEV) {
+        console.log('[INVITE RESPOND DEBUG] INVITE GROUP ID =', invRow.group_id);
+      }
+
+      // Join group FIRST
+      const joinRes = await joinStudyGroup(invRow.group_id, effectiveUserId);
       if (!joinRes.success) {
         return { success: false, error: joinRes.error || 'Failed to join group.' };
       }
-    }
 
-    return { success: true };
+      // Verify membership BEFORE updating invite status
+      const { data: memCheck, error: memErr } = await client
+        .from('group_members')
+        .select('id, user_id, group_id')
+        .eq('group_id', invRow.group_id)
+        .eq('user_id', effectiveUserId)
+        .maybeSingle();
+
+      if (import.meta.env.DEV) {
+        console.log('[INVITE RESPOND DEBUG] MEMBERSHIP AFTER JOIN =', memCheck);
+      }
+
+      if (memErr || !memCheck) {
+        return { success: false, error: 'Group membership verification failed. Invite status not updated.' };
+      }
+
+      // ONLY NOW update invite status to accepted
+      const { error: updateErr } = await client
+        .from('group_invites')
+        .update({ status: 'accepted' })
+        .eq('id', inviteId)
+        .eq('invitee_id', effectiveUserId);
+
+      if (import.meta.env.DEV) {
+        console.log('[INVITE RESPOND DEBUG] INVITE UPDATE RESULT =', updateErr ? 'FAIL' : 'PASS');
+      }
+
+      if (updateErr) {
+        return { success: false, error: updateErr.message };
+      }
+
+      return { success: true, groupId: invRow.group_id };
+    } else {
+      const { error: updateErr } = await client
+        .from('group_invites')
+        .update({ status: 'rejected' })
+        .eq('id', inviteId)
+        .eq('invitee_id', effectiveUserId);
+
+      if (updateErr) return { success: false, error: updateErr.message };
+      return { success: true };
+    }
   } catch (err: any) {
     return { success: false, error: err.message || 'Failed to respond to invite.' };
   }

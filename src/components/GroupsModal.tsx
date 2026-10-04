@@ -443,6 +443,11 @@ export const GroupsModal: React.FC<GroupsModalProps> = React.memo(({
       if (res.success) {
         showFeedback('success', accept ? 'Joined group!' : 'Invite declined.');
         await loadInitialData();
+        if (accept && res.groupId) {
+          setSelectedGroupId(res.groupId);
+          await loadGroupDetail(res.groupId);
+          setActiveTab('my-groups');
+        }
       } else {
         showFeedback('error', res.error || 'Failed to process invite.');
       }
