@@ -1,4 +1,4 @@
-export type TimerMode = 'pomodoro' | 'shortBreak' | 'longBreak';
+export type TimerMode = 'pomodoro' | 'shortBreak' | 'longBreak' | 'stopwatch';
 export type TimerState = 'idle' | 'running' | 'paused' | 'completed';
 
 export type AppTheme = 'dark' | 'light';

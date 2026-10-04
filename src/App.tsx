@@ -136,6 +136,7 @@ export function App() {
   // Helper to compute duration in seconds
   const getModeDurationSeconds = useCallback(
     (m: TimerMode, customSettings = settings): number => {
+      if (m === 'stopwatch') return 0;
       if (m === 'pomodoro') return customSettings.pomodoroDuration * 60;
       if (m === 'shortBreak') return customSettings.shortBreakDuration * 60;
       return customSettings.longBreakDuration * 60;
@@ -157,6 +158,8 @@ export function App() {
 
   // High precision timer reference & idempotency flag
   const expectedEndRef = useRef<number | null>(null);
+  const stopwatchStartRef = useRef<number | null>(null);
+  const stopwatchAccumulatedRef = useRef<number>(0);
   const isCompletingRef = useRef<boolean>(false);
   const autoStartTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sessionStartedAtRef = useRef<number | null>(null);
@@ -351,7 +354,7 @@ export function App() {
 
   // Document Title update
   useEffect(() => {
-    if (timerState === 'idle') {
+    if (timerState === 'idle' && mode !== 'stopwatch') {
       document.title = 'StudyLuno — Focus in your own atmosphere';
       return;
     }
@@ -361,14 +364,24 @@ export function App() {
       document.title = `${completionText} • StudyLuno`;
       return;
     }
-    const mins = Math.floor(timeLeft / 60);
+    const hours = Math.floor(timeLeft / 3600);
+    const mins = Math.floor((timeLeft % 3600) / 60);
     const secs = timeLeft % 60;
-    const formatted = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    const formatted =
+      mode === 'stopwatch' || hours > 0
+        ? `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+        : `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     const modeName =
-      mode === 'pomodoro' ? 'Focus' : mode === 'shortBreak' ? 'Short Break' : 'Long Break';
+      mode === 'pomodoro'
+        ? 'Focus'
+        : mode === 'shortBreak'
+        ? 'Short Break'
+        : mode === 'longBreak'
+        ? 'Long Break'
+        : t.stopwatch;
     const prefix = timerState === 'paused' ? '⏸ ' : '';
     document.title = `${prefix}(${formatted}) ${modeName} • StudyLuno`;
-  }, [timeLeft, mode, timerState]);
+  }, [timeLeft, mode, timerState, t.stopwatch]);
 
   // Fullscreen change listener
   useEffect(() => {
@@ -721,12 +734,38 @@ export function App() {
     getModeDurationSeconds,
   ]);
 
-  // Main Timer Countdown Loop (Persistent interval with zero-drift timestamp reference)
+  // Main Timer Countdown & Stopwatch Loop (Persistent interval with zero-drift timestamp reference)
   useEffect(() => {
     if (timerState !== 'running') return;
 
+    if (mode === 'stopwatch') {
+      if (!stopwatchStartRef.current) {
+        stopwatchStartRef.current = Date.now();
+      }
+      const interval = setInterval(() => {
+        if (!stopwatchStartRef.current) return;
+        const now = Date.now();
+        const elapsedSecs =
+          stopwatchAccumulatedRef.current +
+          Math.floor((now - stopwatchStartRef.current) / 1000);
+        setTimeLeft((prev) => {
+          if (prev !== elapsedSecs) {
+            if (settings.tickingEnabled && settings.soundEnabled) {
+              playTickSound(settings.soundVolume);
+            }
+            return elapsedSecs;
+          }
+          return prev;
+        });
+      }, 200);
+
+      return () => clearInterval(interval);
+    }
+
     if (!expectedEndRef.current) {
-      expectedEndRef.current = Date.now() + (timeLeftRef.current > 0 ? timeLeftRef.current : getModeDurationSeconds(modeRef.current)) * 1000;
+      expectedEndRef.current =
+        Date.now() +
+        (timeLeftRef.current > 0 ? timeLeftRef.current : getModeDurationSeconds(modeRef.current)) * 1000;
     }
 
     const interval = setInterval(() => {
@@ -754,27 +793,43 @@ export function App() {
     }, 200);
 
     return () => clearInterval(interval);
-  }, [timerState, settings.tickingEnabled, settings.soundEnabled, settings.soundVolume, handleSessionComplete, getModeDurationSeconds]);
+  }, [
+    mode,
+    timerState,
+    settings.tickingEnabled,
+    settings.soundEnabled,
+    settings.soundVolume,
+    handleSessionComplete,
+    getModeDurationSeconds,
+  ]);
 
   // Tab visibility synchronization (prevents background throttle drift)
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && timerState === 'running' && expectedEndRef.current) {
-        const now = Date.now();
-        const remainingMs = expectedEndRef.current - now;
-        const remainingSecs = Math.max(0, Math.ceil(remainingMs / 1000));
-        if (remainingSecs <= 0) {
-          expectedEndRef.current = null;
-          setTimeLeft(0);
-          handleSessionComplete();
-        } else {
-          setTimeLeft(remainingSecs);
+      if (document.visibilityState === 'visible' && timerState === 'running') {
+        if (mode === 'stopwatch' && stopwatchStartRef.current) {
+          const now = Date.now();
+          const elapsedSecs =
+            stopwatchAccumulatedRef.current +
+            Math.floor((now - stopwatchStartRef.current) / 1000);
+          setTimeLeft(elapsedSecs);
+        } else if (expectedEndRef.current) {
+          const now = Date.now();
+          const remainingMs = expectedEndRef.current - now;
+          const remainingSecs = Math.max(0, Math.ceil(remainingMs / 1000));
+          if (remainingSecs <= 0) {
+            expectedEndRef.current = null;
+            setTimeLeft(0);
+            handleSessionComplete();
+          } else {
+            setTimeLeft(remainingSecs);
+          }
         }
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [timerState, handleSessionComplete]);
+  }, [mode, timerState, handleSessionComplete]);
 
   // Window beforeunload listener: save partial session if user closes tab or navigates away
   useEffect(() => {
@@ -822,6 +877,11 @@ export function App() {
       autoStartTimeoutRef.current = null;
     }
     isCompletingRef.current = false;
+    if (mode === 'stopwatch') {
+      stopwatchStartRef.current = Date.now();
+      setTimerState('running');
+      return;
+    }
     const targetDuration = timeLeft <= 0 ? getModeDurationSeconds(mode) : timeLeft;
     if (sessionStartedAtRef.current === null) {
       sessionStartedAtRef.current = Date.now();
@@ -830,12 +890,21 @@ export function App() {
     setTimeLeft(targetDuration);
     expectedEndRef.current = Date.now() + targetDuration * 1000;
     setTimerState('running');
-  }, [timeLeft, mode, getModeDurationSeconds]);
+  }, [mode, timeLeft, getModeDurationSeconds]);
 
   const handlePause = useCallback(() => {
     if (autoStartTimeoutRef.current) {
       clearTimeout(autoStartTimeoutRef.current);
       autoStartTimeoutRef.current = null;
+    }
+    if (mode === 'stopwatch') {
+      if (stopwatchStartRef.current) {
+        stopwatchAccumulatedRef.current += Math.floor((Date.now() - stopwatchStartRef.current) / 1000);
+        stopwatchStartRef.current = null;
+      }
+      setTimeLeft(stopwatchAccumulatedRef.current);
+      setTimerState('paused');
+      return;
     }
     if (expectedEndRef.current) {
       const remainingMs = Math.max(0, expectedEndRef.current - Date.now());
@@ -843,7 +912,7 @@ export function App() {
     }
     setTimerState('paused');
     expectedEndRef.current = null;
-  }, []);
+  }, [mode]);
 
   const handleResume = useCallback(() => {
     if (autoStartTimeoutRef.current) {
@@ -851,18 +920,30 @@ export function App() {
       autoStartTimeoutRef.current = null;
     }
     isCompletingRef.current = false;
+    if (mode === 'stopwatch') {
+      stopwatchStartRef.current = Date.now();
+      setTimerState('running');
+      return;
+    }
     if (sessionStartedAtRef.current === null) {
       sessionStartedAtRef.current = Date.now();
       sessionTargetSecondsRef.current = timeLeft;
     }
     expectedEndRef.current = Date.now() + timeLeft * 1000;
     setTimerState('running');
-  }, [timeLeft]);
+  }, [mode, timeLeft]);
 
   const handleReset = useCallback(() => {
     if (autoStartTimeoutRef.current) {
       clearTimeout(autoStartTimeoutRef.current);
       autoStartTimeoutRef.current = null;
+    }
+    if (mode === 'stopwatch') {
+      stopwatchStartRef.current = null;
+      stopwatchAccumulatedRef.current = 0;
+      setTimeLeft(0);
+      setTimerState('idle');
+      return;
     }
     recordPartialSession();
     isCompletingRef.current = false;
@@ -934,7 +1015,11 @@ export function App() {
     }
     setMode((prevMode) => {
       if (newMode === prevMode && timerState !== 'completed') return prevMode;
-      recordPartialSession();
+      if (prevMode !== 'stopwatch') {
+        recordPartialSession();
+      }
+      stopwatchStartRef.current = null;
+      stopwatchAccumulatedRef.current = 0;
       isCompletingRef.current = false;
       sessionStartedAtRef.current = null;
       sessionTargetSecondsRef.current = 0;
@@ -1235,6 +1320,7 @@ export function App() {
             {/* 3. Timer Controls */}
             <TimerControls
               timerState={timerState}
+              mode={mode}
               onStart={handleStart}
               onPause={handlePause}
               onResume={handleResume}

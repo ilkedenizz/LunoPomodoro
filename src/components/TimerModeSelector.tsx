@@ -22,6 +22,7 @@ export const TimerModeSelector: React.FC<TimerModeSelectorProps> = React.memo(({
     { id: 'pomodoro', label: t.pomodoro },
     { id: 'shortBreak', label: t.shortBreak },
     { id: 'longBreak', label: t.longBreak },
+    { id: 'stopwatch', label: t.stopwatch },
   ];
 
   return (

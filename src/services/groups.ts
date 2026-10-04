@@ -74,10 +74,10 @@ export const getUserStudyGroups = async (userId?: string): Promise<StudyGroup[]>
   if (!client) return [];
 
   try {
-    // Fetch group memberships for calling user AND groups owned by calling user
-    const { data: memberRows } = await client
+    // Fetch group memberships for calling user (with embedded groups) AND groups owned by calling user
+    const { data: memberWithGroups } = await client
       .from('group_members')
-      .select('group_id, role, joined_at')
+      .select('group_id, role, joined_at, groups(*)')
       .eq('user_id', effectiveId);
 
     const { data: ownedGroupRows } = await client
@@ -87,11 +87,17 @@ export const getUserStudyGroups = async (userId?: string): Promise<StudyGroup[]>
 
     const groupIdsSet = new Set<string>();
     const roleMap = new Map<string, GroupRole>();
+    const groupMap = new Map<string, any>();
 
-    if (memberRows && Array.isArray(memberRows)) {
-      memberRows.forEach((m: any) => {
-        groupIdsSet.add(m.group_id);
-        roleMap.set(m.group_id, m.role as GroupRole);
+    if (memberWithGroups && Array.isArray(memberWithGroups)) {
+      memberWithGroups.forEach((m: any) => {
+        if (m.group_id) {
+          groupIdsSet.add(m.group_id);
+          roleMap.set(m.group_id, m.role as GroupRole);
+          if (m.groups && typeof m.groups === 'object' && !Array.isArray(m.groups)) {
+            groupMap.set(m.group_id, m.groups);
+          }
+        }
       });
     }
 
@@ -107,14 +113,26 @@ export const getUserStudyGroups = async (userId?: string): Promise<StudyGroup[]>
     const groupIds = Array.from(groupIdsSet);
     if (groupIds.length === 0) return [];
 
-    // Fetch groups
-    const { data: groupRows, error: groupErr } = await client
-      .from('groups')
-      .select('*')
-      .in('id', groupIds)
-      .order('created_at', { ascending: false });
+    // Fetch missing groups directly from table if relationship didn't return all
+    const missingGroupIds = groupIds.filter((id) => !groupMap.has(id));
+    if (missingGroupIds.length > 0) {
+      const { data: fetchedRows } = await client
+        .from('groups')
+        .select('*')
+        .in('id', missingGroupIds);
 
-    if (groupErr || !groupRows) return [];
+      if (fetchedRows && Array.isArray(fetchedRows)) {
+        fetchedRows.forEach((g: any) => groupMap.set(g.id, g));
+      }
+    }
+
+    const groupRows = Array.from(groupMap.values()).sort((a: any, b: any) => {
+      const timeA = new Date(a.created_at || 0).getTime();
+      const timeB = new Date(b.created_at || 0).getTime();
+      return timeB - timeA;
+    });
+
+    if (groupRows.length === 0) return [];
 
     // Fetch counts and goals in parallel
     const startOfWeekISO = new Date(getStartOfWeek()).toISOString();

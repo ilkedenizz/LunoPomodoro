@@ -46,9 +46,11 @@ export interface Translations {
   pomodoro: string;
   shortBreak: string;
   longBreak: string;
+  stopwatch: string;
   focusSessionHeading: string;
   shortBreakHeading: string;
   longBreakHeading: string;
+  stopwatchHeading: string;
   cycle: string;
   start: string;
   pause: string;
@@ -445,9 +447,11 @@ export const TRANSLATIONS: Record<AppLanguage, Translations> = {
     pomodoro: 'Pomodoro',
     shortBreak: 'Short Break',
     longBreak: 'Long Break',
+    stopwatch: 'Stopwatch',
     focusSessionHeading: 'FOCUS SESSION',
     shortBreakHeading: 'SHORT BREAK',
     longBreakHeading: 'LONG BREAK',
+    stopwatchHeading: 'STOPWATCH',
     cycle: 'Cycle',
     start: 'Start',
     pause: 'Pause',
@@ -842,9 +846,11 @@ export const TRANSLATIONS: Record<AppLanguage, Translations> = {
     pomodoro: 'Pomodoro',
     shortBreak: 'Kısa Mola',
     longBreak: 'Uzun Mola',
+    stopwatch: 'Kronometre',
     focusSessionHeading: 'ODAKLANMA OTURUMU',
     shortBreakHeading: 'KISA MOLA',
     longBreakHeading: 'UZUN MOLA',
+    stopwatchHeading: 'KRONOMETRE',
     cycle: 'Döngü',
     start: 'Başlat',
     pause: 'Duraklat',

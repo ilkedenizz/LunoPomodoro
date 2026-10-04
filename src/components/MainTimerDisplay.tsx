@@ -32,15 +32,23 @@ export const MainTimerDisplay: React.FC<MainTimerDisplayProps> = React.memo(({
   language = 'en',
 }) => {
   const t = getTranslations(language);
-  const minutes = Math.floor(timeLeftSeconds / 60);
+  const hours = Math.floor(timeLeftSeconds / 3600);
+  const minutes = Math.floor((timeLeftSeconds % 3600) / 60);
   const seconds = timeLeftSeconds % 60;
 
-  const formattedTime = `${minutes.toString().padStart(2, '0')}:${seconds
-    .toString()
-    .padStart(2, '0')}`;
+  const formattedTime =
+    mode === 'stopwatch' || hours > 0
+      ? `${hours.toString().padStart(2, '0')}:${minutes
+          .toString()
+          .padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+      : `${minutes.toString().padStart(2, '0')}:${seconds
+          .toString()
+          .padStart(2, '0')}`;
 
   const progress =
-    totalDurationSeconds > 0
+    mode === 'stopwatch'
+      ? ((timeLeftSeconds % 60) / 60) * 100
+      : totalDurationSeconds > 0
       ? ((totalDurationSeconds - timeLeftSeconds) / totalDurationSeconds) * 100
       : 0;
 
@@ -72,7 +80,9 @@ export const MainTimerDisplay: React.FC<MainTimerDisplayProps> = React.memo(({
     ? t.focusSessionHeading
     : mode === 'shortBreak'
     ? t.shortBreakHeading
-    : t.longBreakHeading;
+    : mode === 'longBreak'
+    ? t.longBreakHeading
+    : t.stopwatchHeading;
 
   const effectiveProgress = isCompleted ? 100 : progress;
 

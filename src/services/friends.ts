@@ -609,18 +609,53 @@ export const getFriendPublicStats = async (targetUserId: string): Promise<Friend
 
     if (!profile) return null;
 
+    // Fetch friend's focus_sessions for direct stats calculation
+    const { data: sessions } = await client
+      .from('focus_sessions')
+      .select('duration_minutes, actual_duration_seconds, timestamp, mode, completed')
+      .eq('user_id', cleanId);
+
+    let todayMins = 0;
+    let weekMins = 0;
+    let monthMins = 0;
+    let totalMins = 0;
+    let totalSess = 0;
+
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay())).getTime();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+
+    if (sessions && Array.isArray(sessions)) {
+      sessions.forEach((s: any) => {
+        if (s.mode === 'pomodoro' && s.completed !== false) {
+          const mins = typeof s.actual_duration_seconds === 'number' && s.actual_duration_seconds > 0
+            ? Math.max(1, Math.round(s.actual_duration_seconds / 60))
+            : (s.duration_minutes || 0);
+
+          const time = new Date(s.timestamp).getTime();
+          totalMins += mins;
+          totalSess += 1;
+
+          if (time >= startOfDay) todayMins += mins;
+          if (time >= startOfWeek) weekMins += mins;
+          if (time >= startOfMonth) monthMins += mins;
+        }
+      });
+    }
+
     return {
       userId: profile.id,
       nickname: profile.nickname || 'User',
       displayName: profile.display_name || undefined,
       avatarUrl: profile.avatar_url || undefined,
       joinedAt: safeParseTimestamp(profile.created_at),
-      todayMinutes: 0,
-      weekMinutes: 0,
-      monthMinutes: 0,
-      totalMinutes: 0,
-      totalSessions: 0,
-      dailyAverageMinutes: 0,
+      todayMinutes: todayMins,
+      weekMinutes: weekMins,
+      monthMinutes: monthMins,
+      totalMinutes: totalMins,
+      totalSessions: totalSess,
+      dailyAverageMinutes: totalSess > 0 ? Math.round(totalMins / Math.max(1, totalSess)) : 0,
       dailyHistory: [],
       recentActivities: [],
     };

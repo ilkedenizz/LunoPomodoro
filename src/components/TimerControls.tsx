@@ -1,10 +1,11 @@
 import React from 'react';
 import { Play, Pause, RotateCcw, SkipForward, Coffee, Sparkles } from 'lucide-react';
-import type { TimerState, AppTheme, AppLanguage } from '../types';
+import type { TimerState, TimerMode, AppTheme, AppLanguage } from '../types';
 import { getTranslations } from '../utils/translations';
 
 interface TimerControlsProps {
   timerState: TimerState;
+  mode?: TimerMode;
   onStart: () => void;
   onPause: () => void;
   onResume: () => void;
@@ -19,6 +20,7 @@ interface TimerControlsProps {
 
 export const TimerControls: React.FC<TimerControlsProps> = React.memo(({
   timerState,
+  mode,
   onStart,
   onPause,
   onResume,
@@ -140,19 +142,21 @@ export const TimerControls: React.FC<TimerControlsProps> = React.memo(({
         </button>
       )}
 
-      {/* Skip Button */}
-      <button
-        onClick={onSkip}
-        aria-label={t.skip}
-        className={`min-w-[48px] min-h-[48px] p-3.5 sm:p-4 rounded-2xl glass-panel glass-panel-hover transition-all transform active:scale-95 focus:outline-none focus-visible:ring-2 ${
-          isLight
-            ? 'text-slate-600 hover:text-slate-900 focus-visible:ring-slate-400'
-            : 'text-white/70 hover:text-white focus-visible:ring-white/60'
-        }`}
-        title={`${t.skip} (S)`}
-      >
-        <SkipForward className="w-5 h-5 sm:w-6 sm:h-6" />
-      </button>
+      {/* Skip Button (Hidden in Stopwatch mode) */}
+      {mode !== 'stopwatch' && (
+        <button
+          onClick={onSkip}
+          aria-label={t.skip}
+          className={`min-w-[48px] min-h-[48px] p-3.5 sm:p-4 rounded-2xl glass-panel glass-panel-hover transition-all transform active:scale-95 focus:outline-none focus-visible:ring-2 ${
+            isLight
+              ? 'text-slate-600 hover:text-slate-900 focus-visible:ring-slate-400'
+              : 'text-white/70 hover:text-white focus-visible:ring-white/60'
+          }`}
+          title={`${t.skip} (S)`}
+        >
+          <SkipForward className="w-5 h-5 sm:w-6 sm:h-6" />
+        </button>
+      )}
     </div>
   );
 });
