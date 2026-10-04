@@ -563,44 +563,55 @@ export interface FriendPublicStats {
 }
 
 export const getFriendPublicStats = async (targetUserId: string): Promise<FriendPublicStats | null> => {
+  if (!targetUserId || typeof targetUserId !== 'string' || !targetUserId.trim()) return null;
   if (!isSupabaseConfigured()) return null;
   const client = getSupabaseClient();
   if (!client) return null;
 
   try {
-    const { data, error } = await client.rpc('get_user_public_stats', { target_user_id: targetUserId });
-    if (!error && data && data.success) {
+    const cleanId = targetUserId.trim();
+    const { data, error } = await client.rpc('get_user_public_stats', { target_user_id: cleanId });
+
+    if (import.meta.env.DEV && error) {
+      console.warn('[Luno getFriendPublicStats RPC Warning]:', error);
+    }
+
+    if (!error && data && (data.success !== false)) {
       return {
-        userId: data.userId,
-        nickname: data.nickname,
-        displayName: data.displayName || undefined,
-        avatarUrl: data.avatarUrl || undefined,
-        joinedAt: safeParseTimestamp(data.joinedAt),
-        todayMinutes: Number(data.todayMinutes) || 0,
-        weekMinutes: Number(data.weekMinutes) || 0,
-        monthMinutes: Number(data.monthMinutes) || 0,
-        totalMinutes: Number(data.totalMinutes) || 0,
-        totalSessions: Number(data.totalSessions) || 0,
-        dailyAverageMinutes: Number(data.dailyAverageMinutes) || 0,
-        lastActiveAt: data.lastActiveAt ? safeParseTimestamp(data.lastActiveAt) : undefined,
-        lastSessionMinutes: data.lastSessionMinutes ? Number(data.lastSessionMinutes) : undefined,
-        dailyHistory: Array.isArray(data.dailyHistory) ? data.dailyHistory : [],
-        recentActivities: Array.isArray(data.recentActivities) ? data.recentActivities : [],
+        userId: data.userId || data.user_id || cleanId,
+        nickname: data.nickname || 'User',
+        displayName: data.displayName || data.display_name || undefined,
+        avatarUrl: data.avatarUrl || data.avatar_url || undefined,
+        joinedAt: safeParseTimestamp(data.joinedAt || data.joined_at),
+        todayMinutes: Number(data.todayMinutes ?? data.today_minutes) || 0,
+        weekMinutes: Number(data.weekMinutes ?? data.week_minutes) || 0,
+        monthMinutes: Number(data.monthMinutes ?? data.month_minutes) || 0,
+        totalMinutes: Number(data.totalMinutes ?? data.total_minutes) || 0,
+        totalSessions: Number(data.totalSessions ?? data.total_sessions) || 0,
+        dailyAverageMinutes: Number(data.dailyAverageMinutes ?? data.daily_average_minutes) || 0,
+        lastActiveAt: (data.lastActiveAt || data.last_active_at) ? safeParseTimestamp(data.lastActiveAt || data.last_active_at) : undefined,
+        lastSessionMinutes: (data.lastSessionMinutes ?? data.last_session_minutes) ? Number(data.lastSessionMinutes ?? data.last_session_minutes) : undefined,
+        dailyHistory: Array.isArray(data.dailyHistory || data.daily_history) ? (data.dailyHistory || data.daily_history) : [],
+        recentActivities: Array.isArray(data.recentActivities || data.recent_activities) ? (data.recentActivities || data.recent_activities) : [],
       };
     }
 
-    // Fallback direct select on profiles
-    const { data: profile } = await client
+    // Fallback direct select on profiles if RPC is not present or failed
+    const { data: profile, error: profErr } = await client
       .from('profiles')
       .select('id, nickname, display_name, avatar_url, created_at')
-      .eq('id', targetUserId)
-      .single();
+      .eq('id', cleanId)
+      .maybeSingle();
+
+    if (import.meta.env.DEV && profErr) {
+      console.error('[Luno getFriendPublicStats Fallback Profile Error]:', profErr);
+    }
 
     if (!profile) return null;
 
     return {
       userId: profile.id,
-      nickname: profile.nickname,
+      nickname: profile.nickname || 'User',
       displayName: profile.display_name || undefined,
       avatarUrl: profile.avatar_url || undefined,
       joinedAt: safeParseTimestamp(profile.created_at),
@@ -615,7 +626,7 @@ export const getFriendPublicStats = async (targetUserId: string): Promise<Friend
     };
   } catch (err) {
     if (import.meta.env.DEV) {
-      console.error('[Luno getFriendPublicStats Error]:', err);
+      console.error('[Luno getFriendPublicStats Exception]:', err);
     }
     return null;
   }
