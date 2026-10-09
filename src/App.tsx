@@ -179,6 +179,16 @@ export function App() {
     activeGroupRef.current = activeGroup;
   }, [activeGroup]);
 
+  // Cleanup auto-start timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (autoStartTimeoutRef.current) {
+        clearTimeout(autoStartTimeoutRef.current);
+        autoStartTimeoutRef.current = null;
+      }
+    };
+  }, []);
+
   // Preload lazy modals during browser idle time for zero-delay modal opening
   useEffect(() => {
     const preloadModals = () => {
@@ -1111,7 +1121,12 @@ export function App() {
   // Keyboard Shortcuts Listener
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target as HTMLElement).tagName)) {
+      const target = e.target as HTMLElement | null;
+      if (
+        !target ||
+        ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) ||
+        target.isContentEditable
+      ) {
         return;
       }
 

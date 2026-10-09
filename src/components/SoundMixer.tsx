@@ -31,27 +31,29 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ mixerState, onChange, la
   };
 
   const handleTrackVolumeChange = (trackId: Exclude<AmbientSoundId, 'off'>, vol: number) => {
+    const existing = mixerState.tracks?.[trackId] || { volume: 0, muted: false };
     onChange({
       ...mixerState,
       tracks: {
-        ...mixerState.tracks,
+        ...(mixerState.tracks || {}),
         [trackId]: {
-          ...mixerState.tracks[trackId],
+          ...existing,
           volume: vol,
-          muted: vol === 0 ? false : mixerState.tracks[trackId].muted,
+          muted: vol === 0 ? false : existing.muted,
         },
       },
     });
   };
 
   const handleTrackMuteToggle = (trackId: Exclude<AmbientSoundId, 'off'>) => {
+    const existing = mixerState.tracks?.[trackId] || { volume: 0, muted: false };
     onChange({
       ...mixerState,
       tracks: {
-        ...mixerState.tracks,
+        ...(mixerState.tracks || {}),
         [trackId]: {
-          ...mixerState.tracks[trackId],
-          muted: !mixerState.tracks[trackId].muted,
+          ...existing,
+          muted: !existing.muted,
         },
       },
     });
@@ -123,7 +125,7 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ mixerState, onChange, la
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {TRACK_CONFIG.map(({ id, label, icon: Icon }) => {
-            const trackState = mixerState.tracks[id];
+            const trackState = mixerState?.tracks?.[id] || { volume: 0, muted: false };
             const isActive = trackState.volume > 0 && !trackState.muted;
 
             return (
