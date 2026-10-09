@@ -187,7 +187,7 @@ export const GroupsModal: React.FC<GroupsModalProps> = React.memo(({
     } finally {
       setIsLoading(false);
     }
-  }, [user?.id, onPendingInvitesCountChange]);
+  }, [user, onPendingInvitesCountChange]);
 
   // Load Discover Groups
   const loadDiscover = useCallback(async () => {
@@ -197,7 +197,7 @@ export const GroupsModal: React.FC<GroupsModalProps> = React.memo(({
     } catch (err) {
       if (import.meta.env.DEV) console.error('[Luno loadDiscover Error]:', err);
     }
-  }, [user?.id]);
+  }, [user]);
 
   // Ref tracking current selected group ID to prevent race conditions during async fetches
   const selectedGroupIdRef = React.useRef(selectedGroupId);
@@ -221,7 +221,7 @@ export const GroupsModal: React.FC<GroupsModalProps> = React.memo(({
         setIsLoadingDetail(false);
       }
     }
-  }, [user?.id]);
+  }, [user]);
 
   useEffect(() => {
     if (import.meta.env.DEV && selectedGroupDetails && selectedGroupDetails.group && Array.isArray(selectedGroupDetails.members)) {
@@ -244,23 +244,25 @@ export const GroupsModal: React.FC<GroupsModalProps> = React.memo(({
 
   useEffect(() => {
     if (isOpen) {
-      loadInitialData();
+      Promise.resolve().then(() => loadInitialData());
     }
   }, [isOpen, loadInitialData]);
 
   useEffect(() => {
     if (isOpen && activeTab === 'discover') {
-      loadDiscover();
+      Promise.resolve().then(() => loadDiscover());
     }
   }, [isOpen, activeTab, loadDiscover]);
 
   useEffect(() => {
     if (!isOpen || !selectedGroupId) {
-      if (!selectedGroupId) setSelectedGroupDetails(null);
+      if (!selectedGroupId) {
+        Promise.resolve().then(() => setSelectedGroupDetails(null));
+      }
       return;
     }
 
-    loadGroupDetail(selectedGroupId);
+    Promise.resolve().then(() => loadGroupDetail(selectedGroupId));
 
     const interval = setInterval(() => {
       if (selectedGroupIdRef.current === selectedGroupId) {

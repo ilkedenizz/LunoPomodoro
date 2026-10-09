@@ -145,14 +145,17 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
   const [isLoadingUserGroups, setIsLoadingUserGroups] = useState(false);
   const [sendingInviteGroupId, setSendingInviteGroupId] = useState<string | null>(null);
 
+  const [currentTimestamp] = useState(() => Date.now());
+
   // User's own focus stats for comparison
   const myStats = useMemo(() => {
     if (!isOpen) return { todayMinutes: 0, weekMinutes: 0, monthMinutes: 0, totalMinutes: 0, totalSessions: 0, dailyAverageMinutes: 0 };
     const sessions = loadSessions();
+    const now = currentTimestamp;
     const isFocusMode = (m?: string) => m === 'pomodoro' || m === 'stopwatch' || m === 'focus';
     const todaySes = sessions.filter((s) => isToday(s.timestamp) && isFocusMode(s.mode));
-    const weekSes = sessions.filter((s) => s.timestamp >= Date.now() - 7 * 86400 * 1000 && isFocusMode(s.mode));
-    const monthSes = sessions.filter((s) => s.timestamp >= Date.now() - 30 * 86400 * 1000 && isFocusMode(s.mode));
+    const weekSes = sessions.filter((s) => s.timestamp >= now - 7 * 86400 * 1000 && isFocusMode(s.mode));
+    const monthSes = sessions.filter((s) => s.timestamp >= now - 30 * 86400 * 1000 && isFocusMode(s.mode));
     const totalSes = sessions.filter((s) => isFocusMode(s.mode));
 
     const todayMins = todaySes.reduce((acc, s) => acc + getSessionMinutes(s), 0);
@@ -171,7 +174,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
       totalSessions: totalCount,
       dailyAverageMinutes: dailyAvgMins,
     };
-  }, [isOpen]);
+  }, [isOpen, currentTimestamp]);
 
   const handleSelectFriend = useCallback(async (friend: Friend | PublicUserProfile) => {
     if (import.meta.env.DEV) {
@@ -198,9 +201,14 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
     }
   }, [user?.id]);
 
+  const loadedInitialFriendIdRef = useRef<string | null>(null);
+
   useEffect(() => {
-    if (isOpen && initialSelectedFriend) {
+    if (isOpen && initialSelectedFriend && loadedInitialFriendIdRef.current !== initialSelectedFriend.id) {
+      loadedInitialFriendIdRef.current = initialSelectedFriend.id;
       handleSelectFriend(initialSelectedFriend);
+    } else if (!isOpen) {
+      loadedInitialFriendIdRef.current = null;
     }
   }, [isOpen, initialSelectedFriend, handleSelectFriend]);
 

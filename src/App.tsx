@@ -787,6 +787,7 @@ export function App() {
     settings,
     activeTaskId,
     activeTaskTitle,
+    activeGroup,
     user,
     todayPomodorosCount,
     getModeDurationSeconds,
@@ -921,6 +922,7 @@ export function App() {
             actualDurationSeconds: elapsed,
             completed: false,
             taskTitle: activeTaskTitleRef.current || undefined,
+            groupId: activeGroupRef.current?.id,
           };
           saveSession(partialSession);
           if (userRef.current) {

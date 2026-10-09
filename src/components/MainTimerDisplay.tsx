@@ -267,7 +267,11 @@ export const MainTimerDisplay: React.FC<MainTimerDisplayProps> = React.memo(({
               : 'border-purple-400/30 text-purple-200 bg-purple-500/20'
           }`}
         >
-          <span className="text-sm shrink-0">{activeGroup.avatarUrl || '📚'}</span>
+          <span className="text-sm shrink-0">
+            {activeGroup.avatarUrl && (activeGroup.avatarUrl.startsWith('http') || activeGroup.avatarUrl.length <= 4)
+              ? activeGroup.avatarUrl
+              : '📚'}
+          </span>
           <span
             className={`uppercase tracking-widest text-[9px] font-mono shrink-0 ${
               isLight ? 'text-purple-600 font-semibold' : 'text-purple-300/80'

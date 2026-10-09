@@ -1019,8 +1019,8 @@ export class SyncEngine {
             id: p.id,
             user_id: userId,
             name: p.name,
-            atmosphereId: p.atmosphereId,
-            soundMixer: p.soundMixer,
+            atmosphere_id: p.atmosphereId,
+            sound_mixer: p.soundMixer,
             created_at: new Date(p.createdAt).toISOString(),
           }));
           await client.from('atmosphere_presets').upsert(presetsPayload);

@@ -605,6 +605,8 @@ export const getFriendPublicStats = async (targetUserId: string): Promise<Friend
             : (s.duration_minutes || 0);
 
           const time = new Date(s.timestamp).getTime();
+          if (isNaN(time)) return;
+
           directTotalMins += mins;
           directTotalSess += 1;
 

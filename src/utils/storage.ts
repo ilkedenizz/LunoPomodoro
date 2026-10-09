@@ -320,11 +320,11 @@ export const loadSoundMixerState = (): SoundMixerState => {
         ? parsed.masterVolume
         : DEFAULT_SOUND_MIXER.masterVolume,
       tracks: {
-        rain: { volume: Number(parsed.tracks?.rain?.volume) || 0, muted: Boolean(parsed.tracks?.rain?.muted) },
-        cafe: { volume: Number(parsed.tracks?.cafe?.volume) || 0, muted: Boolean(parsed.tracks?.cafe?.muted) },
-        fire: { volume: Number(parsed.tracks?.fire?.volume) || 0, muted: Boolean(parsed.tracks?.fire?.muted) },
-        waves: { volume: Number(parsed.tracks?.waves?.volume) || 0, muted: Boolean(parsed.tracks?.waves?.muted) },
-        lofi: { volume: Number(parsed.tracks?.lofi?.volume) || 0, muted: Boolean(parsed.tracks?.lofi?.muted) },
+        rain: { volume: Math.max(0, Math.min(1, Number(parsed.tracks?.rain?.volume) || 0)), muted: Boolean(parsed.tracks?.rain?.muted) },
+        cafe: { volume: Math.max(0, Math.min(1, Number(parsed.tracks?.cafe?.volume) || 0)), muted: Boolean(parsed.tracks?.cafe?.muted) },
+        fire: { volume: Math.max(0, Math.min(1, Number(parsed.tracks?.fire?.volume) || 0)), muted: Boolean(parsed.tracks?.fire?.muted) },
+        waves: { volume: Math.max(0, Math.min(1, Number(parsed.tracks?.waves?.volume) || 0)), muted: Boolean(parsed.tracks?.waves?.muted) },
+        lofi: { volume: Math.max(0, Math.min(1, Number(parsed.tracks?.lofi?.volume) || 0)), muted: Boolean(parsed.tracks?.lofi?.muted) },
       },
     };
   } catch {

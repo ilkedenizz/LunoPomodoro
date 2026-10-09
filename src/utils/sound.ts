@@ -86,6 +86,7 @@ class AmbientEngine {
   public currentTrack: AmbientSoundId = 'off';
   public currentVolume = 0.5;
   private isInitialized = false;
+  private stopTimeout: ReturnType<typeof setTimeout> | null = null;
 
   public setVolume(vol: number) {
     this.currentVolume = vol;
@@ -103,10 +104,14 @@ class AmbientEngine {
   }
 
   public stop() {
+    if (this.stopTimeout) {
+      clearTimeout(this.stopTimeout);
+      this.stopTimeout = null;
+    }
     if (this.masterGain && this.ctx) {
       this.masterGain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.1);
     }
-    setTimeout(() => {
+    this.stopTimeout = setTimeout(() => {
       this.activeNodes.forEach((node) => {
         try {
           if ('stop' in node && typeof node.stop === 'function') {
@@ -120,10 +125,15 @@ class AmbientEngine {
       this.trackGains = {};
       this.currentTrack = 'off';
       this.isInitialized = false;
+      this.stopTimeout = null;
     }, 150);
   }
 
   private initEngine(masterVol: number) {
+    if (this.stopTimeout) {
+      clearTimeout(this.stopTimeout);
+      this.stopTimeout = null;
+    }
     if (this.isInitialized && this.ctx && this.masterGain) return;
     this.ctx = getAudioContext();
     const now = this.ctx.currentTime;
